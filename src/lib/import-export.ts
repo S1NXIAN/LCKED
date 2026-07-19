@@ -86,26 +86,6 @@ function rowToObject(headers: string[], row: string[]): Record<string, string> {
 
 /* ------------------------- item factory helpers --------------------------- */
 
-function baseFields(
-  type: ItemType,
-  name: string,
-  folder: string,
-  favorite: boolean,
-  notes: string,
-): NewItemInput {
-  return {
-    type,
-    name: name || "Untitled",
-    favorite: Boolean(favorite),
-    folder: folder || "",
-    customFields: [],
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    // @ts-expect-error — details attached by each builder; union narrow at call site
-    details: { notes },
-  } as NewItemInput;
-}
-
 function makeLogin(o: {
   name: string;
   username: string;
@@ -115,11 +95,13 @@ function makeLogin(o: {
   notes: string;
   folder: string;
   favorite: boolean;
+  pinned?: boolean;
 }): NewItemInput {
   return {
     type: "login",
     name: o.name,
     favorite: o.favorite,
+    pinned: o.pinned ?? false,
     folder: o.folder,
     customFields: [],
     createdAt: Date.now(),
@@ -134,11 +116,12 @@ function makeLogin(o: {
   };
 }
 
-function makeNote(o: { name: string; content: string; folder: string; favorite: boolean }): NewItemInput {
+function makeNote(o: { name: string; content: string; folder: string; favorite: boolean; pinned?: boolean }): NewItemInput {
   return {
     type: "note",
     name: o.name,
     favorite: o.favorite,
+    pinned: o.pinned ?? false,
     folder: o.folder,
     customFields: [],
     createdAt: Date.now(),
@@ -158,11 +141,13 @@ function makeCard(o: {
   notes: string;
   folder: string;
   favorite: boolean;
+  pinned?: boolean;
 }): NewItemInput {
   return {
     type: "card",
     name: o.name,
     favorite: o.favorite,
+    pinned: o.pinned ?? false,
     folder: o.folder,
     customFields: [],
     createdAt: Date.now(),
@@ -195,11 +180,13 @@ function makeIdentity(o: {
   notes: string;
   folder: string;
   favorite: boolean;
+  pinned?: boolean;
 }): NewItemInput {
   return {
     type: "identity",
     name: o.name,
     favorite: o.favorite,
+    pinned: o.pinned ?? false,
     folder: o.folder,
     customFields: [],
     createdAt: Date.now(),
@@ -347,6 +334,7 @@ export function parseBitwardenCsv(text: string): ImportResult {
       const name = o.name || "Untitled";
       const folder = o.folder || "";
       const favorite = /^(1|true|yes)$/i.test(o.favorite);
+      const pinned = /^(1|true|yes)$/i.test(o.pinned);
       const notes = o.notes || "";
       if (typeStr === "login" || typeStr === "1") {
         const urls = (o.login_uri || "").split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
@@ -360,10 +348,11 @@ export function parseBitwardenCsv(text: string): ImportResult {
             notes,
             folder,
             favorite,
+            pinned,
           }),
         );
       } else if (typeStr === "note" || typeStr === "2") {
-        items.push(makeNote({ name, content: notes, folder, favorite }));
+        items.push(makeNote({ name, content: notes, folder, favorite, pinned }));
       } else if (typeStr === "card" || typeStr === "3") {
         const number = o.card_number || "";
         items.push(
@@ -400,6 +389,7 @@ export function parseBitwardenCsv(text: string): ImportResult {
             notes,
             folder,
             favorite,
+            pinned,
           }),
         );
       } else {
@@ -772,6 +762,7 @@ const CSV_HEADERS = [
   "type",
   "folder",
   "favorite",
+  "pinned",
   "login_username",
   "login_password",
   "login_urls",
@@ -811,6 +802,7 @@ export function exportToCsv(items: VaultItem[]): string {
       type: item.type,
       folder: item.folder,
       favorite: item.favorite ? "1" : "0",
+      pinned: item.pinned ? "1" : "0",
       notes: "",
     };
     if (item.type === "login") {

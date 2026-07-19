@@ -21,6 +21,7 @@ import {
   KeyRound,
   Lock,
   CreditCard,
+  Pin,
   type LucideIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -168,6 +169,7 @@ export function ItemDetail() {
   const vaults = useVault((s) => s.vaults);
   const setEditorOpen = useVault((s) => s.setEditorOpen);
   const toggleFavorite = useVault((s) => s.toggleFavorite);
+  const togglePin = useVault((s) => s.togglePin);
   const trashItem = useVault((s) => s.trashItem);
   const restoreItem = useVault((s) => s.restoreItem);
   const permanentlyDeleteItem = useVault((s) => s.permanentlyDeleteItem);
@@ -288,6 +290,9 @@ export function ItemDetail() {
                     <>
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => toggleFavorite(item.id)} aria-label="Toggle favorite" title="Favorite (F)">
                         <Star className={cn("h-4 w-4", item.favorite ? "fill-amber-400 text-amber-400" : "text-muted-foreground")} />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => togglePin(item.id)} aria-label="Toggle pin" title={item.pinned ? "Unpin" : "Pin to top"}>
+                        <Pin className={cn("h-4 w-4", item.pinned ? "fill-primary/20 text-primary" : "text-muted-foreground")} />
                       </Button>
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditorOpen(true, item.id)} aria-label="Edit" title="Edit (⌘E)">
                         <Pencil className="h-4 w-4" />

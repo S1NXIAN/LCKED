@@ -79,6 +79,7 @@ function blankItem(type: ItemType): NewItemInput {
   const base = {
     name: "",
     favorite: false,
+    pinned: false,
     folder: "",
     customFields: [],
     createdAt: Date.now(),
@@ -321,7 +322,7 @@ export function ItemEditor() {
     setForm((f) => {
       if (!f) return f;
       const blank = blankItem(t);
-      return { ...blank, name: f.name, favorite: f.favorite, folder: f.folder, customFields: f.customFields, vaultId: f.vaultId };
+      return { ...blank, name: f.name, favorite: f.favorite, pinned: f.pinned, folder: f.folder, customFields: f.customFields, vaultId: f.vaultId };
     });
   };
 

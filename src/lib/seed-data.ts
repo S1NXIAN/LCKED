@@ -105,6 +105,7 @@ export function getSeedItems(now: number): NewItemInput[] {
     opts: {
       vaultId: string | null;
       favorite?: boolean;
+      pinned?: boolean;
       trashed?: boolean;
       trashedAt?: number;
     },
@@ -112,6 +113,7 @@ export function getSeedItems(now: number): NewItemInput[] {
     ...item,
     vaultId: opts.vaultId,
     favorite: opts.favorite ?? false,
+    pinned: opts.pinned ?? false,
     trashed: opts.trashed ?? false,
     trashedAt: opts.trashed ?? false ? (opts.trashedAt ?? now - dayMs) : null,
   });
@@ -127,6 +129,7 @@ export function getSeedItems(now: number): NewItemInput[] {
       customFields?: CustomField[];
       vaultId: string | null;
       favorite?: boolean;
+      pinned?: boolean;
       trashed?: boolean;
       trashedAt?: number;
     },
@@ -136,6 +139,7 @@ export function getSeedItems(now: number): NewItemInput[] {
         type: "login",
         name: o.name,
         favorite: o.favorite ?? false,
+        pinned: o.pinned ?? false,
         folder: "",
         customFields: o.customFields ?? [],
         vaultId: o.vaultId,
@@ -152,6 +156,7 @@ export function getSeedItems(now: number): NewItemInput[] {
       {
         vaultId: o.vaultId,
         favorite: o.favorite,
+        pinned: o.pinned,
         trashed: o.trashed,
         trashedAt: o.trashedAt,
       },
@@ -164,6 +169,7 @@ export function getSeedItems(now: number): NewItemInput[] {
       customFields?: CustomField[];
       vaultId: string | null;
       favorite?: boolean;
+      pinned?: boolean;
       trashed?: boolean;
       trashedAt?: number;
     },
@@ -173,6 +179,7 @@ export function getSeedItems(now: number): NewItemInput[] {
         type: "note",
         name: o.name,
         favorite: o.favorite ?? false,
+        pinned: o.pinned ?? false,
         folder: "",
         customFields: o.customFields ?? [],
         vaultId: o.vaultId,
@@ -183,6 +190,7 @@ export function getSeedItems(now: number): NewItemInput[] {
       {
         vaultId: o.vaultId,
         favorite: o.favorite,
+        pinned: o.pinned,
         trashed: o.trashed,
         trashedAt: o.trashedAt,
       },
@@ -201,6 +209,7 @@ export function getSeedItems(now: number): NewItemInput[] {
       customFields?: CustomField[];
       vaultId: string | null;
       favorite?: boolean;
+      pinned?: boolean;
       trashed?: boolean;
       trashedAt?: number;
     },
@@ -210,6 +219,7 @@ export function getSeedItems(now: number): NewItemInput[] {
         type: "card",
         name: o.name,
         favorite: o.favorite ?? false,
+        pinned: o.pinned ?? false,
         folder: "",
         customFields: o.customFields ?? [],
         vaultId: o.vaultId,
@@ -228,6 +238,7 @@ export function getSeedItems(now: number): NewItemInput[] {
       {
         vaultId: o.vaultId,
         favorite: o.favorite,
+        pinned: o.pinned,
         trashed: o.trashed,
         trashedAt: o.trashedAt,
       },
@@ -251,6 +262,7 @@ export function getSeedItems(now: number): NewItemInput[] {
       customFields?: CustomField[];
       vaultId: string | null;
       favorite?: boolean;
+      pinned?: boolean;
       trashed?: boolean;
       trashedAt?: number;
     },
@@ -260,6 +272,7 @@ export function getSeedItems(now: number): NewItemInput[] {
         type: "identity",
         name: o.name,
         favorite: o.favorite ?? false,
+        pinned: o.pinned ?? false,
         folder: "",
         customFields: o.customFields ?? [],
         vaultId: o.vaultId,
@@ -283,6 +296,7 @@ export function getSeedItems(now: number): NewItemInput[] {
       {
         vaultId: o.vaultId,
         favorite: o.favorite,
+        pinned: o.pinned,
         trashed: o.trashed,
         trashedAt: o.trashedAt,
       },
@@ -301,6 +315,7 @@ export function getSeedItems(now: number): NewItemInput[] {
       notes: "Demo account for testing imports.",
       vaultId: SEED_VAULT_IDS.work,
       favorite: true,
+      pinned: true, // starred + pinned — tests graceful coexistence
     }),
     login({
       name: "Gmail",
@@ -308,6 +323,7 @@ export function getSeedItems(now: number): NewItemInput[] {
       password: "GmailDemo#2024!",
       urls: ["https://mail.google.com"],
       vaultId: SEED_VAULT_IDS.personal,
+      pinned: true, // pinned-only (not favorited) — tests pin sort below favorites
     }),
     login({
       name: "AWS Console",

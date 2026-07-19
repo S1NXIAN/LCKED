@@ -83,6 +83,38 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 
+/* ----------------------- drag-drop helper (shared) ----------------------- */
+
+/**
+ * Extract item IDs from a drag-drop event. Handles BOTH:
+ *   - `text/lcked-items` → JSON array of IDs (multi-select drag)
+ *   - `text/lcked-item`  → single ID string (classic single-item drag)
+ * Returns an empty array if neither is present.
+ */
+function parseDraggedIds(e: React.DragEvent): string[] {
+  // Multi-select drag carries a JSON array of IDs.
+  const multi = e.dataTransfer.getData("text/lcked-items");
+  if (multi) {
+    try {
+      const ids = JSON.parse(multi);
+      if (Array.isArray(ids) && ids.every((id) => typeof id === "string")) {
+        return ids as string[];
+      }
+    } catch {
+      // Malformed JSON — fall through to single-item.
+    }
+  }
+  // Single-item drag.
+  const single = e.dataTransfer.getData("text/lcked-item");
+  return single ? [single] : [];
+}
+
+/** Signal the item-list to exit multi-select mode after a successful
+ *  multi-select drop (the items have been moved/trashed/favorited). */
+function exitMultiSelect() {
+  window.dispatchEvent(new CustomEvent("lcked:exit-multi-select"));
+}
+
 /* --------------------------- dynamic vault icon --------------------------- */
 
 export interface VaultIconProps {
@@ -185,13 +217,22 @@ function VaultRow({
     ? { role: "button", tabIndex: 0 }
     : { type: "button" as const };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     if (dropVaultId === undefined) return;
     e.preventDefault();
-    const id = e.dataTransfer.getData("text/lcked-item");
-    if (!id) return;
-    useVault.getState().moveItemToVault(id, dropVaultId ?? null);
-    toast.success(`Moved to ${label}`);
+    const ids = parseDraggedIds(e);
+    if (ids.length === 0) return;
+    const { moveItemsToVault } = useVault.getState();
+    const { moved, failed } = await moveItemsToVault(ids, dropVaultId ?? null);
+    if (moved > 0 && failed === 0) {
+      toast.success(`Moved ${moved} item${moved === 1 ? "" : "s"} to ${label}`);
+    } else if (moved > 0 && failed > 0) {
+      toast.warning(`Moved ${moved}, ${failed} failed`, { description: `${label}` });
+    } else if (failed > 0) {
+      toast.error(`Could not move ${failed} item${failed === 1 ? "" : "s"}`);
+    }
+    // Exit multi-select if more than one item was dragged.
+    if (ids.length > 1 && moved > 0) exitMultiSelect();
   };
   const handleDragOver = (e: React.DragEvent) => {
     if (dropVaultId === undefined) return;
@@ -609,14 +650,13 @@ export function VaultsSidebar() {
             }}
             onDrop={async (e) => {
               setOverKey(null);
-              const id = e.dataTransfer.getData("text/lcked-item");
-              if (!id) return;
-              try {
-                await useVault.getState().moveItemToVault(id, null);
-                toast.success("Moved to All Items");
-              } catch {
-                toast.error("Could not move item");
-              }
+              const ids = parseDraggedIds(e);
+              if (ids.length === 0) return;
+              const { moveItemsToVault } = useVault.getState();
+              const { moved, failed } = await moveItemsToVault(ids, null);
+              if (moved > 0) toast.success(`Moved ${moved} item${moved === 1 ? "" : "s"} to All Items`);
+              else if (failed > 0) toast.error(`Could not move ${failed} item${failed === 1 ? "" : "s"}`);
+              if (ids.length > 1 && moved > 0) exitMultiSelect();
             }}
             onDragOver={(e) => {
               e.preventDefault();
@@ -652,19 +692,21 @@ export function VaultsSidebar() {
             }}
             onDrop={async (e) => {
               setOverKey(null);
-              const id = e.dataTransfer.getData("text/lcked-item");
-              if (!id) return;
-              const it = useVault.getState().items.find((i) => i.id === id);
-              if (!it) return;
-              if (it.favorite) {
-                toast.info("Already a favorite");
+              const ids = parseDraggedIds(e);
+              if (ids.length === 0) return;
+              const store = useVault.getState();
+              // Only favorite items that aren't already favorites.
+              const toFav = store.items.filter((i) => ids.includes(i.id) && !i.favorite);
+              if (toFav.length === 0) {
+                toast.info(ids.length === 1 ? "Already a favorite" : "All already favorites");
                 return;
               }
               try {
-                await useVault.getState().toggleFavorite(id);
-                toast.success("Added to Favorites");
+                await Promise.all(toFav.map((it) => store.toggleFavorite(it.id)));
+                toast.success(`Added ${toFav.length} item${toFav.length === 1 ? "" : "s"} to Favorites`);
+                if (ids.length > 1) exitMultiSelect();
               } catch {
-                toast.error("Could not favorite item");
+                toast.error("Could not favorite items");
               }
             }}
             onDragOver={(e) => {
@@ -717,14 +759,14 @@ export function VaultsSidebar() {
         }}
         onDrop={async (e) => {
           setOverKey(null);
-          const id = e.dataTransfer.getData("text/lcked-item");
-          if (!id) return;
-          try {
-            await useVault.getState().trashItem(id);
-            toast.success("Moved to Trash");
-          } catch {
-            toast.error("Could not move to Trash");
-          }
+          const ids = parseDraggedIds(e);
+          if (ids.length === 0) return;
+          const { trashItems } = useVault.getState();
+          const { moved, failed } = await trashItems(ids);
+          if (moved > 0) toast.success(`Moved ${moved} item${moved === 1 ? "" : "s"} to Trash`);
+          else if (ids.length > 0 && moved === 0) toast.info("Already in Trash");
+          if (failed > 0) toast.error(`Could not move ${failed} item${failed === 1 ? "" : "s"}`);
+          if (ids.length > 1 && moved > 0) exitMultiSelect();
         }}
         onDragOver={(e) => {
           e.preventDefault();

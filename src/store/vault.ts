@@ -93,6 +93,10 @@ interface VaultState {
   emptyTrash: () => Promise<void>;
   moveItemToVault: (itemId: string, vaultId: string | null) => Promise<void>;
   toggleFavorite: (id: string) => Promise<void>;
+  togglePin: (id: string) => Promise<void>;
+  /** Move multiple items at once (used by multi-select drag-and-drop). */
+  moveItemsToVault: (itemIds: string[], vaultId: string | null) => Promise<{ moved: number; failed: number }>;
+  trashItems: (itemIds: string[]) => Promise<{ moved: number; failed: number }>;
   duplicateItem: (id: string) => Promise<void>;
   importItems: (filename: string, text: string) => Promise<ImportResult>;
 
@@ -268,6 +272,7 @@ export const useVault = create<VaultState>()(
               if (item.trashedAt === undefined) { item.trashedAt = null; migrated = true; }
               if (item.customFields === undefined) { item.customFields = []; migrated = true; }
               if (item.favorite === undefined) { item.favorite = false; migrated = true; }
+              if (item.pinned === undefined) { item.pinned = false; migrated = true; }
               if (item.folder === undefined) { item.folder = ""; migrated = true; }
               // 30-day auto-delete: drop trashed items whose TTL has expired.
               if (item.trashed && item.trashedAt && now - item.trashedAt > TRASH_TTL_MS) {
@@ -498,10 +503,99 @@ export const useVault = create<VaultState>()(
         }));
       },
 
+      togglePin: async (id) => {
+        const { vaultKey } = get();
+        if (!vaultKey) throw new Error("Vault is locked");
+        const currentItem = get().items.find((i) => i.id === id);
+        if (!currentItem) return;
+        const updated: VaultItem = {
+          ...currentItem,
+          pinned: !currentItem.pinned,
+          updatedAt: Date.now(),
+        } as VaultItem;
+        const { ciphertext, iv } = await encryptJson(updated, vaultKey);
+        await putStoredItem({ id, type: updated.type, ciphertext, iv, createdAt: updated.createdAt, updatedAt: updated.updatedAt });
+        set((state) => ({
+          items: state.items
+            .map((i) => (i.id === id ? updated : i))
+            .sort((a, b) => b.updatedAt - a.updatedAt),
+        }));
+      },
+
+      /* ----------- bulk actions (multi-select drag-and-drop) ----------- */
+
+      moveItemsToVault: async (itemIds, vaultId) => {
+        const { vaultKey } = get();
+        if (!vaultKey) throw new Error("Vault is locked");
+        const now = Date.now();
+        const targets = get().items.filter((i) => itemIds.includes(i.id));
+        // Filter out no-ops: items already in the target vault.
+        const toMove = targets.filter((i) => i.vaultId !== vaultId);
+        if (toMove.length === 0) return { moved: 0, failed: 0 };
+        const outcomes = await Promise.allSettled(
+          toMove.map(async (it) => {
+            const next: VaultItem = { ...it, vaultId, updatedAt: now } as VaultItem;
+            const { ciphertext, iv } = await encryptJson(next, vaultKey);
+            await putStoredItem({ id: next.id, type: next.type, ciphertext, iv, createdAt: next.createdAt, updatedAt: now });
+            return next;
+          }),
+        );
+        const moved: VaultItem[] = [];
+        let failed = 0;
+        for (let i = 0; i < outcomes.length; i++) {
+          if (outcomes[i].status === "fulfilled") moved.push(toMove[i]);
+          else failed++;
+        }
+        if (moved.length > 0) {
+          const movedIds = new Set(moved.map((m) => m.id));
+          set((state) => ({
+            items: state.items
+              .map((i) => (movedIds.has(i.id) ? { ...i, vaultId, updatedAt: now } as VaultItem : i))
+              .sort((a, b) => b.updatedAt - a.updatedAt),
+          }));
+        }
+        return { moved: moved.length, failed };
+      },
+
+      trashItems: async (itemIds) => {
+        const { vaultKey } = get();
+        if (!vaultKey) throw new Error("Vault is locked");
+        const now = Date.now();
+        const targets = get().items.filter((i) => itemIds.includes(i.id));
+        // Filter out items already in trash.
+        const toTrash = targets.filter((i) => !i.trashed);
+        if (toTrash.length === 0) return { moved: 0, failed: 0 };
+        const outcomes = await Promise.allSettled(
+          toTrash.map(async (it) => {
+            const next: VaultItem = { ...it, trashed: true, trashedAt: now, updatedAt: now } as VaultItem;
+            const { ciphertext, iv } = await encryptJson(next, vaultKey);
+            await putStoredItem({ id: next.id, type: next.type, ciphertext, iv, createdAt: next.createdAt, updatedAt: now });
+            return next;
+          }),
+        );
+        const trashed: VaultItem[] = [];
+        let failed = 0;
+        for (let i = 0; i < outcomes.length; i++) {
+          if (outcomes[i].status === "fulfilled") trashed.push(toTrash[i]);
+          else failed++;
+        }
+        if (trashed.length > 0) {
+          const trashedIds = new Set(trashed.map((t) => t.id));
+          set((state) => ({
+            items: state.items
+              .map((i) => (trashedIds.has(i.id) ? { ...i, trashed: true, trashedAt: now, updatedAt: now } as VaultItem : i))
+              .sort((a, b) => b.updatedAt - a.updatedAt),
+          }));
+        }
+        return { moved: trashed.length, failed };
+      },
+
       duplicateItem: async (id) => {
         const item = get().items.find((i) => i.id === id);
         if (!item) return;
-        const { id: _id, createdAt: _c, updatedAt: _u, trashed: _t, trashedAt: _ta, ...rest } = item;
+        // Duplicates never inherit trashed or pinned state — they land in the
+        // active view, unpinned, ready for the user to customize.
+        const { id: _id, createdAt: _c, updatedAt: _u, trashed: _t, trashedAt: _ta, pinned: _p, ...rest } = item;
         await get().saveItem(rest as NewItemInput);
       },
 

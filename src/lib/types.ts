@@ -68,6 +68,9 @@ export interface BaseItem {
   /** Display name shown in the list (also encrypted at rest). */
   name: string;
   favorite: boolean;
+  /** Pinned items sort to the top of the list (below favorites when
+   *  sortFavoritesFirst is on). Pin is a LOWER priority than favorite. */
+  pinned: boolean;
   /** Logical grouping; empty string means "All Items" root. */
   folder: string;
   customFields: CustomField[];

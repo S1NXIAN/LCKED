@@ -28,6 +28,8 @@ import {
   History,
   ArrowDownAZ,
   ListChecks,
+  Pin,
+  PinOff,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -134,6 +136,7 @@ export function ItemList({
   const permanentlyDeleteItem = useVault((s) => s.permanentlyDeleteItem);
   const moveItemToVault = useVault((s) => s.moveItemToVault);
   const toggleFavorite = useVault((s) => s.toggleFavorite);
+  const togglePin = useVault((s) => s.togglePin);
   const sortFavoritesFirst = useVault((s) => s.settings.sortFavoritesFirst);
   const hoverItemActions = useVault((s) => s.settings.hoverItemActions);
 
@@ -174,6 +177,17 @@ export function ItemList({
     setMultiSelect(false);
     setSelectedIds(new Set());
   }, [activeVault]);
+  // Listen for the "lcked:exit-multi-select" custom event — dispatched by the
+  // vaults-sidebar drop targets after a successful multi-select drag-drop so
+  // the list exits multi-select mode (the items have been moved/trashed).
+  React.useEffect(() => {
+    const handler = () => {
+      setMultiSelect(false);
+      setSelectedIds(new Set());
+    };
+    window.addEventListener("lcked:exit-multi-select", handler);
+    return () => window.removeEventListener("lcked:exit-multi-select", handler);
+  }, []);
 
   // Deferred search query — keeps typing responsive on large vaults by
   // letting the filter/sort work happen at lower priority.
@@ -197,13 +211,22 @@ export function ItemList({
     }
     // Fuzzy search.
     list = searchItems(list, deferredSearch);
-    // Sort.
+    // Sort. Priority order (highest first):
+    //   1. Favorite (only when sortFavoritesFirst is on)
+    //   2. Pinned    (always — pin is lower priority than favorite)
+    //   3. Primary sort (newest / oldest / A–Z)
+    // Edge cases:
+    //   - starred + pinned → sorted as favorite (higher priority wins)
+    //   - !sortFavoritesFirst → pinned still sorts to top, favorites sort normally
     const sorted = [...list];
     sorted.sort((a, b) => {
-      // Favorite only when sortFavoritesFirst is on.
       const aFav = sortFavoritesFirst && a.favorite;
       const bFav = sortFavoritesFirst && b.favorite;
       if (aFav !== bFav) return aFav ? -1 : 1;
+      // Both are favorites OR both are non-favorites → check pinned.
+      const aPin = a.pinned ?? false;
+      const bPin = b.pinned ?? false;
+      if (aPin !== bPin) return aPin ? -1 : 1;
       // Primary sort.
       if (sort === "newest") return b.updatedAt - a.updatedAt;
       if (sort === "oldest") return a.updatedAt - b.updatedAt;
@@ -327,17 +350,11 @@ export function ItemList({
               <SelectValue placeholder="Type" />
             </SelectTrigger>
             <SelectContent>
-              {TYPE_OPTIONS.map((opt) => {
-                const OptIcon = opt.icon;
-                return (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    <span className="flex items-center gap-2">
-                      <OptIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                      {opt.label}
-                    </span>
-                  </SelectItem>
-                );
-              })}
+              {TYPE_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           {/* Sort dropdown — outline + muted/40 + border-border to match
@@ -543,6 +560,14 @@ export function ItemList({
                               multiSelect={multiSelect}
                               isTrashView={isTrashView}
                               hoverItemActions={hoverItemActions}
+                              // In multi-select mode, dragging a SELECTED row
+                              // carries ALL selected IDs. Dragging an unselected
+                              // row carries just its own id (single-item drag).
+                              dragIds={
+                                multiSelect && checked
+                                  ? Array.from(selectedIds)
+                                  : [item.id]
+                              }
                               onPick={() =>
                                 multiSelect ? toggleSelected(item.id) : setSelected(item.id)
                               }
@@ -559,6 +584,7 @@ export function ItemList({
                               }
                               onCopyField={copyField}
                               onToggleFavorite={() => toggleFavorite(item.id)}
+                              onTogglePin={() => togglePin(item.id)}
                               onEdit={() => setEditorOpen(true, item.id)}
                               onTrash={() =>
                                 trashItem(item.id).then(() =>
@@ -622,12 +648,14 @@ function ItemRow({
   multiSelect,
   isTrashView,
   hoverItemActions,
+  dragIds,
   onPick,
   onToggleSelected,
   onRestore,
   onPermanentDelete,
   onCopyField,
   onToggleFavorite,
+  onTogglePin,
   onEdit,
   onTrash,
 }: {
@@ -637,12 +665,17 @@ function ItemRow({
   multiSelect: boolean;
   isTrashView: boolean;
   hoverItemActions: boolean;
+  /** IDs to move when this row is dragged. In multi-select mode, if this row
+   *  is selected, ALL selected IDs are moved. If not selected, just this one
+   *  (and it's added to the selection first). Single-select: just this id. */
+  dragIds: string[];
   onPick: () => void;
   onToggleSelected: () => void;
   onRestore: () => void;
   onPermanentDelete: () => void;
   onCopyField: (value: string | undefined, label: string) => void;
   onToggleFavorite: () => void;
+  onTogglePin: () => void;
   onEdit: () => void;
   onTrash: () => void;
 }) {
@@ -655,8 +688,14 @@ function ItemRow({
           onClick={onPick}
           role="option"
           aria-selected={active || checked}
-          draggable={!multiSelect}
+          // Always draggable — multi-select drag carries all selected IDs.
+          draggable
           onDragStart={(e) => {
+            // Multi-select drag: carry ALL selected IDs as a JSON array.
+            // Single-select drag: carry just this item's id.
+            if (dragIds.length > 1) {
+              e.dataTransfer.setData("text/lcked-items", JSON.stringify(dragIds));
+            }
             e.dataTransfer.setData("text/lcked-item", item.id);
             e.dataTransfer.effectAllowed = "move";
           }}
@@ -691,6 +730,11 @@ function ItemRow({
               <span className={cn("truncate text-sm font-medium", item.trashed && "line-through opacity-60")}>
                 {item.name}
               </span>
+              {/* Pin icon — shown when pinned AND not trashed. Sits before the
+                  favorite star so both can coexist gracefully. */}
+              {item.pinned && !item.trashed && (
+                <Pin className="h-3 w-3 shrink-0 fill-primary/20 text-primary" />
+              )}
               {item.favorite && !item.trashed && (
                 <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />
               )}
@@ -765,6 +809,12 @@ function ItemRow({
           <ContextMenuItem onSelect={onToggleFavorite}>
             <Star className="h-3.5 w-3.5" />
             {item.favorite ? "Unfavorite" : "Favorite"}
+          </ContextMenuItem>
+        )}
+        {!isTrashView && (
+          <ContextMenuItem onSelect={onTogglePin}>
+            {item.pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+            {item.pinned ? "Unpin" : "Pin to top"}
           </ContextMenuItem>
         )}
         <ContextMenuItem onSelect={onEdit}>
