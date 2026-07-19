@@ -32,11 +32,11 @@ import {
   PinOff,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import * as SelectPrimitive from "@radix-ui/react-select";
 import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
-  SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -104,6 +104,50 @@ function subtitle(item: VaultItem): string {
     case "identity":
       return [item.details.firstName, item.details.lastName].filter(Boolean).join(" ") || item.details.email || "—";
   }
+}
+
+/* --------------------------- TypeSelectItem ---------------------------- */
+
+/**
+ * Custom SelectItem for the Type filter that renders a leading type icon
+ * AND its own check indicator (replaces the radix SelectItem's built-in
+ * CheckIcon so there's no double-SVG on the active item).
+ *
+ * Layout: [type-icon] [label …] ……… [check] (check only on active item).
+ */
+function TypeSelectItem({
+  value,
+  icon: Icon,
+  label,
+}: {
+  value: string;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}) {
+  return (
+    <SelectPrimitive.Item
+      value={value}
+      data-slot="select-item"
+      className={cn(
+        "relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none",
+        "focus:bg-accent focus:text-accent-foreground",
+        "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        "[&_[data-slot=select-indicator]]:absolute [&_[data-slot=select-indicator]]:right-2 [&_[data-slot=select-indicator]]:flex [&_[data-slot=select-indicator]]:size-4 [&_[data-slot=select-indicator]]:items-center [&_[data-slot=select-indicator]]:justify-center",
+      )}
+    >
+      <SelectPrimitive.ItemText asChild>
+        <span className="flex min-w-0 items-center gap-2">
+          <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <span className="truncate">{label}</span>
+        </span>
+      </SelectPrimitive.ItemText>
+      <span data-slot="select-indicator">
+        <SelectPrimitive.ItemIndicator>
+          <Check className="h-3.5 w-3.5 text-primary" />
+        </SelectPrimitive.ItemIndicator>
+      </span>
+    </SelectPrimitive.Item>
+  );
 }
 
 /* ------------------------------- ItemList ------------------------------ */
@@ -342,18 +386,40 @@ export function ItemList({
             value={typeof filter === "string" ? filter : "all"}
             onValueChange={(v) => setFilter(v as FilterType)}
           >
-            <SelectTrigger size="sm" className="h-8 w-[142px] shrink-0 border-border bg-muted/40 dark:bg-secondary/20">
-              {(() => {
-                const ActiveIcon = TYPE_OPTIONS.find((o) => o.value === (typeof filter === "string" ? filter : "all"))?.icon ?? LayoutGrid;
-                return <ActiveIcon className="h-3.5 w-3.5 text-muted-foreground" />;
-              })()}
-              <SelectValue placeholder="Type" />
+            {/* Responsive width: narrower on mobile (w-[104px]) so the filter
+                bar doesn't overflow on 320px screens, wider on sm+ (w-[132px])
+                and md+ (w-[142px]). min-w-0 + the SelectValue's line-clamp-1
+                ensure long labels like "Identities" truncate with "…". */}
+            <SelectTrigger
+              size="sm"
+              className="h-8 min-w-0 w-[104px] sm:w-[132px] md:w-[142px] border-border bg-muted/40 dark:bg-secondary/20"
+            >
+              {/* NOTE: the icon + SelectValue are both children of the trigger.
+                  radix clones ALL non-Icon children into the SelectValue span,
+                  so the icon ends up INSIDE the value (not as a sibling).
+                  This is fine — the value's inner span uses flex + truncate so
+                  the label truncates with "…" when the trigger is narrow. */}
+              <SelectValue placeholder="Type">
+                {(() => {
+                  const ActiveIcon = TYPE_OPTIONS.find((o) => o.value === (typeof filter === "string" ? filter : "all"))?.icon ?? LayoutGrid;
+                  const activeLabel = TYPE_OPTIONS.find((o) => o.value === (typeof filter === "string" ? filter : "all"))?.label ?? "Type";
+                  return (
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <ActiveIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="truncate">{activeLabel}</span>
+                    </span>
+                  );
+                })()}
+              </SelectValue>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="min-w-[10rem]">
               {TYPE_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
+                <TypeSelectItem
+                  key={opt.value}
+                  value={opt.value}
+                  icon={opt.icon}
+                  label={opt.label}
+                />
               ))}
             </SelectContent>
           </Select>
@@ -367,14 +433,14 @@ export function ItemList({
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 shrink-0 gap-1.5 border-border bg-muted/40 px-2.5 hover:bg-muted/60 dark:bg-secondary/20"
+                className="h-8 min-w-0 gap-1.5 border-border bg-muted/40 px-2.5 hover:bg-muted/60 dark:bg-secondary/20"
               >
                 {(() => {
                   const TriggerIcon = SORT_OPTIONS.find((o) => o.value === sort)?.icon ?? ArrowUpDown;
-                  return <TriggerIcon className="h-3.5 w-3.5 text-muted-foreground" />;
+                  return <TriggerIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />;
                 })()}
-                <span className="text-xs">{SORT_OPTIONS.find((o) => o.value === sort)?.label ?? "Sort"}</span>
-                <ChevronDown className="h-3 w-3 opacity-50" />
+                <span className="truncate text-xs">{SORT_OPTIONS.find((o) => o.value === sort)?.label ?? "Sort"}</span>
+                <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-40">
