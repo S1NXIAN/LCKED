@@ -1,0 +1,654 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+@custom-variant nord (&:is(.nord *));
+@custom-variant proton (&:is(.proton *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* Sunset accent — "freshly generated" + unlock glow, ≤5% per screen */
+  --color-sunset: var(--sunset);
+
+  /* Surfaces — the 5-step elevation ramp (background → secondary → card → popover → accent) */
+  --color-surface-base: var(--surface-base);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-surface-popover: var(--surface-popover);
+  --color-surface-tooltip: var(--surface-tooltip);
+
+  /* Proton Pass signal colors (functional indicators, same in both themes) */
+  --color-signal-success: var(--signal-success);
+  --color-signal-warning: var(--signal-warning);
+  --color-signal-danger: var(--signal-danger);
+  --color-signal-info: var(--signal-info);
+
+  /* Proton Pass sidebar width (360px) */
+  --pass-sidebar-size: 20.25rem;
+
+  /* Vault color palette (Proton Pass) — used by the vault picker + indicators */
+  --color-vault-heliotrope: var(--vault-heliotrope);
+  --color-vault-mauvelous: var(--vault-mauvelous);
+  --color-vault-marigold: var(--vault-marigold);
+  --color-vault-de-york: var(--vault-de-york);
+  --color-vault-jordy-blue: var(--vault-jordy-blue);
+  --color-vault-lavender-magenta: var(--vault-lavender-magenta);
+  --color-vault-chestnut-rose: var(--vault-chestnut-rose);
+  --color-vault-porsche: var(--vault-porsche);
+  --color-vault-mercury: var(--vault-mercury);
+  --color-vault-water-leaf: var(--vault-water-leaf);
+
+  /* Catppuccin named colors — utility classes (text-catppuccin-mauve, bg-catppuccin-base, …).
+     Resolves to the active variant (Latte in light, Mocha in dark themes). */
+  --color-catppuccin-rosewater: var(--catppuccin-rosewater);
+  --color-catppuccin-flamingo: var(--catppuccin-flamingo);
+  --color-catppuccin-pink: var(--catppuccin-pink);
+  --color-catppuccin-mauve: var(--catppuccin-mauve);
+  --color-catppuccin-red: var(--catppuccin-red);
+  --color-catppuccin-maroon: var(--catppuccin-maroon);
+  --color-catppuccin-peach: var(--catppuccin-peach);
+  --color-catppuccin-yellow: var(--catppuccin-yellow);
+  --color-catppuccin-green: var(--catppuccin-green);
+  --color-catppuccin-teal: var(--catppuccin-teal);
+  --color-catppuccin-sky: var(--catppuccin-sky);
+  --color-catppuccin-sapphire: var(--catppuccin-sapphire);
+  --color-catppuccin-blue: var(--catppuccin-blue);
+  --color-catppuccin-lavender: var(--catppuccin-lavender);
+  --color-catppuccin-text: var(--catppuccin-text);
+  --color-catppuccin-subtext1: var(--catppuccin-subtext1);
+  --color-catppuccin-subtext0: var(--catppuccin-subtext0);
+  --color-catppuccin-overlay2: var(--catppuccin-overlay2);
+  --color-catppuccin-overlay1: var(--catppuccin-overlay1);
+  --color-catppuccin-overlay0: var(--catppuccin-overlay0);
+  --color-catppuccin-surface2: var(--catppuccin-surface2);
+  --color-catppuccin-surface1: var(--catppuccin-surface1);
+  --color-catppuccin-surface0: var(--catppuccin-surface0);
+  --color-catppuccin-base: var(--catppuccin-base);
+  --color-catppuccin-mantle: var(--catppuccin-mantle);
+  --color-catppuccin-crust: var(--catppuccin-crust);
+
+  /* Nord named colors — fixed palette (same in every theme) */
+  --color-nord-0: var(--nord-0);
+  --color-nord-1: var(--nord-1);
+  --color-nord-2: var(--nord-2);
+  --color-nord-3: var(--nord-3);
+  --color-nord-4: var(--nord-4);
+  --color-nord-5: var(--nord-5);
+  --color-nord-6: var(--nord-6);
+  --color-nord-7: var(--nord-7);
+  --color-nord-8: var(--nord-8);
+  --color-nord-9: var(--nord-9);
+  --color-nord-10: var(--nord-10);
+  --color-nord-11: var(--nord-11);
+  --color-nord-12: var(--nord-12);
+  --color-nord-13: var(--nord-13);
+  --color-nord-14: var(--nord-14);
+  --color-nord-15: var(--nord-15);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/*
+  LCKED Theme — "Vault Materials" v2
+  4 palettes: Catppuccin Mocha (dark) · Catppuccin Latte (light) · Nord · Proton.
+  Each palette uses a 5-step elevation hierarchy:
+    background → secondary → card → popover → accent
+  Three inviolable rules:
+    1. --input matches --card            (flat inputs blend into field clusters)
+    2. --popover is distinct from --card (floating layer reads as a separate layer)
+    3. --accent is lighter than --popover (hover state is visibly distinct)
+  Violet / primary appears at most once per screen. Borders at 50% opacity — felt,
+  not seen. A single sunset accent (warm H≈75) for "freshly generated" + unlock glow.
+
+  Elevation ramp (per theme, lightest → darkest in light, darkest → lightest in dark):
+    background  = app canvas (deepest layer)
+    secondary   = subtle muted fill (chips, inactive buttons — recessed)
+    card        = raised surface (login box, editor clusters)
+    popover     = floating layer (dropdowns, menus) — DIFFERENT from card
+    accent      = hover/active highlight — LIGHTER than popover
+    border      = one step removed from card (visible at 50% opacity)
+    input       = matches card (flat inputs blend in)
+    primary     = signature accent color (mauve / nord8 / interaction-norm)
+    muted-fg    = secondary text (subtext0)
+*/
+:root {
+  --radius: 0.625rem;
+
+  /* ── Latte (light) — Catppuccin · paper with violet atmosphere ─────────── */
+  --background: #eff1f5;          /* base    — app canvas (lightest) */
+  --foreground: #4c4f69;          /* text    */
+  --card: #e6e9ef;                /* mantle  — raised surface */
+  --card-foreground: #4c4f69;
+  --popover: #ccd0da;             /* surface0 — floating layer (DIFFERENT from card) */
+  --popover-foreground: #4c4f69;
+  --primary: #8839ef;             /* mauve   — signature */
+  --primary-foreground: #eff1f5;
+  --secondary: #dce0e8;           /* crust   — subtle muted fill (recessed) */
+  --secondary-foreground: #4c4f69;
+  --muted: #e6e9ef;               /* mantle  */
+  --muted-foreground: #6c6f85;    /* subtext0 */
+  --accent: #dce0e8;              /* crust   — LIGHTER than popover (hover reads clearly) */
+  --accent-foreground: #4c4f69;
+  --destructive: #d20f39;         /* red     */
+  --border: #bcc0cc;              /* surface1 — one step darker than card */
+  --input: #e6e9ef;               /* = card  */
+  --ring: #8839ef;
+  --chart-1: #8839ef;             /* mauve   */
+  --chart-2: #40a02b;             /* green   */
+  --chart-3: #fe640b;             /* peach   */
+  --chart-4: #ea76cb;             /* pink    */
+  --chart-5: #1e66f5;             /* blue    */
+  --sidebar: #e6e9ef;             /* mantle  */
+  --sidebar-foreground: #4c4f69;
+  --sidebar-primary: #8839ef;
+  --sidebar-primary-foreground: #eff1f5;
+  --sidebar-accent: #dce0e8;      /* = accent */
+  --sidebar-accent-foreground: #4c4f69;
+  --sidebar-border: #bcc0cc;
+  --sidebar-ring: #8839ef;
+
+  /* Surface ramp — 5 perceptually-uniform steps (lightest → darkest) */
+  --surface-base: #eff1f5;        /* background (base) */
+  --surface-raised: #dce0e8;      /* secondary (crust — recessed fill) */
+  --surface-overlay: #e6e9ef;     /* card (mantle) */
+  --surface-popover: #ccd0da;     /* popover (surface0) */
+  --surface-tooltip: #bcc0cc;     /* tooltip / border (surface1) */
+
+  /* Sunset accent — warm, ≤5% per screen */
+  --sunset: #df8e1d;              /* yellow  */
+
+  /* Catppuccin Latte named palette (utility colors) */
+  --catppuccin-rosewater: #dc8a78;
+  --catppuccin-flamingo: #dd7878;
+  --catppuccin-pink: #ea76cb;
+  --catppuccin-mauve: #8839ef;
+  --catppuccin-red: #d20f39;
+  --catppuccin-maroon: #e64553;
+  --catppuccin-peach: #fe640b;
+  --catppuccin-yellow: #df8e1d;
+  --catppuccin-green: #40a02b;
+  --catppuccin-teal: #179299;
+  --catppuccin-sky: #04a5e5;
+  --catppuccin-sapphire: #209fb5;
+  --catppuccin-blue: #1e66f5;
+  --catppuccin-lavender: #7287fd;
+  --catppuccin-text: #4c4f69;
+  --catppuccin-subtext1: #5c5f77;
+  --catppuccin-subtext0: #6c6f85;
+  --catppuccin-overlay2: #7c7f93;
+  --catppuccin-overlay1: #8c8fa1;
+  --catppuccin-overlay0: #9ca0b0;
+  --catppuccin-surface2: #acb0be;
+  --catppuccin-surface1: #bcc0cc;
+  --catppuccin-surface0: #ccd0da;
+  --catppuccin-base: #eff1f5;
+  --catppuccin-mantle: #e6e9ef;
+  --catppuccin-crust: #dce0e8;
+
+  /* Nord named palette — fixed (arctic reference) */
+  --nord-0: #2e3440;
+  --nord-1: #3b4252;
+  --nord-2: #434c5e;
+  --nord-3: #4c566a;
+  --nord-4: #d8dee9;
+  --nord-5: #e5e9f0;
+  --nord-6: #eceff4;
+  --nord-7: #8fbcbb;
+  --nord-8: #88c0d0;
+  --nord-9: #81a1c1;
+  --nord-10: #5e81ac;
+  --nord-11: #bf616a;
+  --nord-12: #d08770;
+  --nord-13: #ebcb8b;
+  --nord-14: #a3be8c;
+  --nord-15: #b48ead;
+
+  /* Proton Pass signal colors — functional indicators, identical in every theme */
+  --signal-success: #4AB89A;
+  --signal-warning: #FFB84D;
+  --signal-danger: #F08FA4;
+  --signal-info: #4AC0FF;
+
+  /* Vault color palette — Proton Pass's 10 vault colors. Same hex in every
+   * theme so a vault's identity is stable across light/dark. */
+  --vault-heliotrope: #A779FF;
+  --vault-mauvelous: #F29292;
+  --vault-marigold: #F7D775;
+  --vault-de-york: #91C799;
+  --vault-jordy-blue: #92B3F2;
+  --vault-lavender-magenta: #EB8DD6;
+  --vault-chestnut-rose: #CD5A6F;
+  --vault-porsche: #E4A367;
+  --vault-mercury: #E6E6E6;
+  --vault-water-leaf: #9EE2E6;
+}
+
+/* ── Mocha (dark) — Catppuccin · default dark theme ──────────────────────── */
+.dark {
+  --background: #1e1e2e;          /* base    — app canvas (darkest) */
+  --foreground: #cdd6f4;          /* text    */
+  --card: #313244;                /* surface0 — raised surface */
+  --card-foreground: #cdd6f4;
+  --popover: #45475a;             /* surface1 — floating layer (DIFFERENT from card) */
+  --popover-foreground: #cdd6f4;
+  --primary: #cba6f7;             /* mauve   — signature */
+  --primary-foreground: #1e1e2e;  /* base — readable on light mauve */
+  --secondary: #181825;           /* mantle  — recessed (darker than base) */
+  --secondary-foreground: #cdd6f4;
+  --muted: #313244;               /* surface0 */
+  --muted-foreground: #a6adc8;    /* subtext0 */
+  --accent: #585b70;              /* surface2 — LIGHTER than popover (hover reads clearly) */
+  --accent-foreground: #cdd6f4;
+  --destructive: #f38ba8;         /* red     */
+  --border: #45475a;              /* surface1 — one step lighter than card (visible in dark) */
+  --input: #313244;               /* = card  */
+  --ring: #cba6f7;
+  --chart-1: #cba6f7;             /* mauve   */
+  --chart-2: #a6e3a1;             /* green   */
+  --chart-3: #fab387;             /* peach   */
+  --chart-4: #f5c2e7;             /* pink    */
+  --chart-5: #89b4fa;             /* blue    */
+  --sidebar: #181825;             /* mantle  */
+  --sidebar-foreground: #cdd6f4;
+  --sidebar-primary: #cba6f7;
+  --sidebar-primary-foreground: #1e1e2e;
+  --sidebar-accent: #585b70;      /* = accent */
+  --sidebar-accent-foreground: #cdd6f4;
+  --sidebar-border: #45475a;
+  --sidebar-ring: #cba6f7;
+
+  /* Surface ramp — 5 perceptually-uniform steps (darkest → lightest) */
+  --surface-base: #1e1e2e;        /* background (base) */
+  --surface-raised: #181825;      /* secondary (mantle — recessed fill) */
+  --surface-overlay: #313244;     /* card (surface0) */
+  --surface-popover: #45475a;     /* popover (surface1) */
+  --surface-tooltip: #585b70;     /* accent (surface2) */
+
+  /* Sunset accent — warm, ≤5% per screen */
+  --sunset: #fab387;              /* peach   */
+}
+
+/* ── Nord — arctic, north-blues ──────────────────────────────────────────── */
+.nord {
+  --background: #2e3440;          /* nord0   — app canvas (darkest) */
+  --foreground: #eceff4;          /* nord6   */
+  --card: #3b4252;                /* nord1   — raised surface */
+  --card-foreground: #eceff4;
+  --popover: #434c5e;             /* nord2   — floating layer (DIFFERENT from card) */
+  --popover-foreground: #eceff4;
+  --primary: #88c0d0;             /* nord8   — signature frost */
+  --primary-foreground: #2e3440;  /* nord0   — readable on frost */
+  --secondary: #3b4252;           /* nord1   — subtle muted fill */
+  --secondary-foreground: #eceff4;
+  --muted: #3b4252;               /* nord1   */
+  --muted-foreground: #d8dee9;    /* nord4   */
+  --accent: #4c566a;              /* nord3   — LIGHTER than popover (hover reads clearly) */
+  --accent-foreground: #eceff4;
+  --destructive: #bf616a;         /* nord11  */
+  --border: #434c5e;              /* nord2   — one step lighter than card (visible in dark) */
+  --input: #3b4252;               /* = card  */
+  --ring: #88c0d0;
+  --chart-1: #88c0d0;             /* nord8   */
+  --chart-2: #a3be8c;             /* nord14  */
+  --chart-3: #ebcb8b;             /* nord13  */
+  --chart-4: #b48ead;             /* nord15  */
+  --chart-5: #5e81ac;             /* nord10  */
+  --sidebar: #2e3440;             /* nord0   */
+  --sidebar-foreground: #eceff4;
+  --sidebar-primary: #88c0d0;
+  --sidebar-primary-foreground: #2e3440;
+  --sidebar-accent: #4c566a;      /* = accent */
+  --sidebar-accent-foreground: #eceff4;
+  --sidebar-border: #434c5e;
+  --sidebar-ring: #88c0d0;
+
+  /* Surface ramp — 5 steps (darkest → lightest) */
+  --surface-base: #2e3440;        /* background (nord0) */
+  --surface-raised: #3b4252;      /* secondary (nord1) */
+  --surface-overlay: #3b4252;     /* card (nord1) */
+  --surface-popover: #434c5e;     /* popover (nord2) */
+  --surface-tooltip: #4c566a;     /* accent (nord3) */
+
+  /* Sunset accent — warm, ≤5% per screen */
+  --sunset: #ebcb8b;              /* nord13  */
+}
+
+/* ── Proton — Proton Pass · violet-on-near-black ─────────────────────────── */
+.proton {
+  --background: #1f1f31;          /* bg-norm — app canvas (darkest) */
+  --foreground: #ffffff;          /* text    */
+  --card: #282839;                /* card-norm — raised surface */
+  --card-foreground: #ffffff;
+  --popover: #302d45;             /* popover-norm — floating layer (DIFFERENT from card) */
+  --popover-foreground: #ffffff;
+  --primary: #7777f8;             /* interaction-norm — signature violet */
+  --primary-foreground: #ffffff;
+  --secondary: #282839;           /* subtle muted fill (= card) */
+  --secondary-foreground: #ffffff;
+  --muted: #282839;               /* card-norm */
+  --muted-foreground: #bfb9d8;    /* text-weak */
+  --accent: #38384c;              /* LIGHTER than popover — hover reads clearly */
+  --accent-foreground: #ffffff;
+  --destructive: #F08FA4;
+  /* Borders at 50% opacity — felt, not seen (Linear principle) */
+  --border: #38384c;              /* border-norm */
+  --input: #282839;               /* = card  */
+  --ring: #7777f8;
+  --chart-1: #7777f8;             /* interaction-norm */
+  --chart-2: #4AB89A;             /* signal-success */
+  --chart-3: #FFB84D;             /* signal-warning */
+  --chart-4: #EB8DD6;             /* vault-lavender-magenta */
+  --chart-5: #4AC0FF;             /* signal-info */
+  --sidebar: #191926;             /* sidebar-norm (slightly darker than canvas) */
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #7777f8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #38384c;      /* = accent */
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #38384c;
+  --sidebar-ring: #7777f8;
+
+  /* Surface ramp — 5 steps (darkest → lightest) */
+  --surface-base: #1f1f31;        /* background */
+  --surface-raised: #282839;      /* secondary (= card) */
+  --surface-overlay: #282839;     /* card */
+  --surface-popover: #302d45;     /* popover */
+  --surface-tooltip: #38384c;     /* accent / border */
+
+  /* Sunset accent — warm, ≤5% per screen */
+  --sunset: #FFB84D;              /* signal-warning */
+}
+
+/* Dark themes share Catppuccin Mocha values for the `--catppuccin-*` utility
+ * tokens (so text-catppuccin-mauve stays readable on any dark background).
+ * Light theme keeps the Latte values defined in :root above. */
+.dark,
+.nord,
+.proton {
+  --catppuccin-rosewater: #f5e0dc;
+  --catppuccin-flamingo: #f2cdcd;
+  --catppuccin-pink: #f5c2e7;
+  --catppuccin-mauve: #cba6f7;
+  --catppuccin-red: #f38ba8;
+  --catppuccin-maroon: #eba0ac;
+  --catppuccin-peach: #fab387;
+  --catppuccin-yellow: #f9e2af;
+  --catppuccin-green: #a6e3a1;
+  --catppuccin-teal: #94e2d5;
+  --catppuccin-sky: #89dceb;
+  --catppuccin-sapphire: #74c7ec;
+  --catppuccin-blue: #89b4fa;
+  --catppuccin-lavender: #b4befe;
+  --catppuccin-text: #cdd6f4;
+  --catppuccin-subtext1: #bac2de;
+  --catppuccin-subtext0: #a6adc8;
+  --catppuccin-overlay2: #9399b2;
+  --catppuccin-overlay1: #7f849c;
+  --catppuccin-overlay0: #6c7086;
+  --catppuccin-surface2: #585b70;
+  --catppuccin-surface1: #45475a;
+  --catppuccin-surface0: #313244;
+  --catppuccin-base: #1e1e2e;
+  --catppuccin-mantle: #181825;
+  --catppuccin-crust: #11111b;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    /*
+      LCKED is a *vault viewer*, not a document. The whole UI is read-only
+      chrome — copy happens via dedicated copy buttons (clipboard API).
+      Disable native text selection everywhere to avoid the "accidental
+      select + drag" friction that plagues list-heavy apps. Exceptions below.
+    */
+    user-select: none !important;
+  }
+  /* Exceptions — these elements must remain text-selectable */
+  input,
+  textarea,
+  select,
+  [contenteditable="true"],
+  [contenteditable=""],
+  [role="textbox"],
+  a {
+    user-select: text !important;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /*
+    Secrets deserve monospace (P9). Enable tabular-nums + slashed-zero OpenType
+    features so passwords/OTPs/cards align perfectly and 0/O are distinguishable.
+  */
+  .font-secret {
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    letter-spacing: 0.02em;
+    font-feature-settings: "tnum" 1, "zero" 1;
+  }
+  /* No cursor:pointer on non-link controls — native-feel (Raycast discipline) */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: default;
+  }
+  a,
+  button[data-native-link="true"] {
+    cursor: pointer;
+  }
+  /* Focus ring — suppressed on containers that don't need it
+     (prevents the Ctrl/Win key border glow on list/detail sections). */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  /* Suppress focus outline on structural containers — only interactive
+     elements (buttons, inputs, links) should show focus rings. */
+  [data-vault-list]:focus-visible,
+  [data-vault-detail]:focus-visible,
+  [role="option"]:focus-visible,
+  [role="listbox"]:focus-visible,
+  section:focus-visible,
+  aside:focus-visible,
+  nav:focus-visible,
+  header:focus-visible {
+    outline: none;
+  }
+}
+
+/*
+  Virtualize-but-with-CSS: skip rendering off-screen vault items. The list can
+  hold thousands of items; content-visibility keeps the main thread idle while
+  the user scrolls. `contain-intrinsic-size` reserves a stable 56px row height
+  so the scrollbar doesn't jitter as rows enter/exit the viewport.
+*/
+[data-item-id] {
+  content-visibility: auto;
+  contain-intrinsic-size: 56px;
+}
+
+/* Subtle custom scrollbar — slim, violet-tinted thumb.
+   scrollbar-gutter: stable prevents layout shift when content height
+   changes (e.g. selecting first item shows/hides the detail panel). */
+.lcked-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sidebar-border) transparent;
+  scrollbar-gutter: stable;
+}
+.lcked-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.lcked-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.lcked-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--sidebar-border);
+  border-radius: 999px;
+}
+.lcked-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--ring);
+}
+
+/*
+  Active row indicator — premium, minimal, theme-aware. A thin primary-colored
+  bar on the left edge reads as a deliberate accent (not a glow), while the
+  subtle 1px outer ring (20% primary) softly separates the active row from
+  its neighbours without screaming. Used by both the vaults sidebar and the
+  item list (their rAF-spring highlight divs apply this class).
+*/
+.lcked-active-glow {
+  background-color: color-mix(in oklab, var(--accent) 60%, transparent);
+  border-radius: var(--radius);
+}
+
+/* Lock screen + empty-state glow (sunset-warmed violet) */
+.lcked-glow {
+  background-image:
+    radial-gradient(60% 50% at 50% 0%, oklch(0.62 0.20 295 / 0.16) 0%, transparent 70%),
+    radial-gradient(35% 35% at 100% 100%, oklch(0.78 0.15 75 / 0.08) 0%, transparent 70%),
+    radial-gradient(30% 30% at 0% 80%, oklch(0.68 0.24 330 / 0.06) 0%, transparent 70%);
+}
+
+/*
+  Engineering grid — Vercel "blueprint" aesthetic. Used ONLY on lock screen,
+  setup, and empty states. Never on the main vault (tires the eye). 1px dots
+  at 24px intervals, 6% white opacity.
+*/
+.lcked-grid {
+  background-image:
+    radial-gradient(circle at 1px 1px, oklch(1 0 0 / 0.06) 1px, transparent 0);
+  background-size: 24px 24px;
+  background-position: 0 0;
+}
+:root:not(.dark):not(.nord):not(.proton) .lcked-grid {
+  background-image:
+    radial-gradient(circle at 1px 1px, oklch(0 0 0 / 0.05) 1px, transparent 0);
+}
+
+/* Animated vault-lock icon pulse */
+@keyframes lcked-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.96); }
+}
+.lcked-pulse {
+  animation: lcked-pulse 2.4s ease-in-out infinite;
+}
+
+/*
+  Toast entrance/exit — opacity + transform (scale + translate). 0.2s in (a
+  little generous so the eye catches the new state), 0.15s out (quick, no
+  lingering). Both passes use the premium ease curve so toasts feel consistent
+  with sheet/dialog transitions. Used by Radix Toast via the `lcked-toast`
+  class. Add `data-state="closed"` for the exit pass.
+*/
+@keyframes lcked-toast-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes lcked-toast-out {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+.lcked-toast {
+  animation: lcked-toast-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
+}
+.lcked-toast[data-state="closed"] {
+  animation: lcked-toast-out 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/*
+ * Theme-aware tooltip fade — opacity-only, 100ms in/out.
+ * The `.lcked-tooltip-content` class is applied by src/components/ui/tooltip.tsx.
+ * Radix toggles `data-state` between "delayed-open" | "instant-open" (shown)
+ * and "closed" (hidden). We bind the fade to those states so the animation
+ * runs on both enter (delayed + instant) and exit (closed).
+ */
+@keyframes lcked-tooltip-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes lcked-tooltip-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+.lcked-tooltip-content[data-state="delayed-open"],
+.lcked-tooltip-content[data-state="instant-open"] {
+  animation: lcked-tooltip-fade-in 0.1s ease-out;
+}
+.lcked-tooltip-content[data-state="closed"] {
+  animation: lcked-tooltip-fade-out 0.1s ease-out;
+}
+
+/* Reduced-motion guard — honor OS preference (Tatiana Mac, no-motion-first) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .lcked-pulse {
+    animation: none;
+  }
+  .lcked-toast,
+  .lcked-toast[data-state="closed"] {
+    animation: none;
+  }
+  .lcked-tooltip-content[data-state="delayed-open"],
+  .lcked-tooltip-content[data-state="instant-open"],
+  .lcked-tooltip-content[data-state="closed"] {
+    animation: none;
+  }
+}

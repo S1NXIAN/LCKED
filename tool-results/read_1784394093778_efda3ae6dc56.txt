@@ -1,0 +1,826 @@
+     1→/**
+     2→ * LCKED — Import / Export engine
+     3→ * ---------------------------------------------------------------------------
+     4→ * Import parsers for Bitwarden (JSON + CSV), 1Password (CSV), Proton Pass
+     5→ * (CSV), and KeePassXC (unencrypted XML). All parsers are defensive: unknown
+     6→ * columns / elements ignored, malformed rows skipped with a collected warning.
+     7→ * Export supports encrypted JSON (the only safe round-trip) and plain CSV
+     8→ * (with an explicit warning).
+     9→ */
+    10→
+    11→import type {
+    12→  CardItem,
+    13→  IdentityItem,
+    14→  ImportResult,
+    15→  ItemType,
+    16→  LoginItem,
+    17→  NewItemInput,
+    18→  NoteItem,
+    19→  VaultItem,
+    20→} from "@/lib/types";
+    21→import { randomId } from "@/lib/crypto";
+    22→import { searchItems, searchableText } from "@/lib/fuzzy-search";
+    23→
+    24→/* ------------------------------ CSV parsing ------------------------------- */
+    25→
+    26→/** Minimal RFC-4180-ish CSV parser (handles quotes, escaped quotes, CRLF). */
+    27→export function parseCsv(text: string): string[][] {
+    28→  const rows: string[][] = [];
+    29→  let field = "";
+    30→  let row: string[] = [];
+    31→  let inQuotes = false;
+    32→  for (let i = 0; i < text.length; i++) {
+    33→    const ch = text[i];
+    34→    if (inQuotes) {
+    35→      if (ch === '"') {
+    36→        if (text[i + 1] === '"') {
+    37→          field += '"';
+    38→          i++;
+    39→        } else {
+    40→          inQuotes = false;
+    41→        }
+    42→      } else {
+    43→        field += ch;
+    44→      }
+    45→    } else if (ch === '"') {
+    46→      inQuotes = true;
+    47→    } else if (ch === ",") {
+    48→      row.push(field);
+    49→      field = "";
+    50→    } else if (ch === "\n") {
+    51→      row.push(field);
+    52→      rows.push(row);
+    53→      row = [];
+    54→      field = "";
+    55→    } else if (ch === "\r") {
+    56→      // ignore — handled by \n
+    57→    } else {
+    58→      field += ch;
+    59→    }
+    60→  }
+    61→  if (field.length > 0 || row.length > 0) {
+    62→    row.push(field);
+    63→    rows.push(row);
+    64→  }
+    65→  return rows.filter((r) => r.length > 0 && !(r.length === 1 && r[0] === ""));
+    66→}
+    67→
+    68→function rowToObject(headers: string[], row: string[]): Record<string, string> {
+    69→  const obj: Record<string, string> = {};
+    70→  headers.forEach((h, i) => {
+    71→    obj[h.trim()] = (row[i] ?? "").trim();
+    72→  });
+    73→  return obj;
+    74→}
+    75→
+    76→/* ------------------------- item factory helpers --------------------------- */
+    77→
+    78→function baseFields(
+    79→  type: ItemType,
+    80→  name: string,
+    81→  folder: string,
+    82→  favorite: boolean,
+    83→  notes: string,
+    84→): NewItemInput {
+    85→  return {
+    86→    type,
+    87→    name: name || "Untitled",
+    88→    favorite: Boolean(favorite),
+    89→    folder: folder || "",
+    90→    customFields: [],
+    91→    createdAt: Date.now(),
+    92→    updatedAt: Date.now(),
+    93→    // @ts-expect-error — details attached by each builder; union narrow at call site
+    94→    details: { notes },
+    95→  } as NewItemInput;
+    96→}
+    97→
+    98→function makeLogin(o: {
+    99→  name: string;
+   100→  username: string;
+   101→  password: string;
+   102→  urls: string[];
+   103→  totp: string;
+   104→  notes: string;
+   105→  folder: string;
+   106→  favorite: boolean;
+   107→}): NewItemInput {
+   108→  return {
+   109→    type: "login",
+   110→    name: o.name,
+   111→    favorite: o.favorite,
+   112→    folder: o.folder,
+   113→    customFields: [],
+   114→    createdAt: Date.now(),
+   115→    updatedAt: Date.now(),
+   116→    details: {
+   117→      username: o.username,
+   118→      password: o.password,
+   119→      urls: o.urls.filter(Boolean),
+   120→      totp: o.totp,
+   121→      notes: o.notes,
+   122→    },
+   123→  };
+   124→}
+   125→
+   126→function makeNote(o: { name: string; content: string; folder: string; favorite: boolean }): NewItemInput {
+   127→  return {
+   128→    type: "note",
+   129→    name: o.name,
+   130→    favorite: o.favorite,
+   131→    folder: o.folder,
+   132→    customFields: [],
+   133→    createdAt: Date.now(),
+   134→    updatedAt: Date.now(),
+   135→    details: { content: o.content },
+   136→  };
+   137→}
+   138→
+   139→function makeCard(o: {
+   140→  name: string;
+   141→  cardholder: string;
+   142→  number: string;
+   143→  brand: string;
+   144→  cvv: string;
+   145→  expiry: string;
+   146→  pin: string;
+   147→  notes: string;
+   148→  folder: string;
+   149→  favorite: boolean;
+   150→}): NewItemInput {
+   151→  return {
+   152→    type: "card",
+   153→    name: o.name,
+   154→    favorite: o.favorite,
+   155→    folder: o.folder,
+   156→    customFields: [],
+   157→    createdAt: Date.now(),
+   158→    updatedAt: Date.now(),
+   159→    details: {
+   160→      cardholder: o.cardholder,
+   161→      number: o.number.replace(/\s+/g, ""),
+   162→      brand: o.brand || detectCardBrand(o.number),
+   163→      cvv: o.cvv,
+   164→      expiry: o.expiry,
+   165→      pin: o.pin,
+   166→      notes: o.notes,
+   167→    },
+   168→  };
+   169→}
+   170→
+   171→function makeIdentity(o: {
+   172→  name: string;
+   173→  firstName: string;
+   174→  lastName: string;
+   175→  email: string;
+   176→  phone: string;
+   177→  company: string;
+   178→  address1: string;
+   179→  address2: string;
+   180→  city: string;
+   181→  state: string;
+   182→  zip: string;
+   183→  country: string;
+   184→  notes: string;
+   185→  folder: string;
+   186→  favorite: boolean;
+   187→}): NewItemInput {
+   188→  return {
+   189→    type: "identity",
+   190→    name: o.name,
+   191→    favorite: o.favorite,
+   192→    folder: o.folder,
+   193→    customFields: [],
+   194→    createdAt: Date.now(),
+   195→    updatedAt: Date.now(),
+   196→    details: {
+   197→      firstName: o.firstName,
+   198→      lastName: o.lastName,
+   199→      email: o.email,
+   200→      phone: o.phone,
+   201→      company: o.company,
+   202→      address1: o.address1,
+   203→      address2: o.address2,
+   204→      city: o.city,
+   205→      state: o.state,
+   206→      zip: o.zip,
+   207→      country: o.country,
+   208→      notes: o.notes,
+   209→    },
+   210→  };
+   211→}
+   212→
+   213→/* ------------------------- Bitwarden JSON parser -------------------------- */
+   214→
+   215→const BITWARDEN_TYPE_MAP: Record<number, ItemType> = {
+   216→  1: "login",
+   217→  2: "note",
+   218→  3: "card",
+   219→  4: "identity",
+   220→};
+   221→
+   222→export function parseBitwardenJson(text: string): ImportResult {
+   223→  const result: ImportResult = { imported: 0, skipped: 0, warnings: [] };
+   224→  let data: any;
+   225→  try {
+   226→    data = JSON.parse(text);
+   227→  } catch {
+   228→    result.warnings.push("File is not valid JSON.");
+   229→    return result;
+   230→  }
+   231→  if (!data || !Array.isArray(data.items)) {
+   232→    result.warnings.push("No 'items' array found in Bitwarden export.");
+   233→    return result;
+   234→  }
+   235→  if (data.encrypted === true) {
+   236→    result.warnings.push("This Bitwarden export is encrypted. Re-export as unencrypted JSON/CSV to import.");
+   237→    return result;
+   238→  }
+   239→
+   240→  const items: NewItemInput[] = [];
+   241→  for (const raw of data.items) {
+   242→    try {
+   243→      const type = BITWARDEN_TYPE_MAP[raw.type];
+   244→      if (!type) {
+   245→        result.skipped++;
+   246→        continue;
+   247→      }
+   248→      const name = raw.name ?? "Untitled";
+   249→      const folder = raw.folder ?? "";
+   250→      const favorite = Boolean(raw.favorite);
+   251→      const notes = raw.notes ?? "";
+   252→
+   253→      if (type === "login") {
+   254→        const login = raw.login ?? {};
+   255→        const urls = Array.isArray(login.uris)
+   256→          ? login.uris.map((u: any) => (typeof u === "string" ? u : u?.uri ?? "")).filter(Boolean)
+   257→          : [];
+   258→        items.push(
+   259→          makeLogin({
+   260→            name,
+   261→            username: login.username ?? "",
+   262→            password: login.password ?? "",
+   263→            urls,
+   264→            totp: login.totp ?? "",
+   265→            notes,
+   266→            folder,
+   267→            favorite,
+   268→          }),
+   269→        );
+   270→      } else if (type === "note") {
+   271→        items.push(makeNote({ name, content: notes, folder, favorite }));
+   272→      } else if (type === "card") {
+   273→        const card = raw.card ?? {};
+   274→        const expiry = [card.expMonth, card.expYear].filter(Boolean).join("/");
+   275→        items.push(
+   276→          makeCard({
+   277→            name,
+   278→            cardholder: card.cardholderName ?? "",
+   279→            number: card.number ?? "",
+   280→            brand: "",
+   281→            cvv: card.code ?? "",
+   282→            expiry,
+   283→            pin: "",
+   284→            notes,
+   285→            folder,
+   286→            favorite,
+   287→          }),
+   288→        );
+   289→      } else if (type === "identity") {
+   290→        const id = raw.identity ?? {};
+   291→        items.push(
+   292→          makeIdentity({
+   293→            name,
+   294→            firstName: id.firstName ?? "",
+   295→            lastName: id.lastName ?? "",
+   296→            email: id.email ?? "",
+   297→            phone: id.phone ?? "",
+   298→            company: id.company ?? "",
+   299→            address1: id.address1 ?? "",
+   300→            address2: id.address2 ?? "",
+   301→            city: id.city ?? "",
+   302→            state: id.state ?? "",
+   303→            zip: id.postalCode ?? "",
+   304→            country: id.country ?? "",
+   305→            notes,
+   306→            folder,
+   307→            favorite,
+   308→          }),
+   309→        );
+   310→      }
+   311→      result.imported++;
+   312→    } catch {
+   313→      result.skipped++;
+   314→      result.warnings.push(`Skipped a malformed "${raw?.name ?? "item"}".`);
+   315→    }
+   316→  }
+   317→  (result as any).__items = items;
+   318→  return result;
+   319→}
+   320→
+   321→/* ------------------------- Bitwarden CSV parser --------------------------- */
+   322→
+   323→export function parseBitwardenCsv(text: string): ImportResult {
+   324→  const result: ImportResult = { imported: 0, skipped: 0, warnings: [] };
+   325→  const rows = parseCsv(text);
+   326→  if (rows.length < 2) {
+   327→    result.warnings.push("CSV has no data rows.");
+   328→    return result;
+   329→  }
+   330→  const headers = rows[0];
+   331→  const items: NewItemInput[] = [];
+   332→  for (let i = 1; i < rows.length; i++) {
+   333→    const o = rowToObject(headers, rows[i]);
+   334→    try {
+   335→      const typeStr = (o.type || "login").toLowerCase();
+   336→      const name = o.name || "Untitled";
+   337→      const folder = o.folder || "";
+   338→      const favorite = /^(1|true|yes)$/i.test(o.favorite);
+   339→      const notes = o.notes || "";
+   340→      if (typeStr === "login" || typeStr === "1") {
+   341→        const urls = (o.login_uri || "").split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+   342→        items.push(
+   343→          makeLogin({
+   344→            name,
+   345→            username: o.login_username || "",
+   346→            password: o.login_password || "",
+   347→            urls,
+   348→            totp: o.login_totp || "",
+   349→            notes,
+   350→            folder,
+   351→            favorite,
+   352→          }),
+   353→        );
+   354→      } else if (typeStr === "note" || typeStr === "2") {
+   355→        items.push(makeNote({ name, content: notes, folder, favorite }));
+   356→      } else if (typeStr === "card" || typeStr === "3") {
+   357→        items.push(
+   358→          makeCard({
+   359→            name,
+   360→            cardholder: "",
+   361→            number: "",
+   362→            brand: "",
+   363→            cvv: "",
+   364→            expiry: "",
+   365→            pin: "",
+   366→            notes,
+   367→            folder,
+   368→            favorite,
+   369→          }),
+   370→        );
+   371→      } else if (typeStr === "identity" || typeStr === "4") {
+   372→        items.push(
+   373→          makeIdentity({
+   374→            name,
+   375→            firstName: "",
+   376→            lastName: "",
+   377→            email: "",
+   378→            phone: "",
+   379→            company: "",
+   380→            address1: "",
+   381→            address2: "",
+   382→            city: "",
+   383→            state: "",
+   384→            zip: "",
+   385→            country: "",
+   386→            notes,
+   387→            folder,
+   388→            favorite,
+   389→          }),
+   390→        );
+   391→      } else {
+   392→        result.skipped++;
+   393→        continue;
+   394→      }
+   395→      result.imported++;
+   396→    } catch {
+   397→      result.skipped++;
+   398→    }
+   399→  }
+   400→  (result as any).__items = items;
+   401→  return result;
+   402→}
+   403→
+   404→/* ----------------------- 1Password CSV parser ----------------------------- */
+   405→
+   406→export function parseOnePasswordCsv(text: string): ImportResult {
+   407→  const result: ImportResult = { imported: 0, skipped: 0, warnings: [] };
+   408→  const rows = parseCsv(text);
+   409→  if (rows.length < 2) {
+   410→    result.warnings.push("CSV has no data rows.");
+   411→    return result;
+   412→  }
+   413→  const headers = rows[0];
+   414→  const items: NewItemInput[] = [];
+   415→  for (let i = 1; i < rows.length; i++) {
+   416→    const o = rowToObject(headers, rows[i]);
+   417→    try {
+   418→      const title = o.Title || o.title || "Untitled";
+   419→      const url = o.Url || o.URL || o.url || "";
+   420→      const username = o.Username || o.username || "";
+   421→      const password = o.Password || o.password || "";
+   422→      const notes = o.Notes || o.notes || "";
+   423→      const totp = o.OTPAuth || o.OTP || o.totp || "";
+   424→      // 1Password's "All Items" CSV often lacks a type column; we infer login
+   425→      // when there's a username or url, otherwise treat as a secure note.
+   426→      if (username || url || password) {
+   427→        items.push(
+   428→          makeLogin({
+   429→            name: title,
+   430→            username,
+   431→            password,
+   432→            urls: url ? [url] : [],
+   433→            totp,
+   434→            notes,
+   435→            folder: "",
+   436→            favorite: false,
+   437→          }),
+   438→        );
+   439→      } else {
+   440→        items.push(makeNote({ name: title, content: notes, folder: "", favorite: false }));
+   441→      }
+   442→      result.imported++;
+   443→    } catch {
+   444→      result.skipped++;
+   445→    }
+   446→  }
+   447→  (result as any).__items = items;
+   448→  return result;
+   449→}
+   450→
+   451→/* ----------------------- Proton Pass CSV parser --------------------------- */
+   452→
+   453→export function parseProtonPassCsv(text: string): ImportResult {
+   454→  const result: ImportResult = { imported: 0, skipped: 0, warnings: [] };
+   455→  const rows = parseCsv(text);
+   456→  if (rows.length < 2) {
+   457→    result.warnings.push("CSV has no data rows.");
+   458→    return result;
+   459→  }
+   460→  const headers = rows[0];
+   461→  const items: NewItemInput[] = [];
+   462→  for (let i = 1; i < rows.length; i++) {
+   463→    const o = rowToObject(headers, rows[i]);
+   464→    try {
+   465→      const type = (o.item_type || o.type || "login").toLowerCase();
+   466→      const name = o.name || o.title || "Untitled";
+   467→      const favorite = /^(1|true|yes)$/i.test(o.favorite);
+   468→      const notes = o.note_content || o.notes || "";
+   469→      if (type === "login") {
+   470→        const urls = (o.login_urls || "").split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+   471→        items.push(
+   472→          makeLogin({
+   473→            name,
+   474→            username: o.login_username || "",
+   475→            password: o.login_password || "",
+   476→            urls,
+   477→            totp: o.login_totp || "",
+   478→            notes,
+   479→            folder: "",
+   480→            favorite,
+   481→          }),
+   482→        );
+   483→      } else if (type === "note") {
+   484→        items.push(makeNote({ name, content: notes, folder: "", favorite }));
+   485→      } else if (type === "card") {
+   486→        items.push(
+   487→          makeCard({
+   488→            name,
+   489→            cardholder: o.card_cardholder || "",
+   490→            number: o.card_number || "",
+   491→            brand: "",
+   492→            cvv: o.card_cvv || "",
+   493→            expiry: o.card_expiration_date || "",
+   494→            pin: o.card_pin || "",
+   495→            notes,
+   496→            folder: "",
+   497→            favorite,
+   498→          }),
+   499→        );
+   500→      } else if (type === "identity") {
+   501→        items.push(
+   502→          makeIdentity({
+   503→            name,
+   504→            firstName: o.identity_first_name || "",
+   505→            lastName: o.identity_last_name || "",
+   506→            email: o.identity_email || "",
+   507→            phone: o.identity_phone || "",
+   508→            company: o.identity_organization || "",
+   509→            address1: o.identity_address_street_address || "",
+   510→            address2: "",
+   511→            city: o.identity_address_city || "",
+   512→            state: o.identity_address_state_or_province || "",
+   513→            zip: o.identity_address_postal_or_zip || "",
+   514→            country: o.identity_address_country_or_region || "",
+   515→            notes,
+   516→            folder: "",
+   517→            favorite,
+   518→          }),
+   519→        );
+   520→      } else {
+   521→        result.skipped++;
+   522→        continue;
+   523→      }
+   524→      result.imported++;
+   525→    } catch {
+   526→      result.skipped++;
+   527→    }
+   528→  }
+   529→  (result as any).__items = items;
+   530→  return result;
+   531→}
+   532→
+   533→/* -------------------------- KeePassXC XML parser -------------------------- */
+   534→
+   535→/**
+   536→ * KeePassXC unencrypted XML 2.x export. Entries live under <Root>/<Group>//<Entry>
+   537→ * (groups can nest). Each <Entry> holds a sequence of <String><Key>..</Key>
+   538→ * <Value>..</Value></String> pairs. Well-known keys: Title, UserName, Password,
+   539→ * URL, Notes. TOTP may appear as a custom "otp" or TimeOtp-Secret-* key.
+   540→ *
+   541→ * We walk every <Entry> in document order, ignoring group nesting (folders are
+   542→ * not preserved — they map to LCKED folders in a later revision).
+   543→ */
+   544→export function parseKeePassXcXml(text: string): ImportResult {
+   545→  const result: ImportResult = { imported: 0, skipped: 0, warnings: [] };
+   546→  if (typeof DOMParser === "undefined") {
+   547→    result.warnings.push("DOMParser is not available in this environment.");
+   548→    return result;
+   549→  }
+   550→  const doc = new DOMParser().parseFromString(text, "application/xml");
+   551→  const parseError = doc.querySelector("parsererror");
+   552→  if (parseError) {
+   553→    result.warnings.push("File is not well-formed XML.");
+   554→    return result;
+   555→  }
+   556→  const entries = Array.from(doc.getElementsByTagName("Entry"));
+   557→  if (entries.length === 0) {
+   558→    result.warnings.push("No <Entry> elements found in KeePassXC XML export.");
+   559→    return result;
+   560→  }
+   561→  const items: NewItemInput[] = [];
+   562→  for (const entry of entries) {
+   563→    try {
+   564→      const fields = readKeePassXcEntry(entry);
+   565→      const name = (fields.get("Title") ?? "").trim() || "Untitled";
+   566→      const username = fields.get("UserName") ?? "";
+   567→      const password = fields.get("Password") ?? "";
+   568→      const url = fields.get("URL") ?? "";
+   569→      const notes = fields.get("Notes") ?? "";
+   570→      // KeePassXC stores TOTP either as "otp" (otpauth URI) or as separate
+   571→      // TimeOtp-Secret-* fields. We accept both, preferring "otp".
+   572→      const totp =
+   573→        fields.get("otp") ??
+   574→        fields.get("TimeOtp-Secret") ??
+   575→        fields.get("TimeOtp-Secret-Hex") ??
+   576→        "";
+   577→      const urls = url
+   578→        .split(/\r?\n/)
+   579→        .map((s) => s.trim())
+   580→        .filter(Boolean);
+   581→      // If there's no username/password/url we treat the entry as a note —
+   582→      // matches the 1Password CSV inference rule.
+   583→      if (username || password || url) {
+   584→        items.push(
+   585→          makeLogin({
+   586→            name,
+   587→            username,
+   588→            password,
+   589→            urls,
+   590→            totp,
+   591→            notes,
+   592→            folder: "",
+   593→            favorite: false,
+   594→          }),
+   595→        );
+   596→      } else {
+   597→        items.push(
+   598→          makeNote({
+   599→            name,
+   600→            content: notes,
+   601→            folder: "",
+   602→            favorite: false,
+   603→          }),
+   604→        );
+   605→      }
+   606→      result.imported++;
+   607→    } catch {
+   608→      result.skipped++;
+   609→    }
+   610→  }
+   611→  (result as any).__items = items;
+   612→  return result;
+   613→}
+   614→
+   615→/** Read a KeePassXC <Entry> into a Map of Key→Value strings (last write wins). */
+   616→function readKeePassXcEntry(entry: Element): Map<string, string> {
+   617→  const map = new Map<string, string>();
+   618→  const strings = Array.from(entry.children).filter((c) => c.tagName.toLowerCase() === "string");
+   619→  for (const str of strings) {
+   620→    const keyEl = Array.from(str.children).find((c) => c.tagName.toLowerCase() === "key");
+   621→    const valueEl = Array.from(str.children).find((c) => c.tagName.toLowerCase() === "value");
+   622→    if (!keyEl || !valueEl) continue;
+   623→    // <Value> may be marked Protect="true" for hidden fields — KeePassXC still
+   624→    // ships the plaintext in unencrypted exports, so we just read the text.
+   625→    const key = (keyEl.textContent ?? "").trim();
+   626→    const value = valueEl.textContent ?? "";
+   627→    if (key) map.set(key, value);
+   628→  }
+   629→  return map;
+   630→}
+   631→
+   632→/* --------------------------- format detection ---------------------------- */
+   633→
+   634→export type ImportFormat =
+   635→  | "bitwarden-json"
+   636→  | "bitwarden-csv"
+   637→  | "1password-csv"
+   638→  | "protonpass-csv"
+   639→  | "keepassxc-xml"
+   640→  | "lcked-json";
+   641→
+   642→export function detectFormat(filename: string, text: string): ImportFormat {
+   643→  const lower = filename.toLowerCase();
+   644→  const trimmed = text.trim();
+   645→  if (lower.endsWith(".json")) {
+   646→    if (trimmed.startsWith("{") && /"format"\s*:\s*"lcked-encrypted-v1"/.test(trimmed)) {
+   647→      return "lcked-json";
+   648→    }
+   649→    return "bitwarden-json";
+   650→  }
+   651→  if (lower.endsWith(".xml")) {
+   652→    // KeePassXC unencrypted XML export. There's no other common XML vault
+   653→    // format, so any .xml file is treated as keepassxc-xml.
+   654→    return "keepassxc-xml";
+   655→  }
+   656→  if (lower.endsWith(".csv")) {
+   657→    const firstLine = (trimmed.split(/\r?\n/)[0] || "").toLowerCase();
+   658→    if (firstLine.includes("item_type") || firstLine.includes("login_urls")) return "protonpass-csv";
+   659→    if (firstLine.includes("title") && firstLine.includes("url")) return "1password-csv";
+   660→    return "bitwarden-csv";
+   661→  }
+   662→  // Fallback by content sniffing.
+   663→  if (trimmed.startsWith("{") || trimmed.startsWith("[")) return "bitwarden-json";
+   664→  if (/^<\?xml/.test(trimmed) && /<KeePassFile|<Database|<Entry>/i.test(trimmed)) {
+   665→    return "keepassxc-xml";
+   666→  }
+   667→  return "bitwarden-csv";
+   668→}
+   669→
+   670→/** Run the appropriate parser and return the prepared items. */
+   671→export function importFromText(filename: string, text: string): {
+   672→  result: ImportResult;
+   673→  items: NewItemInput[];
+   674→} {
+   675→  const format = detectFormat(filename, text);
+   676→  let result: ImportResult;
+   677→  switch (format) {
+   678→    case "bitwarden-json":
+   679→      result = parseBitwardenJson(text);
+   680→      break;
+   681→    case "bitwarden-csv":
+   682→      result = parseBitwardenCsv(text);
+   683→      break;
+   684→    case "1password-csv":
+   685→      result = parseOnePasswordCsv(text);
+   686→      break;
+   687→    case "protonpass-csv":
+   688→      result = parseProtonPassCsv(text);
+   689→      break;
+   690→    case "keepassxc-xml":
+   691→      result = parseKeePassXcXml(text);
+   692→      break;
+   693→    case "lcked-json":
+   694→      result = parseLckedJson(text);
+   695→      break;
+   696→  }
+   697→  const items: NewItemInput[] = (result as any).__items ?? [];
+   698→  delete (result as any).__items;
+   699→  return { result, items };
+   700→}
+   701→
+   702→/* ----------------------------- LCKED export ------------------------------- */
+   703→
+   704→/** Encrypted export envelope — the only safe round-trip format. */
+   705→export interface LckedExport {
+   706→  format: "lcked-encrypted-v1";
+   707→  version: 1;
+   708→  exportedAt: number;
+   709→  /** PBKDF2 salt used for THIS export (independent of the vault salt). */
+   710→  salt: string;
+   711→  iterations: number;
+   712→  /** AES-GCM verifier, same scheme as vault unlock. */
+   713→  verifier: string;
+   714→  verifierIv: string;
+   715→  /** Encrypted vault items (array of StoredItem). */
+   716→  data: string;
+   717→  dataIv: string;
+   718→}
+   719→
+   720→/** Parse an encrypted LCKED export back into items (requires the password). */
+   721→export function parseLckedJson(text: string): ImportResult {
+   722→  const result: ImportResult = { imported: 0, skipped: 0, warnings: [] };
+   723→  try {
+   724→    const data = JSON.parse(text);
+   725→    if (data.format !== "lcked-encrypted-v1") {
+   726→      result.warnings.push("Not a recognised LCKED export.");
+   727→      return result;
+   728→    }
+   729→    // The actual decryption happens in the store layer (needs the password).
+   730→    (result as any).__raw = data;
+   731→    result.imported = -1; // signal: deferred decryption
+   732→  } catch {
+   733→    result.warnings.push("File is not valid JSON.");
+   734→  }
+   735→  return result;
+   736→}
+   737→
+   738→/* ------------------------------- CSV export ------------------------------- */
+   739→
+   740→const CSV_HEADERS = [
+   741→  "name",
+   742→  "type",
+   743→  "folder",
+   744→  "favorite",
+   745→  "login_username",
+   746→  "login_password",
+   747→  "login_urls",
+   748→  "login_totp",
+   749→  "note_content",
+   750→  "card_cardholder",
+   751→  "card_number",
+   752→  "card_cvv",
+   753→  "card_expiration",
+   754→  "identity_first_name",
+   755→  "identity_last_name",
+   756→  "identity_email",
+   757→  "identity_phone",
+   758→  "notes",
+   759→];
+   760→
+   761→function csvEscape(value: string): string {
+   762→  if (/[",\n\r]/.test(value)) {
+   763→    return `"${value.replace(/"/g, '""')}"`;
+   764→  }
+   765→  return value;
+   766→}
+   767→
+   768→export function exportToCsv(items: VaultItem[]): string {
+   769→  const lines: string[] = [CSV_HEADERS.join(",")];
+   770→  for (const item of items) {
+   771→    const row: Record<string, string> = {
+   772→      name: item.name,
+   773→      type: item.type,
+   774→      folder: item.folder,
+   775→      favorite: item.favorite ? "1" : "0",
+   776→      notes: "",
+   777→    };
+   778→    if (item.type === "login") {
+   779→      row.login_username = item.details.username;
+   780→      row.login_password = item.details.password;
+   781→      row.login_urls = item.details.urls.join("\n");
+   782→      row.login_totp = item.details.totp;
+   783→      row.notes = item.details.notes;
+   784→    } else if (item.type === "note") {
+   785→      row.note_content = item.details.content;
+   786→    } else if (item.type === "card") {
+   787→      row.card_cardholder = item.details.cardholder;
+   788→      row.card_number = item.details.number;
+   789→      row.card_cvv = item.details.cvv;
+   790→      row.card_expiration = item.details.expiry;
+   791→      row.notes = item.details.notes;
+   792→    } else if (item.type === "identity") {
+   793→      row.identity_first_name = item.details.firstName;
+   794→      row.identity_last_name = item.details.lastName;
+   795→      row.identity_email = item.details.email;
+   796→      row.identity_phone = item.details.phone;
+   797→      row.notes = item.details.notes;
+   798→    }
+   799→    lines.push(CSV_HEADERS.map((h) => csvEscape(row[h] ?? "")).join(","));
+   800→  }
+   801→  return lines.join("\n");
+   802→}
+   803→
+   804→/* ------------------------------ card brand -------------------------------- */
+   805→
+   806→export function detectCardBrand(number: string): string {
+   807→  const n = number.replace(/\s+/g, "");
+   808→  if (/^4/.test(n)) return "Visa";
+   809→  if (/^5[1-5]/.test(n) || /^2[2-7]/.test(n)) return "Mastercard";
+   810→  if (/^3[47]/.test(n)) return "Amex";
+   811→  if (/^6(?:011|5)/.test(n)) return "Discover";
+   812→  if (/^(606282|3841)/.test(n)) return "Hipercard";
+   813→  if (/^3(?:0[0-5]|[68])/.test(n)) return "Diners";
+   814→  if (/^(?:352[89]|35[3-8])/.test(n)) return "JCB";
+   815→  return "";
+   816→}
+   817→
+   818→/** Downgrade a stored item to a NewItemInput (drops id/timestamps). */
+   819→export function toItemInput(item: VaultItem): NewItemInput {
+   820→  const { id: _id, createdAt: _c, updatedAt: _u, ...rest } = item;
+   821→  return rest as NewItemInput;
+   822→}
+   823→
+   824→export { searchItems, searchableText, randomId };
+   825→export type { LoginItem, NoteItem, CardItem, IdentityItem };
+   826→

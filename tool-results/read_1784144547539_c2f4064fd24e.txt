@@ -1,0 +1,580 @@
+     1→# LCKED — Visual Design Research Brief (RESEARCH-B)
+     2→
+     3→**Agent:** Visual/UX Design Research Specialist
+     4→**Date:** July 2025
+     5→**Scope:** Make LCKED the most distinctive, premium, trustworthy password manager visually — beyond "clean & modern violet".
+     6→
+     7→This brief synthesises ~30 fetched articles, design-system docs, and product analyses from 2022–2026. Every section ends with concrete, opinionated moves LCKED can adopt. Citations are inline with URLs.
+     8→
+     9→---
+    10→
+    11→## 0. TL;DR — The Five Bets
+    12→
+    13→1. **Don't ship a violet theme — ship a *materials* system.** Proton's purple succeeds because it is part of a *material* story (depth, gradient, sunset accent), not just an accent color. LCKED should build a "violet as light, not violet as paint" system using OKLCH surface lightness ramps, not flat fills.
+    14→2. **Own the monospace.** Secrets deserve their own typographic register. LCKED should adopt a single premium mono (Berkeley Mono or Geist Mono) for *all* secret data — passwords, OTPs, card numbers, URIs — paired with a humanist sans (Inter or Geist Sans). This is the single highest-impact "feels different" move.
+    15→3. **Calm by default, expressive on intent.** Default to Linear-style restraint (dim sidebar, softened borders, reduced iconography). Reserve motion and color for *intent moments*: copy-confirmation, TOTP refresh tick, unlock success. Calm Tech principles + Linear's "don't compete for attention you haven't earned".
+    16→4. **A signature surface treatment, not a signature color.** A subtle **engineering-grid background** (Vercel's "blueprint aesthetic") behind the lock screen + a single grain-textured vault surface would give LCKED a recognizable fingerprint without leaning harder on violet.
+    17→5. **Large-Type reveal as a branded interaction.** 1Password's "Show in Large Type" with character index is universally cited as underappreciated and uniquely premium. LCKED should ship its own — bigger, animated, with a character ruler and improved TOTP arc.
+    18→
+    19→---
+    20→
+    21→## 1. Competitor Visual Audit
+    22→
+    23→A dense synthesis of how each major password manager actually *looks and feels* today, with the specific craft moves LCKED should borrow (or explicitly reject).
+    24→
+    25→### Visual Audit Table
+    26→
+    27→| Product | Palette | Typography | Density | Iconography | Motion | Signature |
+    28→|---|---|---|---|---|---|---|
+    29→| **1Password** | Cool blue accent (#0572EC-ish), generous whitespace, soft grays | Inter (UI) + custom "Knox" type family for brand; monospace for secrets | Spacious — list rows ~64–72px, detail view is *enormous* and type-led | Bespoke category icons (vault, watchtower, travel mode); padlock metaphor recurs | Restrained; subtle spring on row selection; "Show in Large Type" opens a separate window with character index | **Large Type view w/ char index** + Watchtower color-coded risk + travel-mode concept |
+    30→| **Proton Pass** | Proton purple (deeper than Pass's marketing gradient) + yellow-orange "sunset" accent; dark mode by default in app | ABC Arizona (Sans + Flare) for brand/marketing; in-app uses system stack | Medium-dense, leans minimal; sidebar nav with section grouping | Diamond-as-keyhole logo concept (preciousness + portal); family-resemblance product icons | Gradient depth on icons; sunset fade conveys "comfort, well-being" | **Diamond/keyhole logo** + sunset gradient + portal metaphor |
+    31→| **Bitwarden** | Generic Material-y blue/gray; minimal brand color | System sans, no mono for secrets | Dense, utilitarian, web 1.0-ish | Stock iconography | Almost none | None — "trusted but not loved" |
+    32→| **Dashlane** | Dark navy + green accent; modern material feel | Inter or similar; tighter tracking | Medium; "polished, cohesive UI … no visual clutter, no unnecessary animations" (Reddit r/PasswordManagers) | Refined line icons | Subtle, intentional — "mature and intentional" | Premium feel via *restraint* and consistency |
+    33→| **Apple Passwords (iOS 18 / macOS Sequoia)** | System materials; San Francisco; subtle blur; sectioned list with red badge for warnings | SF Pro / SF Mono | Apple-list density (~48–56px rows); sectioned (All / Passkeys / Codes / Wi-Fi / Warnings / Deleted) | SF Symbols | Native iOS transitions; swipe-to-delete | **Sectioned taxonomy** + 30-day Deleted retention + native OS material |
+    34→| **KeePassXC** | Native Qt (gray, blue accents); toolbars galore | System font; no mono emphasis | Very dense — 4-quadrant layout (groups / entries / preview / details), power-user oriented | Crystal-style tiled icons (legacy) | None | Power — at the cost of approachability |
+    35→
+    36→### Per-competitor findings
+    37→
+    38→**1Password — the quality-of-life leader.**
+    39→- The "Show in Large Type" feature is universally cited as underappreciated and uniquely premium: "its REALLY useful to put it up in the large type as you get a character index beneath the actual password. Their UX is at different level" (r/1Password, https://www.reddit.com/r/1Password/comments/1crhl6c/the_one_underappreciated_1p_exclusive_feature).
+    40→- Watchtower was completely redesigned for 1Password 7 for Mac and uses a *color-coded risk taxonomy* (red = compromised, orange = weak, yellow = reused) sourced from haveibeenpwned (https://1password.com/blog/1password-x-1-10-large-type-watchtower-and-easy-two-factor-authentication).
+    41→- Concept-first design philosophy: "Every digital product starts out as a problem to be solved. The idea, or concept, is the way we meet that problem – the premise of our solution." Padlock is the recurring metaphor that "brings the abstractions of software closer to life, making interfaces feel real." (https://1password.com/blog/concept-first-design)
+    42→- Knox typography: 1Password built an additional typography style system to support the whole design org (https://ri.works/knox-typography).
+    43→
+    44→**Proton Pass — the inspiration.**
+    45→- "Proton Pass starts with the Proton purple, a call back to the purple used in the Proton Mail beta from 2014. It then fades into a secondary yellow-orange color unique to Pass … Proton Pass's color universe references a sunset to convey the well-being, comfort, and security that we hope will accompany Proton Pass users through their journey online." (https://proton.me/blog/pass-logo-story)
+    46→- Logo concept: a diamond (hardened cryptography + preciousness) that is also a keyhole (access/portal to a private universe).
+    47→- Brand typography choice is anti-tech-default: ABC Arizona (Sans + Flare) by Elias Hanzer / Dinamo Typefaces. "We are building an internet that puts people first, so we felt our font should have a more human touch … a font with empathy and warmth that reflects how Proton is different." Headlines use *Flare* (a "nearly-but-not-quite sans"), body uses Sans. (https://proton.me/blog/new-visual-universe)
+    48→- Icons have "depth and dimensionality" via warm gradient.
+    49→
+    50→**Bitwarden — what to avoid.**
+    51→- "Bitwarden's interface is more polished and visually refined than Bitwarden's" — wait, reverse that: Dashlane's interface is "more polished and visually refined than Bitwarden's" (panicvault.org, https://www.panicvault.org/compare/dashlane-vs-bitwarden).
+    52→- Bitwarden's UX is described as "user-friendly" but visually generic. LCKED should borrow its *information architecture* (folders, collections, org-style grouping) but never its visual treatment.
+    53→- The community actively wants a redesign — "UI Redesign" is a perennial Bitwarden forum thread (https://community.bitwarden.com/t/ui-redesign/15249).
+    54→
+    55→**Dashlane — premium feel via restraint.**
+    56→- Reddit user verdict: "Polished, cohesive UI. The design feels mature and intentional. No visual clutter, no unnecessary animations, no constant micro-…" (https://www.reddit.com/r/PasswordManagers/comments/1q0hx6p/dashlane_vs_bitwarden_and_why_im_staying_with).
+    57→- Dashlane leans on *automation* and onboarding polish rather than visual flourish.
+    58→- Lesson for LCKED: a premium feel is mostly *removal* — fewer, slower, more meaningful animations and surfaces.
+    59→
+    60→**Apple Passwords — the new native aesthetic.**
+    61→- Layout: simple search-bar-at-top, then sectioned list: All / Passkeys / Codes / Wi-Fi / Warnings / Deleted. "Each entry has fields for site or app name, username, login, verification code, websites where the login is used, and notes." (https://www.macrumors.com/guide/ios-18-passwords)
+    62→- Deleted items retained 30 days (an interesting trust-building default).
+    63→- Authentication Codes are a *first-class section*, not buried inside a Login item.
+    64→- The sectioned taxonomy is itself a signature — LCKED should consider an analogous sidebar taxonomy.
+    65→- Uses SwiftUI materials (glassmorphic) per NN/g: "Glassmorphic UI elements stand out when placed in front of gradients or complex backgrounds to accentuate depth … prominent in Apple and Microsoft's design systems." (https://www.nngroup.com/articles/glassmorphism)
+    66→
+    67→**KeePassXC — power-user density reference.**
+    68→- "The KeePassXC interface is designed for simplicity and easy access to your information. The main database view is split into four main partitions" (https://keepassxc.org/docs/KeePassXC_UserGuide).
+    69→- Issues: high minimum window size, no responsive UI (https://github.com/keepassxreboot/keepassxc/issues/5952), feature-burden hides daily-use actions (https://github.com/keepassxreboot/keepassxc/issues/3779).
+    70→- Lesson: density without hierarchy becomes claustrophobia. Power features must be *progressively disclosed*.
+    71→
+    72→---
+    73→
+    74→## 2. Security/Privacy App Visual Language — Building Trust Visually
+    75→
+    76→### Principles from the calm-tech and quiet-security literature
+    77→
+    78→**Calm Technology® principles (Calm Tech Institute, https://www.calmtech.institute/calm-tech-principles):**
+    79→1. Require the smallest possible amount of attention.
+    80→2. Inform and create calm.
+    81→3. Make use of the periphery.
+    82→4. Amplify the best of technology and the best of humanity.
+    83→5. Communicate without speaking.
+    84→6. Still work when it fails.
+    85→7. The minimum tech needed to solve the problem.
+    86→8. Respect social norms.
+    87→
+    88→**"Quiet Security" patterns (ezpa.ge, https://blog.ezpa.ge/quiet-security-subtle-ux-patterns-that-signal-safety-without-killing-trust):**
+    89→- "Use Calm, Consistent Visual Language. Color: Reserve aggressive reds for actual errors or fraud warnings. For reassurance, use softer blues or…" (snippet).
+    90→- The thesis: signal safety *through restraint*, not through alarm. Security apps that flash warnings constantly train users to ignore them ("alarm fatigue").
+    91→
+    92→**Signal — the canonical reference (typenorm analysis, https://typenorm.com/apps/signal):**
+    93→> "Signal's interface argument is restraint. It looks like an ordinary chat app on purpose, because its whole thesis is that strong encryption should require no user effort and surface no jargon. The signature touches are quiet ones: disappearing-message timers set per conversation, a safety-number screen for verifying a contact's keys, and registration locks that live where most apps put nothing."
+    94→
+    95→Translation for LCKED: **encryption is a default, not a feature.** Don't badge "ENCRYPTED" on every screen — make it ambient (one tiny lock glyph in the status area, never animated, never red).
+    96→
+    97→### Color psychology for security apps
+    98→- **Reserve red exclusively** for actual breaches / compromised credentials (Watchtower-style). Yellow/orange for "weak but not breached." Green only for "strong / freshly generated."
+    99→- **Soft accent colors for reassurance** (Proton's sunset, Mullvad's yellow-orange accents, Signal's blue).
+   100→- **Avoid pure black backgrounds** for trust surfaces — they read as "hacker terminal," not "premium vault." Use elevated dark surfaces with subtle blue tint.
+   101→
+   102→### Avoiding alarm fatigue
+   103→- Watchtower-style risk lists should be *opt-in surface*, not a homepage counter ("you have 7 weak passwords!" is anxiety-inducing).
+   104→- TOTP countdown rings should never feel frantic — use a smooth arc, not a ticking bomb.
+   105→- Auto-lock countdowns should be invisible until < 30s remain, then a single calm toast.
+   106→
+   107→---
+   108→
+   109→## 3. Dark Mode Craft — Premium Dark UI Best Practices
+   110→
+   111→Synthesised from Eleken's "Dark Mode UI Design" guide (https://www.eleken.co/blog-posts/dark-mode-ui), Linear's design refresh (https://linear.app/now/behind-the-latest-design-refresh), and Material Design guidance.
+   112→
+   113→### Surface hierarchy
+   114→- **Avoid pure black.** Material recommends `#121212` as primary dark surface — pure black creates harsh contrast and eye fatigue (Eleken).
+   115→- **Build depth via surface lightness, not shadows.** Dark shadows blend into the background and become ineffective (Eleken).
+   116→- **Define 4–5 gray steps** from deepest surface to elevated component:
+   117→  - Deepest bg → cards (1 step lighter) → modals/popovers (1 step lighter) → tooltips (lightest).
+   118→  - Even small lightness increments create clear depth.
+   119→- **Add a subtle dark blue tint** to grays for branded depth — Material, Linear, and Vercel all do this.
+   120→- **Linear specifically**: refreshed from "cool, blue-ish hue" toward "warmer gray that still feels crisp, but less saturated." Warning: "Go too warm, though, and the interface risks looking muddy." (Linear blog)
+   121→
+   122→### Linear's two design principles for the refresh (https://linear.app/now/behind-the-latest-design-refresh)
+   123→1. **"Don't compete for attention you haven't earned."** Sidebar dimmed a few notches so the main content takes precedence. Tabs made more compact, smaller icon/text sizing, rounded corners.
+   124→2. **"Structure should be felt not seen."** Borders and separators were "quietly proliferating." Linear rounded edges and softened contrast to give structure without clutter. Reduced icon usage, scaled sizes down, removed unnecessary treatments like colored team icon backgrounds.
+   125→
+   126→### Contrast and color
+   127→- **Desaturate ~20 points** in dark mode. Same palette as light mode = visual vibration (Eleken).
+   128→- **Off-white at ~87% opacity** instead of pure white — softens halation around letterforms.
+   129→- **Test against WCAG AA (4.5:1) AND consider APCA** (Advanced Perceptual Contrast Algorithm), which measures contrast as humans actually perceive it. (Eleken lists APCA, WebAIM, Stark as tools.)
+   130→- **Halation effect** for users with astigmatism: white text on dark background glows. Solution: offer both modes; default dark during evening hours.
+   131→
+   132→### Typography in dark mode
+   133→- **Thin and light font weights disappear** in dark mode — prefer Regular/Medium/SemiBold.
+   134→- **Very bold headings can tip into feeling too heavy** — find a balanced Medium/SemiBold.
+   135→- **Increase line spacing slightly** and add a touch of letter-spacing for small text to prevent letterforms blending (Eleken).
+   136→
+   137→### Reference: Linear's tokens (https://oh-my-design.kr/design-systems/linear.app, https://styles.refero.design/style/90ce5883-bb24-4466-93f7-801cd617b0d1)
+   138→- Primary color: `#5e6ad2` (indigo)
+   139→- Typography: Inter Variable + **Berkeley Mono** for code
+   140→- Corner radius: `9999px` (pill-shaped emphasis elements)
+   141→- Surface: `#08090a` (near-black, slightly warm)
+   142→- Accent (in some themes): `#e4f222` (acid lime) — single high-contrast signature
+   143→
+   144→### Linear GitHub DESIGN.md (https://github.com/voltagent/awesome-design-md/blob/main/design-md/linear.app/DESIGN.md)
+   145→- "Near-black product-focused marketing canvas built around `#010102` (the deepest dark surface of any tool in this collection)."
+   146→
+   147→### Recommendations for LCKED
+   148→- Use **`oklch(0.14 0.012 280)`**-ish (~`#13111A`-ish violet-black) as deepest surface, NOT pure `#000000`. The 0.012 chroma gives the branded violet tint without making it look "purple."
+   149→- Define 5 surface tokens: `bg-base`, `bg-raised`, `bg-overlay`, `bg-popover`, `bg-tooltip` — each ~3–4% lighter in L.
+   150→- Text default: `oklch(0.92 0.005 280)` (off-white with violet tint), not `#FFFFFF`.
+   151→- One single accent (violet) at full saturation, plus muted semantic colors (red/orange/green) desaturated ~20% from light mode.
+   152→
+   153→---
+   154→
+   155→## 4. Typography for Secrets — Monospace Craft
+   156→
+   157→### Why monospace for secrets
+   158→- Character-aligned readability when scanning/transcribing a password character-by-character.
+   159→- Tabular numerals (`tnum`) prevent digit jitter in TOTP countdowns.
+   160→- A slashed zero (`zero`) prevents O/0 confusion.
+   161→- A premium mono is the single biggest signal that "this app takes secrets seriously."
+   162→
+   163→### Mono font candidates (synthesised from https://madegooddesigns.com/monospace-font, https://fontalternatives.com/compare/geist-mono-vs-jetbrains-mono, https://rockstardeveloperuniversity.com/best-coding-fonts, https://www.wwebcustomizer.com/blog/best-monospace-fonts-for-whatsapp-web-developer-setup-2026)
+   164→
+   165→| Font | Style | Vibe | Cost | For LCKED? |
+   166→|---|---|---|---|---|
+   167→| **Berkeley Mono** | Designer-favorite, restrained, slightly narrow | Premium, "if Linear uses it" feel | Paid | ★★★★★ — strongest "premium" signal |
+   168→| **Geist Mono** | Compressed proportions, sharp terminals | Modern, dev-tool aesthetic | Free (Vercel) | ★★★★★ — pairs perfectly with Geist Sans, free |
+   169→| **JetBrains Mono** | Taller x-height, very readable | Solid workhorse, slightly "IDE" | Free (OFL) | ★★★★ — safe, but slightly "developer tool" coded |
+   170→| **Commit Mono** | Customizable, very tight | Modern, custom-feel | Free | ★★★ — strong but less recognizable |
+   171→| **Monaspace** (GitHub) | Variable across 5 sub-styles | Modern, novel | Free | ★★★ — interesting but busy |
+   172→| **Fira Code** | Ligatures | Old-school dev | Free | ★ — too "programmer" coded |
+   173→
+   174→### Recommended LCKED type system
+   175→- **UI sans**: Inter (variable, 100–900) or **Geist Sans** (Vercel, https://vercel.com/font). Geist has 5 pixel shapes shipped as one variable family selected through the ELSH axis — distinctively modern.
+   176→- **Brand/display**: A humanist serif or flare sans (à la ABC Arizona Flare) for the lock screen and brand moments only. **Recommendation: Fraunces** (variable, optical sizing, free) for a humanist warmth that defies tech expectations — same logic as Proton's choice of ABC Arizona.
+   177→- **Mono for secrets**: **Geist Mono** (free, pairs with Geist Sans) or **Berkeley Mono** (paid, premium signal). Both avoid the "IDE" aesthetic.
+   178→- **Numeric features**: enable `font-feature-settings: "tnum" 1, "zero" 1, "ss01" 1` on TOTP/password displays. `tnum` = tabular numerals (no jitter), `zero` = slashed zero, `ss01` varies by font but often enables alternate forms.
+   179→
+   180→### Variable font weight for hierarchy
+   181→- Inter and Geist both ship as variable fonts: "single file delivers every weight from 100 to 900 with smooth interpolation" (https://www.pravinkumar.co/blog/inter-geist-plus-jakarta-sans-webflow-b2b-2026).
+   182→- Use weight, NOT size, for subtle hierarchy: 450 (light-ish regular) for body, 550 for emphasis, 650 for headings. This avoids the "5 different font sizes" anti-pattern.
+   183→
+   184→---
+   185→
+   186→## 5. Micro-Interactions & Motion Design
+   187→
+   188→### Framer Motion craft (from Maxime Heckel's deep dive, https://blog.maximeheckel.com/posts/framer-motion-layout-animations/)
+   189→
+   190→**The three primitives:**
+   191→1. **`layout` prop** — smoothly animates position/size when a component re-renders. Use on list items, cards, expandable rows.
+   192→2. **`layout="position"`** — when only position should animate (prevents "squished content" when list items are removed). Critical for password list reordering.
+   193→3. **`layoutId`** (shared layout animations) — animates between multiple instances of a component. The Vercel/Linear-style tab indicator that slides between tabs uses this. Also used for hover highlights.
+   194→
+   195→**Key tricks:**
+   196→- **Set `borderRadius` and `boxShadow` as inline styles** when using `layout` to prevent distortion during the transition. CSS variables will NOT fix this.
+   197→- **`AnimatePresence`** for exit animations — combine with `layout` for graceful list add/remove.
+   198→- **`LayoutGroup`** to namespace `layoutId`s when a component is reused multiple times on a page.
+   199→
+   200→### Rauno Freiberg's craft reference (Devouring Details, https://devouringdetails.com)
+   201→23 chapters on interaction craft. The Principles unit covers:
+   202→- Inferring intent
+   203→- Interaction metaphors
+   204→- Ergonomic interactions
+   205→- Simulating physics
+   206→- Motion choreography
+   207→- Responsive interfaces
+   208→- Contained gestures
+   209→- Drawing inspiration
+   210→
+   211→Rauno's mantra (from rauno.me): *"Make it fast. Make it beautiful. Make it consistent. Make it carefully. Make it timeless. Make it soulful. Make it."*
+   212→
+   213→### Signature motion patterns for LCKED
+   214→
+   215→1. **Shared-layout selection indicator** (Framer Motion `layoutId="vault-item-active"`): the active vault item's selection bar *slides* between items rather than fading. Same pattern Vercel uses on tabs.
+   216→2. **List enter/exit with `layout` + `AnimatePresence`**: new items spring in from the bottom, removed items fade and shrink. Linear, Vercel, and Arc all use this.
+   217→3. **Copy-confirmation micro-animation**: on copy, the icon morphs (clipboard → checkmark via shared `layoutId`), the row briefly highlights with a violet wash that fades over 600ms. Avoid bouncy spring — use a slow ease-out.
+   218→4. **TOTP refresh arc**: a circular SVG progress ring that *smoothly* drains over 30s, never ticking. On rollover, the new code fades in with a 100ms opacity crossfade. No "flash."
+   219→5. **The LCKED "Large Type" reveal** (homage to 1Password): clicking reveal opens a *shared-layout* transition that expands the password field into a centered modal with a character ruler beneath. Each character group (4-char chunks) is a separate `motion.span` with `layoutId` so they smoothly rearrange from inline → large display.
+   220→6. **Unlock success**: the lock screen's violet glow *pulses once* (a single 1.2s ease-out breath, not infinite pulse), then the whole vault crossfades in over 400ms.
+   221→7. **Auto-lock countdown**: invisible until 30s remaining, then a single thin progress bar at the top of the screen, no countdown number. Calm, not anxious.
+   222→
+   223→### Performance budgets
+   224→- Target 60fps (16.6ms/frame). All animations should be GPU-composited: `transform` and `opacity` only, never `width/height/top/left`.
+   225→- Use `will-change: transform` sparingly — only on the actively animating element, removed after.
+   226→- Framer Motion's `useReducedMotion()` hook + global CSS `@media (prefers-reduced-motion: reduce)` to disable all non-essential motion. Per WCAG 2.2 SC 2.3.3 / Technique C39 (https://www.w3.org/WAI/WCAG22/Techniques/css/C39). web.dev: "Some other ways you can adapt animations for the prefers-reduced-motion media query include removing the animation, disabling transitions" (https://web.dev/articles/prefers-reduced-motion).
+   227→
+   228→---
+   229→
+   230→## 6. Information Density & Whitespace
+   231→
+   232→### Linear's density philosophy (https://linear.app/now/behind-the-latest-design-refresh)
+   233→> "The challenge was preserving that rich density of information without letting the interface feel overwhelming."
+   234→
+   235→Three concrete moves:
+   236→1. **Reduce icon usage.** "Linear relies on [icons] to make projects, issues, initiatives, and statuses recognizable at a glance, but in some views their presence had grown excessive. The refresh reduces icon usage, scales their sizes down, and removes unnecessary visual treatments like colored team icon backgrounds."
+   237→2. **Compact tabs.** "Tabs at the top of the desktop app similarly, making them more compact rather than spanning the full width of the screen, with rounded corners and smaller icon and text sizing."
+   238→3. **Soften borders.** "Borders and separators help clarify the relationship between elements … While these dividing lines are intended to help users orient themselves, they had quietly proliferated across the platform."
+   239→
+   240→### List-item anatomy recommendations for LCKED
+   241→- Row height: 56–64px desktop, 64–72px mobile (larger touch target).
+   242→- Per row: 28px item-type icon (custom), 14px gap, primary label (15px/500), secondary label (12px/400 muted — username or domain), right-aligned TOTP/live-code in mono.
+   243→- Hover: 8% violet wash, no border.
+   244→- Active: 1px violet left-border (3px wide), subtle inner glow.
+   245→- Never use underlines for selection — they read as links.
+   246→
+   247→### Detail panel rhythm
+   248→- Section spacing: 32px between major sections, 16px between rows.
+   249→- Each copyable row: label (12px uppercase tracked +0.06em) + value (15px regular, mono for secrets) + copy button (right-aligned, 32px).
+   250→- Large-Type affordance: chevron next to secret fields, à la 1Password.
+   251→
+   252→### Density without claustrophobia
+   253→- **Progressive disclosure**: advanced fields (custom fields, URLs, notes) collapse by default.
+   254→- **Power-user keyboard nav**: J/K to move, Enter to open, Cmd+\ to autofill — but never visible in UI, only in command palette.
+   255→- **Empty states are branding moments** — see §7.
+   256→
+   257→---
+   258→
+   259→## 7. Distinctive Visual Signatures — What Makes LCKED Look Unique
+   260→
+   261→The goal: avoid the "shadcn/ui + violet = every other SaaS" trap. Five signature ideas LCKED could own:
+   262→
+   263→### Signature 1: "Vault Materials" — a violet-as-light surface system
+   264→Instead of flat violet accents, treat violet as **light emanating from beneath surfaces**. Practically:
+   265→- Surfaces use a near-black violet base (`oklch(0.14 0.012 280)`).
+   266→- "Active" surfaces get a `box-shadow: inset 0 1px 0 0 oklch(0.25 0.04 280 / 0.6)` (top edge catch-light).
+   267→- Selection glow: `0 0 0 1px oklch(0.55 0.2 290 / 0.4), 0 0 20px -4px oklch(0.55 0.2 290 / 0.3)`.
+   268→This mimics how Proton's icons have "depth and dimensionality" — but applied to *every surface*, not just icons.
+   269→
+   270→**Risk:** Inexpert implementation looks like a bloom filter. **Mitigation:** keep chroma low (0.04–0.08) and test on actual OLED displays.
+   271→
+   272→### Signature 2: Engineering grid background (Vercel "blueprint aesthetic")
+   273→A subtle dot or line grid behind the lock screen and empty states only — NOT the whole app (that becomes tiring).
+   274→- Setproduct analysis: "The Vercel aesthetic refers to a web design style characterized by subtle grid patterns (lines or dots) behind content, monospaced-influenced [typography]" (https://www.setproduct.com/blog/complete-guide-to-blueprint-grid-design).
+   275→- Psychology: "technical, precise, almost like a blueprint" — builds trust for a security product.
+   276→- Implementation: a single CSS `background-image` with two `radial-gradient` layers at 24px intervals, 1px dots at 6% white opacity.
+   277→
+   278→**Risk:** Overused in 2024–2025 dev tooling. **Mitigation:** use ONLY on lock screen + empty states + setup view, never on the main vault list.
+   279→
+   280→### Signature 3: Large-Type reveal with character ruler (1Password homage, evolved)
+   281→Click any secret → it expands via shared layout animation into a centered Large-Type view:
+   282→- Each character rendered at 48px in Geist Mono.
+   283→- Beneath: a *character ruler* (1, 5, 9, 13… markers) — 1Password's underappreciated feature.
+   284→- Chunk every 4 chars with a slightly wider gap.
+   285→- Optional "phonic" mode for verbal sharing (alpha/bravo/charlie under each char).
+   286→
+   287→**Risk:** Could feel gimmicky if used by default. **Mitigation:** make it a deliberate affordance (chevron icon, keyboard shortcut `Shift+R`), not the default reveal.
+   288→
+   289→### Signature 4: Branded empty states
+   290→The "no items yet" state is the most-seen screen for new users. Make it a *branding moment*:
+   291→- A custom illustration of the LCKED diamond/keyhole mark (Proton-inspired) glowing softly.
+   292→- A single sentence of copy that conveys the product philosophy ("Your secrets, encrypted on this device. Nothing leaves. Ever.")
+   293→- A primary CTA ("Add your first item") and a secondary ("Import from Bitwarden / 1Password / Proton Pass").
+   294→
+   295→**Risk:** Generic illustrations look like a stock library. **Mitigation:** commission 1–2 custom marks, never reuse.
+   296→
+   297→### Signature 5: TOTP as a first-class surface
+   298→Borrow from Apple Passwords (iOS 18 makes Codes a top-level section, https://www.macrumors.com/guide/ios-18-passwords):
+   299→- A dedicated "Codes" filter chip in the vault view.
+   300→- A live-updating "Codes" widget on the lock-screen-adjacent state showing your top 3 most-used OTPs.
+   301→- Each TOTP card shows: service name, current 6-digit code (tabular-nums mono, 24px), and a 30s arc.
+   302→
+   303→**Risk:** Live OTPs on a "rest" screen could leak via screenshot. **Mitigation:** blur on blur event, hide on `visibilitychange`, mask digits until hover/focus.
+   304→
+   305→### On custom iconography vs Lucide
+   306→- Lucide is fine for utility icons (copy, eye, chevron) — consistent, scalable, free.
+   307→- BUT for **item-type icons** (login/note/card/identity) and **brand icons** (Github, Google, etc.), use a *custom set* with consistent stroke weight and a distinctive treatment (e.g., 1.5px stroke + 4px corner radius + subtle inner gradient).
+   308→- 1Password's competitive audit guidelines (https://1password.com/blog/concept-first-design) emphasize consistent concept/metadata for icons across the product.
+   309→
+   310→---
+   311→
+   312→## 8. Color Systems — Building a Distinctive, Accessible Violet
+   313→
+   314→### Why OKLCH (Evil Martians, https://evilmartians.com/chronicles/oklch-in-css-why-quit-rgb-hsl)
+   315→- `oklch(L C H / a)`: **L** = perceived lightness (0–1, consistent across hues), **C** = chroma (gray → saturated), **H** = hue angle (0–360).
+   316→- **HSL is bad for design systems** because HSL's L is not perceptually consistent: "Adding 10% lightness will have different results for blue and purple colors. Hue changes could lead to accessibility issues from low contrast." (Evil Martians)
+   317→- **OKLCH supports P3 wide-gamut** colors (30% more colors than sRGB, all modern Apple devices + OLED).
+   318→- **Human-readable**: you can identify a color by looking at the numbers.
+   319→- Tailwind v4 defaults to OKLCH (https://tailwindcolor.tools/blog/tailwind-css-v4-color-system-complete-guide).
+   320→
+   321→### Making violet feel fresh (not generic SaaS)
+   322→The trap: every privacy app uses Tailwind `violet-500` (#8b5cf6). To make LCKED's violet distinctive:
+   323→
+   324→1. **Shift the hue slightly toward magenta** (H ≈ 295–305 instead of 280). This is the "sunset" direction Proton uses — feels warmer, less generic.
+   325→2. **Lower the chroma** for surface tints (C ≈ 0.02–0.04) so the violet reads as "atmosphere," not "brand paint."
+   326→3. **Reserve high chroma** (C ≈ 0.18–0.22) for ONE moment per screen: the active selection, the primary CTA, the TOTP arc. Everywhere else, violet is a whisper.
+   327→4. **Add a complementary accent** (Proton's yellow-orange sunset, or a desaturated mint green for "freshly generated" feedback). One accent only, used ≤5% of any screen.
+   328→5. **Avoid gradient buttons.** Linear, Vercel, Apple all use flat fills + subtle inner highlight. Gradient buttons scream "2018 SaaS."
+   329→
+   330→### Semantic token recommendations (LCKED)
+   331→```css
+   332→/* Base surfaces — perceptually uniform L ramp with violet tint */
+   333→--bg-base:      oklch(0.14 0.012 280);  /* deepest, never pure black */
+   334→--bg-raised:    oklch(0.18 0.014 280);  /* cards */
+   335→--bg-overlay:   oklch(0.22 0.016 280);  /* modals */
+   336→--bg-popover:   oklch(0.26 0.018 280);  /* tooltips, menus */
+   337→--bg-tooltip:   oklch(0.30 0.020 280);  /* highest elevation */
+   338→
+   339→/* Text — off-white with violet tint, NOT pure white */
+   340→--text-primary:   oklch(0.92 0.005 280);
+   341→--text-secondary: oklch(0.68 0.010 280);
+   342→--text-tertiary:  oklch(0.50 0.012 280);
+   343→--text-disabled:  oklch(0.38 0.010 280);
+   344→
+   345→/* Accent — single violet, magenta-shifted */
+   346→--accent:       oklch(0.62 0.20 295);   /* primary CTA */
+   347→--accent-hover: oklch(0.66 0.22 295);
+   348→--accent-soft:  oklch(0.40 0.08 295);   /* selection bg */
+   349→
+   350→/* Semantic — desaturated for dark mode */
+   351→--danger:  oklch(0.62 0.18 25);   /* breach */
+   352→--warning: oklch(0.70 0.15 75);   /* weak */
+   353→--success: oklch(0.70 0.14 145);  /* strong / fresh */
+   354→--info:    oklch(0.70 0.13 230);  /* tip */
+   355→
+   356→/* Border — felt, not seen (Linear principle) */
+   357→--border-subtle: oklch(0.30 0.012 280 / 0.5);
+   358→--border-default: oklch(0.34 0.014 280 / 0.7);
+   359→```
+   360→
+   361→### Light mode
+   362→Mirror the structure with inverted L values. Keep the SAME H and C for accent — OKLCH makes this trivial. Use `oklch(0.98 0.005 280)` as base, `oklch(0.45 0.20 295)` for accent.
+   363→
+   364→---
+   365→
+   366→## 9. References & Inspiration Sources
+   367→
+   368→### Curated inspiration galleries
+   369→- **Mobbin** — https://mobbin.com — "the biggest mobile app screen library." Best for real-app UI patterns (1Password, Apple Passwords, etc.). Has a dedicated Awards section: https://mobbin.com/awards.
+   370→- **Godly** — https://godly.website — "curates ultra-modern and unique web design examples." Best for finding distinctive aesthetic moves.
+   371→- **Awwwards** — https://www.awwwards.com — curated dark mode collection. Use sparingly; trends toward over-designed.
+   372→- **Dribbble** — https://dribbble.com — search `password-manager dark` for concept work.
+   373→- **Behance** — https://www.behance.net — full case studies (e.g., https://www.behance.net/gallery/74594901/Redesigning-Mullvad-VPN).
+   374→- **Pageflows** — https://pageflows.com — recorded user flow videos (paid, but excellent for understanding motion).
+   375→- **Refero** — https://refero.design — design system references (e.g., https://styles.refero.design/style/90ce5883-bb24-4466-93f7-801cd617b0d1 for Linear).
+   376→- **typenorm** — https://typenorm.com/apps — app-level UX analysis (e.g., their Signal teardown: https://typenorm.com/apps/signal).
+   377→
+   378→### Design system docs to study
+   379→- **Geist (Vercel)** — https://vercel.com/geist/introduction — "Made for building consistent and delightful web experiences. Specifically designed for developers and designers." Includes Colors, Typography, Materials, Brands.
+   380→- **Linear Design System (Figma replica)** — https://www.figma.com/community/file/1222872653732371433/linear-design-system
+   381→- **shadcn/ui Theming** — https://ui.shadcn.com/docs/theming — LCKED's current system. Use https://tweakcn.com for live theme preview.
+   382→- **Linear DESIGN.md** (community doc) — https://github.com/voltagent/awesome-design-md/blob/main/design-md/linear.app/DESIGN.md
+   383→
+   384→### Key articles & deep dives
+   385→- **Proton's visual universe** — https://proton.me/blog/new-visual-universe — Proton purple + ABC Arizona typography rationale.
+   386→- **Proton Pass logo story** — https://proton.me/blog/pass-logo-story — Diamond/keyhole concept + sunset gradient.
+   387→- **Linear's design refresh (2026)** — https://linear.app/now/behind-the-latest-design-refresh — "calmer interface for a product in motion." Two principles: don't compete for attention you haven't earned; structure should be felt not seen.
+   388→- **OKLCH in CSS (Evil Martians)** — https://evilmartians.com/chronicles/oklch-in-css-why-quit-rgb-hsl — the canonical OKLCH explainer.
+   389→- **Framer Motion layout animations (Maxime Heckel)** — https://blog.maximeheckel.com/posts/framer-motion-layout-animations/ — complete deep dive on `layout`, `layoutId`, `LayoutGroup`, distortions.
+   390→- **Dark Mode UI Design (Eleken)** — https://www.eleken.co/blog-posts/dark-mode-ui — practical dark mode principles with real case studies.
+   391→- **Calm Tech Institute principles** — https://www.calmtech.institute/calm-tech-principles — 8 principles for non-intrusive design.
+   392→- **NN/g glassmorphism** — https://www.nngroup.com/articles/glassmorphism — when and how to use frosted glass correctly. "More blur is better, especially with intricate backgrounds."
+   393→- **Vercel blueprint grid aesthetic** — https://www.setproduct.com/blog/complete-guide-to-blueprint-grid-design — technical grid design trend.
+   394→- **1Password concept-first design** — https://1password.com/blog/concept-first-design — using metaphor and narrative to drive design.
+   395→- **1Password Large Type & Watchtower** — https://1password.com/blog/1password-x-1-10-large-type-watchtower-and-easy-two-factor-authentication
+   396→- **Rauno Freiberg (rauno.me)** — https://rauno.me — minimalist portfolio of Vercel's staff design engineer. Mantra: "Make it fast. Make it beautiful. Make it consistent. Make it carefully. Make it timeless. Make it soulful."
+   397→- **Devouring Details (Rauno)** — https://devouringdetails.com — 23-chapter interactive reference on interaction craft ($249, paid).
+   398→- **Apple Passwords guide (MacRumors)** — https://www.macrumors.com/guide/ios-18-passwords — sectioned taxonomy, deleted retention, native UX.
+   399→- **Signal app UX analysis (typenorm)** — https://typenorm.com/apps/signal — "encryption made invisible — security as the default, not a setting."
+   400→- **prefers-reduced-motion (web.dev)** — https://web.dev/articles/prefers-reduced-motion — implementing accessible motion.
+   401→- **WCAG 2.2 Technique C39** — https://www.w3.org/WAI/WCAG22/Techniques/css/C39 — official reduced-motion technique.
+   402→
+   403→---
+   404→
+   405→## 10. Named Design Principles for LCKED
+   406→
+   407→Each principle is a one-line decision rule the team can apply in code review.
+   408→
+   409→1. **"Calm confidence."** Default to restraint; reserve expression for intent. Security apps that shout train users to ignore them.
+   410→2. **"Secrets deserve monospace."** Every password, OTP, card number, URI, key — always in a premium mono with `tnum` + `zero` features. No exceptions.
+   411→3. **"Density without claustrophobia."** Use Linear-style hierarchy (dimmed sidebar, softened borders, reduced iconography) to preserve density without overwhelming.
+   412→4. **"Structure should be felt, not seen."** Borders at 50% opacity. Separators as tonal shifts, not lines. (Direct from Linear.)
+   413→5. **"Don't compete for attention you haven't earned."** Navigation recedes; the current task takes precedence. (Direct from Linear.)
+   414→6. **"Violet as light, not violet as paint."** Surfaces have a violet *tint*, never a violet *fill*. High-chroma violet appears once per screen, max.
+   415→7. **"Encryption is the default, not a feature."** No "ENCRYPTED" badges. One tiny lock glyph, ambient, never animated, never red.
+   416→8. **"Motion serves intent."** Every animation answers "what is the user learning from this?" If the answer is "nothing," delete it.
+   417→9. **"Respect the OS."** Honor `prefers-reduced-motion`, `prefers-color-scheme`, `prefers-contrast`. Default to system theme.
+   418→10. **"One signature, not five."** Pick ONE distinctive surface treatment and apply it consistently (recommendation: violet-as-light materials + engineering grid on lock screen only).
+   419→
+   420→---
+   421→
+   422→## 11. The 10 Highest-Impact Visual Improvements for LCKED (Ranked)
+   423→
+   424→Each item is sized as a discrete engineering task. Ranked by impact-to-effort ratio for a single design engineer.
+   425→
+   426→### #1. Adopt Geist Mono for ALL secret fields (impact: 🔥🔥🔥🔥🔥, effort: 🕐)
+   427→- Replace any system mono in `password-field`, `totp-display`, `item-detail` copyable rows, `password-generator-dialog`.
+   428→- Enable `font-feature-settings: "tnum" 1, "zero" 1` on TOTP and password displays.
+   429→- Pairs with existing Inter/Geist Sans UI font.
+   430→
+   431→### #2. Migrate color tokens to OKLCH with a 5-step violet-tinted surface ramp (impact: 🔥🔥🔥🔥🔥, effort: 🕐🕐)
+   432→- Replace hex/HSL in `globals.css` with the token set from §8.
+   433→- This single change transforms the "depth" feel of the entire app.
+   434→
+   435→### #3. Implement shared-layout selection indicator with Framer Motion `layoutId` (impact: 🔥🔥🔥🔥, effort: 🕐)
+   436→- The active vault item's selection bar slides between items rather than fading.
+   437→- ~30 lines of code, instantly makes the app feel "Linear-grade."
+   438→
+   439→### #4. Add the LCKED "Large Type" reveal modal (impact: 🔥🔥🔥🔥, effort: 🕐🕐🕐)
+   440→- Chevron next to every secret field opens a shared-layout modal.
+   441→- 48px Geist Mono, character ruler beneath, 4-char chunking.
+   442→- Direct homage to 1Password's most-loved feature.
+   443→
+   444→### #5. Apply Linear's "calmer interface" principles: dim sidebar, soften borders, reduce icons (impact: 🔥🔥🔥🔥, effort: 🕐)
+   445→- Reduce sidebar background opacity by 1–2 L steps.
+   446→- Drop border opacity to ~50%, increase corner radius slightly.
+   447→- Remove colored icon backgrounds; reduce icon sizes by 2px.
+   448→
+   449→### #6. Replace the generic TOTP countdown with a calm arc + crossfade (impact: 🔥🔥🔥, effort: 🕐)
+   450→- Smooth SVG arc (no ticking), 30s sweep.
+   451→- On rollover, new code fades in over 100ms.
+   452→- Hide countdown number; show only the arc.
+   453→
+   454→### #7. Add a "Codes" first-class filter chip + lock-screen-adjacent widget (impact: 🔥🔥🔥, effort: 🕐🕐)
+   455→- Apple Passwords-inspired: TOTP is a top-level concept, not buried in Login items.
+   456→- Widget shows top 3 most-used codes, masked until hover.
+   457→
+   458→### #8. Build a branded empty state with the diamond/keyhole mark + philosophy copy (impact: 🔥🔥🔥, effort: 🕐🕐)
+   459→- Custom illustration (commission or hand-draw 1 mark).
+   460→- One sentence: "Your secrets, encrypted on this device. Nothing leaves. Ever."
+   461→
+   462→### #9. Add an engineering-grid background to lock screen + setup + empty states only (impact: 🔥🔥, effort: 🕐)
+   463→- Single CSS `background-image` with two `radial-gradient` layers.
+   464→- 6% white opacity dots at 24px intervals.
+   465→- Builds "technical, precise, trustworthy" feel without overusing the technique.
+   466→
+   467→### #10. Implement copy-confirmation micro-animation with shared layoutId (impact: 🔥🔥, effort: 🕐)
+   468→- On copy: icon morphs (clipboard → checkmark) via `layoutId="copy-icon-{id}"`.
+   469→- Row briefly highlights with a violet wash that fades over 600ms.
+   470→- No bouncy spring — slow ease-out.
+   471→
+   472→---
+   473→
+   474→## 12. Distinctive Visual Directions for LCKED (5–8 options, with rationale + risk)
+   475→
+   476→### Direction A: "Vault Materials" (Linear × Proton)
+   477→Premium dark with violet-as-light surfaces, Geist Mono secrets, shared-layout motion. THE recommended direction.
+   478→- **Rationale**: Combines Linear's restraint with Proton's warm depth. Maximizes "feels premium."
+   479→- **Risk**: Could feel too restrained / "boring" to casual users.
+   480→- **Mitigation**: Use Direction C (Large Type) and Direction E (TOTP widget) as expressive moments within the calm frame.
+   481→
+   482→### Direction B: "Engineering Vault" (Vercel × 1Password)
+   483→Blueprint-grid backgrounds on every surface, character ruler reveals, watchtower-style risk color-coding.
+   484→- **Rationale**: Distinctly technical/precise; builds trust for a security product.
+   485→- **Risk**: Grid backgrounds tire the eye over long sessions; risk of "Vercel clone."
+   486→- **Mitigation**: Restrict grid to lock + empty states only.
+   487→
+   488→### Direction C: "Large-Type Cinematic" (1Password homage, evolved)
+   489→Make the Large-Type reveal the *hero* interaction. Every secret can explode into a 48px+ character ruler view.
+   490→- **Rationale**: 1Password users universally love this feature; LCKED could *own* it for the web.
+   491→- **Risk**: If overused, feels gimmicky.
+   492→- **Mitigation**: Deliberate affordance (chevron + `Shift+R`), not default.
+   493→
+   494→### Direction D: "Sunset Accent" (Proton-inspired)
+   495→Add a secondary yellow-orange accent (like Proton Pass's sunset) used ONLY for "freshly generated" feedback and the unlock success glow.
+   496→- **Rationale**: Adds warmth; differentiates from generic violet-only SaaS.
+   497→- **Risk**: Could clash with violet if mistuned.
+   498→- **Mitigation**: Use at ≤5% of any screen; OKLCH hue 75, chroma 0.15.
+   499→
+   500→### Direction E: "Codes as First-Class" (Apple Passwords-inspired)
+   501→TOTP codes get their own section, widget, and live-updating lock-screen surface.
+   502→- **Rationale**: Apple validated this pattern in iOS 18; users love it.
+   503→- **Risk**: Live OTPs on a "rest" screen could leak.
+   504→- **Mitigation**: Mask until hover; blur on blur event; hide on `visibilitychange`.
+   505→
+   506→### Direction F: "Humanist Brand" (Proton ABC Arizona-inspired)
+   507→Pair Inter/Geist with a humanist display face (Fraunces) for brand moments only — lock screen, setup, empty states.
+   508→- **Rationale**: Defies tech-default sans; signals "we care about humans, not just security."
+   509→- **Risk**: Fraunces is trendy; could feel dated in 3 years.
+   510→- **Mitigation**: Use only on static brand surfaces, never in the active app.
+   511→
+   512→### Direction G: "Quiet Lock" (Calm Tech maximalist)
+   513→Aggressively minimal: no badges, no counters, no risk scores on the homepage. Everything security-related is opt-in via Settings → Security Review.
+   514→- **Rationale**: Calm Tech principle #1 ("smallest possible amount of attention"). Best for users with anxiety around security.
+   515→- **Risk**: Power users may miss features; could feel under-featured.
+   516→- **Mitigation**: A single, calm "Review" CTA in settings that surfaces all risks on demand.
+   517→
+   518→### Direction H: "Diamond Mark" (Proton Pass logo homage)
+   519→Commission a custom LCKED diamond/keyhole mark. Use it as the lock-screen centerpiece, the empty-state illustration, and the FAVICON.
+   520→- **Rationale**: Proton's diamond concept (preciousness + portal) is universally praised. LCKED could adopt a similar metaphor with its own twist.
+   521→- **Risk**: Could feel derivative.
+   522→- **Mitigation**: Make the LCKED mark a *faceted* diamond (not flat), with the violet light emanating from within.
+   523→
+   524→**Recommended combination: A + C + D + E + H** — "Vault Materials" as the base system, "Large-Type Cinematic" as the hero interaction, "Sunset Accent" for warmth, "Codes as First-Class" for daily utility, "Diamond Mark" as the brand anchor. This combination is distinctive, premium, and uniquely suited to a local-first password manager.
+   525→
+   526→---
+   527→
+   528→## 13. Appendix — Quick Reference Cards
+   529→
+   530→### A. The LCKED Motion Cheat Sheet
+   531→| Interaction | Pattern | Duration | Easing | Reduced-motion fallback |
+   532→|---|---|---|---|---|
+   533→| Item selection | shared `layoutId` slide | 280ms | `[0.32, 0.72, 0, 1]` | instant |
+   534→| List enter | spring in from bottom | 320ms | spring (stiffness 300, damping 30) | fade 150ms |
+   535→| List exit | fade + shrink | 200ms | ease-out | instant |
+   536→| Copy confirm | icon morph + row wash | 600ms wash, 200ms icon | ease-out | instant |
+   537→| TOTP rollover | opacity crossfade | 100ms | linear | instant |
+   538→| Unlock success | single breath + crossfade | 1200ms breath, 400ms crossfade | ease-out | crossfade only |
+   539→| Large Type reveal | shared layout expand | 380ms | `[0.32, 0.72, 0, 1]` | instant |
+   540→| Modal open | scale 0.96→1 + opacity | 200ms | ease-out | fade only |
+   541→
+   542→### B. Token application map
+   543→- `--bg-base` → body, full-bleed backgrounds
+   544→- `--bg-raised` → list items, cards, sidebar
+   545→- `--bg-overlay` → modals, dialogs (cmdk palette)
+   546→- `--bg-popover` → menus, dropdowns
+   547→- `--bg-tooltip` → tooltips, hover info
+   548→- `--accent` → primary CTA, active selection border, TOTP arc, focused input border
+   549→- `--accent-soft` → active row background, hover wash, selected chip bg
+   550→- `--danger` → breach alerts, destructive confirm
+   551→- `--warning` → weak password, expiring item
+   552→- `--success` → freshly generated password, copy success wash
+   553→- `--info` → tips, onboarding
+   554→
+   555→### C. Font application map
+   556→- **Geist Sans (variable)** → all UI text. Default weight 450, emphasis 550, headings 650.
+   557→- **Geist Mono** (or Berkeley Mono if licensed) → all secret data: passwords, OTPs, card numbers, CVVs, URIs, key fingerprints. Default weight 450.
+   558→- **Fraunces (variable)** → brand moments only: lock screen title, setup heading, empty state copy.
+   559→- Enable `font-feature-settings: "tnum" 1, "zero" 1` on all numeric secrets.
+   560→- Enable `font-feature-settings: "ss01" 1` on Geist Mono if it enables slashed zero (verify).
+   561→
+   562→### D. Spacing system (8pt grid)
+   563→```
+   564→4  = hairline (icon-text gap)
+   565→8  = tight (within a row)
+   566→12 = comfortable (between fields)
+   567→16 = section internal
+   568→24 = section separator
+   569→32 = major section
+   570→48 = page rhythm
+   571→64 = page-level breathing room
+   572→```
+   573→Use Tailwind's default scale (`space-1` = 4px, `space-2` = 8px, etc.) — already 8pt-aligned.
+   574→
+   575→---
+   576→
+   577→## End of Brief
+   578→
+   579→This document is the deliverable for Task RESEARCH-B. Implementation of any specific recommendation is the responsibility of the engineering agent (no code was modified by this research task).
+   580→

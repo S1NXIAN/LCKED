@@ -1,0 +1,254 @@
+"use client";
+
+/**
+ * LCKED — Password Generator (right sidebar)
+ * ---------------------------------------------------------------------------
+ * Slides in from the right. When opened from a password field (via
+ * setGeneratorCallback), shows a "Use this password" button that inserts
+ * the generated password into the field. When opened standalone (sidebar),
+ * shows a "Copy" button instead.
+ */
+
+import * as React from "react";
+import { RefreshCw, Copy, Check, Dice5, X, ArrowRight } from "lucide-react";
+import { toast } from "sonner";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { useVault, copyWithAutoClear, consumeGeneratorCallback, clearGeneratorCallback, getGeneratorCallback } from "@/store/vault";
+import { generatePassword, generatePassphrase } from "@/lib/generator";
+import { PasswordStrengthMeter } from "./password-strength-meter";
+import { cn } from "@/lib/utils";
+
+export function PasswordGeneratorDialog() {
+  const open = useVault((s) => s.generatorOpen);
+  const setOpen = useVault((s) => s.setGeneratorOpen);
+  const options = useVault((s) => s.settings.generator);
+  const updateGenerator = useVault((s) => s.updateGenerator);
+
+  const [password, setPassword] = React.useState("");
+  const [copied, setCopied] = React.useState(false);
+  const [mode, setMode] = React.useState<"random" | "passphrase">("random");
+  const [wordCount, setWordCount] = React.useState(4);
+  const [hasCallback, setHasCallback] = React.useState(false);
+
+  const regenerate = React.useCallback(() => {
+    if (mode === "random") {
+      setPassword(generatePassword(options));
+    } else {
+      setPassword(generatePassphrase(wordCount, "-"));
+    }
+  }, [mode, options, wordCount]);
+
+  // Regenerate whenever the dialog opens or options change. Debounced so
+  // dragging the Length slider doesn't flicker the password on every step (D-3).
+  React.useEffect(() => {
+    if (!open) return;
+    setHasCallback(!!getGeneratorCallback());
+    const timer = setTimeout(() => regenerate(), 120);
+    return () => clearTimeout(timer);
+  }, [open, regenerate]);
+
+  const handleCopy = async () => {
+    if (!password) return;
+    try {
+      await copyWithAutoClear(password, "generator");
+      setCopied(true);
+      toast.success("Password copied", { description: "Auto-clears in 30s" });
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Clipboard access denied");
+    }
+  };
+
+  const handleUse = () => {
+    if (!password) return;
+    if (consumeGeneratorCallback(password)) {
+      setOpen(false);
+      toast.success("Password inserted");
+    } else {
+      // No callback — copy instead.
+      handleCopy();
+    }
+  };
+
+  const handleClose = () => {
+    // Clear the callback WITHOUT firing it (D-1). The old code called
+    // `consumeGeneratorCallback("")` which fired the callback with an empty
+    // string, wiping the source password field. `clearGeneratorCallback`
+    // just nulls the reference so the source field is left untouched.
+    clearGeneratorCallback();
+    setOpen(false);
+  };
+
+  const atLeastOneSet =
+    options.uppercase || options.lowercase || options.numbers || options.symbols;
+
+  return (
+    <Sheet open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <SheetContent
+        side="right"
+        className="w-full gap-0 overflow-hidden border-l border-border bg-background p-0 sm:max-w-[420px] [&>button[data-slot=dialog-close]]:hidden"
+      >
+        {/* Header — close (left) + title (center) + use/copy (right) */}
+        <SheetHeader className="flex-row items-center justify-between border-b border-border px-4 py-3">
+          <button
+            onClick={handleClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <SheetTitle className="flex items-center gap-2 text-base font-semibold">
+            <Dice5 className="h-4 w-4 text-primary" />
+            Generator
+          </SheetTitle>
+          {hasCallback ? (
+            <Button onClick={handleUse} disabled={!password} size="sm" className="min-w-[72px] gap-1">
+              <ArrowRight className="h-4 w-4" />
+              Use
+            </Button>
+          ) : (
+            <Button onClick={handleCopy} disabled={!password} size="sm" className="min-w-[72px]">
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            </Button>
+          )}
+          <SheetDescription className="sr-only">
+            Generate a cryptographically secure password.
+          </SheetDescription>
+        </SheetHeader>
+
+        {/* Body */}
+        <div className="lcked-scroll flex-1 space-y-5 overflow-y-auto p-4">
+          {/* Mode toggle */}
+          <div className="flex rounded-lg border border-border bg-muted/30 p-1">
+            {(["random", "passphrase"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={cn(
+                  "flex-1 rounded-md px-3 py-1.5 text-center text-xs font-medium capitalize transition-colors duration-100",
+                  mode === m
+                    ? "bg-card text-foreground shadow-sm ring-1 ring-border"
+                    : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                )}
+              >
+                {m === "random" ? "Random" : "Passphrase"}
+              </button>
+            ))}
+          </div>
+
+          {/* Output — large, monospace, with regenerate button */}
+          <div className="relative overflow-hidden rounded-lg border border-border bg-secondary/20 p-4 dark:bg-secondary/20">
+            <div
+              className="break-all font-secret text-xl font-medium leading-snug tracking-wide"
+              style={{ fontFeatureSettings: '"tnum" 1, "zero" 1' }}
+            >
+              {password || "—"}
+            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="absolute right-2 top-2 h-7 w-7"
+              onClick={regenerate}
+              aria-label="Regenerate"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {mode === "random" ? (
+            <PasswordStrengthMeter password={password} />
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Memorable words are easier to type while retaining strong entropy.
+            </p>
+          )}
+
+          {/* Controls */}
+          {mode === "random" ? (
+            <>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground">Length</Label>
+                  <span className="font-secret text-sm font-semibold text-primary">
+                    {options.length}
+                  </span>
+                </div>
+                <Slider
+                  value={[options.length]}
+                  min={4}
+                  max={64}
+                  step={1}
+                  onValueChange={(v) => updateGenerator({ length: v[0] })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <ToggleRow label="A–Z Uppercase" checked={options.uppercase} onChange={(v) => updateGenerator({ uppercase: v })} />
+                <ToggleRow label="a–z Lowercase" checked={options.lowercase} onChange={(v) => updateGenerator({ lowercase: v })} />
+                <ToggleRow label="0–9 Numbers" checked={options.numbers} onChange={(v) => updateGenerator({ numbers: v })} />
+                <ToggleRow label="!@# Symbols" checked={options.symbols} onChange={(v) => updateGenerator({ symbols: v })} />
+              </div>
+              <ToggleRow label="Avoid ambiguous characters (0/O, 1/l/I)" checked={options.avoidAmbiguous} onChange={(v) => updateGenerator({ avoidAmbiguous: v })} />
+              {!atLeastOneSet && (
+                <p className="text-xs text-amber-400">Enable at least one character set.</p>
+              )}
+            </>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground">Words</Label>
+                <span className="font-secret text-sm font-semibold text-primary">{wordCount}</span>
+              </div>
+              <Slider value={[wordCount]} min={3} max={8} step={1} onValueChange={(v) => setWordCount(v[0])} />
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-2 border-t border-border px-4 py-3">
+          <Button variant="outline" className="flex-1" onClick={regenerate}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Regenerate
+          </Button>
+          {hasCallback ? (
+            <Button className="flex-1" onClick={handleUse} disabled={!password}>
+              <ArrowRight className="mr-2 h-4 w-4" />
+              Use this password
+            </Button>
+          ) : (
+            <Button className="flex-1" onClick={handleCopy} disabled={!password}>
+              {copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
+              Copy
+            </Button>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function ToggleRow({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center justify-between gap-2 rounded-md border border-border/60 bg-secondary/20 px-3 py-2 hover:bg-secondary/40 dark:bg-secondary/20">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <Switch checked={checked} onCheckedChange={onChange} />
+    </label>
+  );
+}

@@ -1,0 +1,959 @@
+     1→"use client";
+     2→
+     3→/**
+     4→ * LCKED — VaultsSidebar
+     5→ * ---------------------------------------------------------------------------
+     6→ * Proton Pass–style vault selector. Renders the fixed rows (All / Favorites /
+     7→ * Trash) plus every user-defined vault. Each row is a drag-and-drop drop
+     8→ * target so an item dragged from the list can be moved between vaults.
+     9→ *
+    10→ * Pattern notes:
+    11→ *   • Rows that host a ⋮ dropdown are rendered as <div role="button"> (NOT
+    12→ *     <button>) so the trigger button doesn't nest inside another button —
+    13→ *     nested buttons are invalid HTML and break accessibility tree.
+    14→ *   • A fixed-width slot is reserved for the menu button on EVERY row (even
+    15→ *     the menu-less ones) so all the right-aligned counts line up.
+    16→ *   • "Rename" opens the vault editor sheet via setVaultEditorOpen(true, id);
+    17→ *     "Delete" calls deleteVault (which orphan-rescues any items inside).
+    18→ *   • Each row wrapper carries a `data-vault-key` attribute consumed by the
+    19→ *     sliding VaultActiveHighlight (rAF spring, same pattern as item-list's
+    20→ *     ActiveRowHighlight). The highlight lives in the OUTER container so it
+    21→ *     can reach Trash (which sits outside the scroll area).
+    22→ *   • CustomVaultRow is wrapped in <ContextMenu> with the same items as the
+    23→ *     3-dots dropdown: Edit, Move all items (submenu), Hide vault, Delete.
+    24→ */
+    25→
+    26→import * as React from "react";
+    27→import {
+    28→  Plus,
+    29→  Star,
+    30→  Trash2,
+    31→  ShieldCheck,
+    32→  MoreVertical,
+    33→  Pencil,
+    34→  FolderInput,
+    35→  EyeOff,
+    36→  Home,
+    37→  Briefcase,
+    38→  Gift,
+    39→  ShoppingCart,
+    40→  Heart,
+    41→  Shield,
+    42→  Lock,
+    43→  Key,
+    44→  Eye,
+    45→  User,
+    46→  Users,
+    47→  Building,
+    48→  Banknote,
+    49→  CreditCard,
+    50→  Wallet,
+    51→  Plane,
+    52→  Car,
+    53→  Fuel,
+    54→  Globe,
+    55→  Mail,
+    56→  Phone,
+    57→  Smartphone,
+    58→  Laptop,
+    59→  Server,
+    60→  Cloud,
+    61→  Database,
+    62→  HardDrive,
+    63→  Cpu,
+    64→  Network,
+    65→  type LucideIcon,
+    66→} from "lucide-react";
+    67→import { toast } from "sonner";
+    68→import { cn } from "@/lib/utils";
+    69→import { useVault } from "@/store/vault";
+    70→import type { VaultDef } from "@/lib/types";
+    71→import {
+    72→  VAULT_COLORS,
+    73→  VAULT_ICONS,
+    74→  DEFAULT_VAULT_COLOR,
+    75→  DEFAULT_VAULT_ICON,
+    76→  vaultColorHex,
+    77→} from "@/lib/vault-assets";
+    78→import {
+    79→  DropdownMenu,
+    80→  DropdownMenuTrigger,
+    81→  DropdownMenuContent,
+    82→  DropdownMenuItem,
+    83→  DropdownMenuSeparator,
+    84→  DropdownMenuSub,
+    85→  DropdownMenuSubContent,
+    86→  DropdownMenuSubTrigger,
+    87→} from "@/components/ui/dropdown-menu";
+    88→import {
+    89→  ContextMenu,
+    90→  ContextMenuTrigger,
+    91→  ContextMenuContent,
+    92→  ContextMenuItem,
+    93→  ContextMenuSeparator,
+    94→  ContextMenuSub,
+    95→  ContextMenuSubContent,
+    96→  ContextMenuSubTrigger,
+    97→} from "@/components/ui/context-menu";
+    98→import {
+    99→  AlertDialog,
+   100→  AlertDialogAction,
+   101→  AlertDialogCancel,
+   102→  AlertDialogContent,
+   103→  AlertDialogDescription,
+   104→  AlertDialogFooter,
+   105→  AlertDialogHeader,
+   106→  AlertDialogTitle,
+   107→} from "@/components/ui/alert-dialog";
+   108→import { Button } from "@/components/ui/button";
+   109→
+   110→/* --------------------------- dynamic vault icon --------------------------- */
+   111→
+   112→/**
+   113→ * Lookup from VAULT_ICONS id → Lucide component. We import every icon
+   114→ * statically so the renderer stays synchronous and tree-shakeable. The list
+   115→ * mirrors VAULT_ICONS in src/lib/vault-assets.ts 1:1 — the resolver falls
+   116→ * back to "Home" if a stale id appears, so we always have a fallback here.
+   117→ */
+   118→const LUCIDE_BY_ID: Record<string, LucideIcon> = {
+   119→  home: Home,
+   120→  briefcase: Briefcase,
+   121→  gift: Gift,
+   122→  "shopping-cart": ShoppingCart,
+   123→  heart: Heart,
+   124→  star: Star,
+   125→  shield: Shield,
+   126→  lock: Lock,
+   127→  key: Key,
+   128→  eye: Eye,
+   129→  user: User,
+   130→  users: Users,
+   131→  building: Building,
+   132→  bank: Banknote,
+   133→  "credit-card": CreditCard,
+   134→  wallet: Wallet,
+   135→  plane: Plane,
+   136→  car: Car,
+   137→  fuel: Fuel,
+   138→  globe: Globe,
+   139→  mail: Mail,
+   140→  phone: Phone,
+   141→  smartphone: Smartphone,
+   142→  laptop: Laptop,
+   143→  server: Server,
+   144→  cloud: Cloud,
+   145→  database: Database,
+   146→  "hard-drive": HardDrive,
+   147→  cpu: Cpu,
+   148→  network: Network,
+   149→};
+   150→
+   151→export interface VaultIconProps {
+   152→  /** Vault icon id (see VAULT_ICONS). */
+   153→  icon: string;
+   154→  /** Vault color id (see VAULT_COLORS). */
+   155→  color: string;
+   156→  /** Pixel size of the square swatch. Default 28. */
+   157→  size?: number;
+   158→  className?: string;
+   159→}
+   160→
+   161→/**
+   162→ * Render a vault's icon inside a colored rounded swatch. The fill is the
+   163→ * vault color at 18% opacity; the icon glyph uses the full hex for contrast.
+   164→ * Used by VaultsSidebar rows AND the create-vault-dialog picker preview.
+   165→ */
+   166→export function VaultIcon({ icon, color, size = 28, className }: VaultIconProps) {
+   167→  const hex = vaultColorHex(color);
+   168→  const Resolved = LUCIDE_BY_ID[icon] ?? Home;
+   169→  const px = `${size}px`;
+   170→  const glyph = Math.round(size * 0.55);
+   171→  return (
+   172→    <span
+   173→      className={cn("inline-flex shrink-0 items-center justify-center rounded-lg", className)}
+   174→      style={{
+   175→        width: px,
+   176→        height: px,
+   177→        backgroundColor: `${hex}29`, // ~16% opacity
+   178→        color: hex,
+   179→      }}
+   180→      aria-hidden="true"
+   181→    >
+   182→      <Resolved size={glyph} strokeWidth={2} />
+   183→    </span>
+   184→  );
+   185→}
+   186→
+   187→/** Re-export the catalogs so the picker UI can grab them in one place. */
+   188→export { VAULT_COLORS, VAULT_ICONS, DEFAULT_VAULT_COLOR, DEFAULT_VAULT_ICON };
+   189→
+   190→/* ------------------------------- VaultRow ------------------------------- */
+   191→
+   192→interface VaultRowProps {
+   193→  /** Glyph rendered in the swatch. Pass a Lucide component for fixed rows. */
+   194→  icon: React.ReactNode;
+   195→  /** Row label. */
+   196→  label: string;
+   197→  /** Item count shown on the right. */
+   198→  count: number;
+   199→  /** Whether this row is the active filter. */
+   200→  active: boolean;
+   201→  /** Click handler — sets the active vault filter. */
+   202→  onSelect: () => void;
+   203→  /** Optional drag-and-drop target vault id (null = no drop). */
+   204→  dropVaultId?: string | null;
+   205→  /** Optional amber-tinted style (used by Trash when non-empty). */
+   206→  warn?: boolean;
+   207→  /** Optional ⋮ menu node (rendered in the reserved slot). */
+   208→  menu?: React.ReactNode;
+   209→  /** Whether the row is being dragged over. */
+   210→  dragOver?: boolean;
+   211→}
+   212→
+   213→/**
+   214→ * A single sidebar row. When `menu` is provided we render a div instead of a
+   215→ * button to avoid invalid nested-button HTML. The reserved `menuSlot` keeps
+   216→ * every row's right edge aligned whether or not a menu is present.
+   217→ *
+   218→ * The active state keeps `text-accent-foreground` but NO `bg-accent` — the
+   219→ * sliding VaultActiveHighlight provides the background, so a static one
+   220→ * would visually fight the spring.
+   221→ */
+   222→function VaultRow({
+   223→  icon,
+   224→  label,
+   225→  count,
+   226→  active,
+   227→  onSelect,
+   228→  dropVaultId,
+   229→  warn,
+   230→  menu,
+   231→  dragOver,
+   232→}: VaultRowProps) {
+   233→  const Tag = menu ? "div" : "button";
+   234→  const tagProps = menu
+   235→    ? { role: "button", tabIndex: 0 }
+   236→    : { type: "button" as const };
+   237→
+   238→  const handleDrop = (e: React.DragEvent) => {
+   239→    if (dropVaultId === undefined) return;
+   240→    e.preventDefault();
+   241→    const id = e.dataTransfer.getData("text/lcked-item");
+   242→    if (!id) return;
+   243→    useVault.getState().moveItemToVault(id, dropVaultId ?? null);
+   244→    toast.success(`Moved to ${label}`);
+   245→  };
+   246→  const handleDragOver = (e: React.DragEvent) => {
+   247→    if (dropVaultId === undefined) return;
+   248→    e.preventDefault();
+   249→    e.dataTransfer.dropEffect = "move";
+   250→  };
+   251→  const handleKeyDown = (e: React.KeyboardEvent) => {
+   252→    if (!menu) return;
+   253→    if (e.key === "Enter" || e.key === " ") {
+   254→      e.preventDefault();
+   255→      onSelect();
+   256→    }
+   257→  };
+   258→
+   259→  return (
+   260→    <Tag
+   261→      {...tagProps}
+   262→      onClick={(e: React.MouseEvent) => {
+   263→        const target = e.target as HTMLElement;
+   264→        if (target.closest("[data-menu-slot]")) return;
+   265→        onSelect();
+   266→      }}
+   267→      onKeyDown={menu ? handleKeyDown : undefined}
+   268→      onDrop={handleDrop}
+   269→      onDragOver={handleDragOver}
+   270→      aria-current={active ? "true" : undefined}
+   271→      className={cn(
+   272→        "group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors",
+   273→        "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+   274→        active
+   275→          ? "text-accent-foreground"
+   276→          : warn
+   277→            ? "text-foreground hover:bg-amber-500/10"
+   278→            : "text-foreground/80 hover:bg-muted/60 hover:text-foreground",
+   279→        dragOver && "ring-2 ring-primary/60 ring-offset-1 ring-offset-background",
+   280→      )}
+   281→    >
+   282→      <span className="flex h-7 w-7 shrink-0 items-center justify-center">{icon}</span>
+   283→      <span className="min-w-0 flex-1">
+   284→        <span className="block truncate text-sm font-medium leading-tight">{label}</span>
+   285→        <span
+   286→          className={cn(
+   287→            "block text-xs leading-tight tabular-nums",
+   288→            warn && !active ? "text-amber-400/80" : active ? "text-accent-foreground/70" : "text-muted-foreground",
+   289→          )}
+   290→        >
+   291→          {count} {count === 1 ? "item" : "items"}
+   292→        </span>
+   293→      </span>
+   294→      <span
+   295→        data-menu-slot
+   296→        className="flex h-7 w-7 shrink-0 items-center justify-center"
+   297→      >
+   298→        {menu}
+   299→      </span>
+   300→    </Tag>
+   301→  );
+   302→}
+   303→
+   304→/* --------------------------- CustomVaultRow --------------------------- */
+   305→
+   306→interface CustomVaultRowProps {
+   307→  vault: VaultDef;
+   308→  active: boolean;
+   309→  count: number;
+   310→  dragOver: boolean;
+   311→  onSelect: () => void;
+   312→  onRename: () => void;
+   313→  onDelete: () => void;
+   314→  onHide: () => void;
+   315→  onMoveAll: (targetVaultId: string | null) => void;
+   316→  onDragEnterRow: () => void;
+   317→  onDragLeaveRow: (e: React.DragEvent) => void;
+   318→  onDropClear: () => void;
+   319→}
+   320→
+   321→/**
+   322→ * Build the menu contents shared by the 3-dots dropdown AND the right-click
+   323→ * ContextMenu. Keeps the two menus in lock-step without duplication.
+   324→ */
+   325→function VaultMenuItems({
+   326→  vault,
+   327→  onRename,
+   328→  onDelete,
+   329→  onHide,
+   330→  onMoveAll,
+   331→}: {
+   332→  vault: VaultDef;
+   333→  onRename: () => void;
+   334→  onDelete: () => void;
+   335→  onHide: () => void;
+   336→  onMoveAll: (targetVaultId: string | null) => void;
+   337→}) {
+   338→  const allVaults = useVault((s) => s.vaults);
+   339→  const otherVaults = allVaults.filter((v) => v.id !== vault.id);
+   340→
+   341→  return (
+   342→    <>
+   343→      <ContextMenuItem onSelect={onRename}>
+   344→        <Pencil className="h-3.5 w-3.5" />
+   345→        Edit
+   346→      </ContextMenuItem>
+   347→
+   348→      <ContextMenuSub>
+   349→        <ContextMenuSubTrigger>
+   350→          <FolderInput className="h-3.5 w-3.5" />
+   351→          Move all items
+   352→        </ContextMenuSubTrigger>
+   353→        <ContextMenuSubContent className="w-48">
+   354→          <ContextMenuItem onSelect={() => onMoveAll(null)}>
+   355→            <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+   356→            All Items
+   357→          </ContextMenuItem>
+   358→          {otherVaults.length > 0 && <ContextMenuSeparator />}
+   359→          {otherVaults.map((v) => (
+   360→            <ContextMenuItem key={v.id} onSelect={() => onMoveAll(v.id)}>
+   361→              <VaultIcon icon={v.icon} color={v.color} size={18} />
+   362→              <span className="truncate">{v.name}</span>
+   363→            </ContextMenuItem>
+   364→          ))}
+   365→        </ContextMenuSubContent>
+   366→      </ContextMenuSub>
+   367→
+   368→      <ContextMenuItem onSelect={onHide}>
+   369→        <EyeOff className="h-3.5 w-3.5" />
+   370→        Hide vault
+   371→      </ContextMenuItem>
+   372→
+   373→      <ContextMenuSeparator />
+   374→
+   375→      <ContextMenuItem variant="destructive" onSelect={onDelete}>
+   376→        <Trash2 className="h-3.5 w-3.5" />
+   377→        Delete vault
+   378→      </ContextMenuItem>
+   379→    </>
+   380→  );
+   381→}
+   382→
+   383→/**
+   384→ * A custom-vault row with a ⋮ menu (Edit / Move all items / Hide / Delete)
+   385→ * AND a right-click ContextMenu mirroring the same items. Uses local state
+   386→ * to control the delete-confirm AlertDialog so the dropdown closes cleanly
+   387→ * before the alert opens.
+   388→ */
+   389→function CustomVaultRow({
+   390→  vault,
+   391→  active,
+   392→  count,
+   393→  dragOver,
+   394→  onSelect,
+   395→  onRename,
+   396→  onDelete,
+   397→  onHide,
+   398→  onMoveAll,
+   399→  onDragEnterRow,
+   400→  onDragLeaveRow,
+   401→  onDropClear,
+   402→}: CustomVaultRowProps) {
+   403→  const [confirmOpen, setConfirmOpen] = React.useState(false);
+   404→
+   405→  const handleRename = () => onRename();
+   406→  const handleHide = () => onHide();
+   407→  const handleDelete = () => setConfirmOpen(true);
+   408→
+   409→  return (
+   410→    <div
+   411→      data-vault-key={vault.id}
+   412→      onDragEnter={onDragEnterRow}
+   413→      onDragLeave={onDragLeaveRow}
+   414→      onDrop={onDropClear}
+   415→    >
+   416→      <ContextMenu>
+   417→        <ContextMenuTrigger asChild>
+   418→          <VaultRow
+   419→            icon={<VaultIcon icon={vault.icon} color={vault.color} size={28} />}
+   420→            label={vault.name}
+   421→            count={count}
+   422→            active={active}
+   423→            onSelect={onSelect}
+   424→            dropVaultId={vault.id}
+   425→            dragOver={dragOver}
+   426→            menu={
+   427→              <DropdownMenu>
+   428→                <DropdownMenuTrigger asChild>
+   429→                  <button
+   430→                    type="button"
+   431→                    className={cn(
+   432→                      "flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+   433→                      active && "opacity-60",
+   434→                    )}
+   435→                    aria-label={`Vault “${vault.name}” options`}
+   436→                    onClick={(e) => e.stopPropagation()}
+   437→                  >
+   438→                    <MoreVertical className="h-4 w-4" />
+   439→                  </button>
+   440→                </DropdownMenuTrigger>
+   441→                <DropdownMenuContent align="end" className="w-44">
+   442→                  {/* Mirror the ContextMenu items inside the dropdown so both
+   443→                      entry points offer identical actions. */}
+   444→                  <DropdownMenuItem onSelect={handleRename}>
+   445→                    <Pencil className="h-3.5 w-3.5" />
+   446→                    Edit
+   447→                  </DropdownMenuItem>
+   448→                  <DropdownMenuSub>
+   449→                    <DropdownMenuSubTrigger>
+   450→                      <FolderInput className="h-3.5 w-3.5" />
+   451→                      Move all items
+   452→                    </DropdownMenuSubTrigger>
+   453→                    <DropdownMenuSubContent className="w-48">
+   454→                      <DropdownMenuItem onSelect={() => onMoveAll(null)}>
+   455→                        <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+   456→                        All Items
+   457→                      </DropdownMenuItem>
+   458→                      {useVault.getState().vaults.filter((v) => v.id !== vault.id).length > 0 && (
+   459→                        <DropdownMenuSeparator />
+   460→                      )}
+   461→                      {useVault
+   462→                        .getState()
+   463→                        .vaults.filter((v) => v.id !== vault.id)
+   464→                        .map((v) => (
+   465→                          <DropdownMenuItem key={v.id} onSelect={() => onMoveAll(v.id)}>
+   466→                            <VaultIcon icon={v.icon} color={v.color} size={18} />
+   467→                            <span className="truncate">{v.name}</span>
+   468→                          </DropdownMenuItem>
+   469→                        ))}
+   470→                    </DropdownMenuSubContent>
+   471→                  </DropdownMenuSub>
+   472→                  <DropdownMenuItem onSelect={handleHide}>
+   473→                    <EyeOff className="h-3.5 w-3.5" />
+   474→                    Hide vault
+   475→                  </DropdownMenuItem>
+   476→                  <DropdownMenuSeparator />
+   477→                  <DropdownMenuItem
+   478→                    variant="destructive"
+   479→                    onSelect={(e) => {
+   480→                      e.preventDefault();
+   481→                      setConfirmOpen(true);
+   482→                    }}
+   483→                  >
+   484→                    <Trash2 className="h-3.5 w-3.5" />
+   485→                    Delete vault
+   486→                  </DropdownMenuItem>
+   487→                </DropdownMenuContent>
+   488→              </DropdownMenu>
+   489→            }
+   490→          />
+   491→        </ContextMenuTrigger>
+   492→        <ContextMenuContent className="w-44">
+   493→          <VaultMenuItems
+   494→            vault={vault}
+   495→            onRename={handleRename}
+   496→            onDelete={handleDelete}
+   497→            onHide={handleHide}
+   498→            onMoveAll={onMoveAll}
+   499→          />
+   500→        </ContextMenuContent>
+   501→      </ContextMenu>
+   502→
+   503→      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+   504→        <AlertDialogContent>
+   505→          <AlertDialogHeader>
+   506→            <AlertDialogTitle>Delete “{vault.name}”?</AlertDialogTitle>
+   507→            <AlertDialogDescription>
+   508→              The vault will be removed. Items inside it will be moved to your
+   509→              default vault (not deleted). This cannot be undone.
+   510→            </AlertDialogDescription>
+   511→          </AlertDialogHeader>
+   512→          <AlertDialogFooter>
+   513→            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   514→            <AlertDialogAction
+   515→              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+   516→              onClick={() => {
+   517→                setConfirmOpen(false);
+   518→                onDelete();
+   519→              }}
+   520→            >
+   521→              Delete vault
+   522→            </AlertDialogAction>
+   523→          </AlertDialogFooter>
+   524→        </AlertDialogContent>
+   525→      </AlertDialog>
+   526→    </div>
+   527→  );
+   528→}
+   529→
+   530→/* --------------------- VaultActiveHighlight (rAF spring) --------------------- */
+   531→
+   532→/**
+   533→ * Single persistent highlight rendered ONCE inside the sidebar outer
+   534→ * container. Slides toward the active row's bounding box via a
+   535→ * requestAnimationFrame spring (exponential lerp, factor 0.22). Uses the
+   536→ * same `animateRef` pattern as item-list's ActiveRowHighlight.
+   537→ *
+   538→ * The highlight lives in the OUTER container (NOT the scroll area) so it can
+   539→ * reach Trash, which sits below the scrollable vault list with `mt-auto`.
+   540→ */
+   541→function VaultActiveHighlight({
+   542→  containerRef,
+   543→  activeKey,
+   544→}: {
+   545→  containerRef: React.RefObject<HTMLDivElement | null>;
+   546→  activeKey: string;
+   547→}) {
+   548→  const highlightRef = React.useRef<HTMLDivElement | null>(null);
+   549→  const rafRef = React.useRef<number | null>(null);
+   550→  const targetRef = React.useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+   551→  const wasVisibleRef = React.useRef(false);
+   552→  const [visible, setVisible] = React.useState(false);
+   553→  const animateRef = React.useRef<(() => void) | null>(null);
+   554→
+   555→  const measure = React.useCallback(() => {
+   556→    const container = containerRef.current;
+   557→    if (!activeKey || !container) {
+   558→      targetRef.current = null;
+   559→      setVisible(false);
+   560→      return;
+   561→    }
+   562→    const el = container.querySelector<HTMLElement>(
+   563→      `[data-vault-key="${CSS.escape(activeKey)}"]`,
+   564→    );
+   565→    if (!el) {
+   566→      targetRef.current = null;
+   567→      setVisible(false);
+   568→      return;
+   569→    }
+   570→    const r = el.getBoundingClientRect();
+   571→    const cr = container.getBoundingClientRect();
+   572→    const next = {
+   573→      x: r.left - cr.left,
+   574→      y: r.top - cr.top,
+   575→      w: r.width,
+   576→      h: r.height,
+   577→    };
+   578→    if (!wasVisibleRef.current) {
+   579→      const hl = highlightRef.current;
+   580→      if (hl) {
+   581→        hl.style.transform = `translate(${next.x}px, ${next.y}px)`;
+   582→        hl.style.width = `${next.w}px`;
+   583→        hl.style.height = `${next.h}px`;
+   584→      }
+   585→    }
+   586→    targetRef.current = next;
+   587→    setVisible(true);
+   588→  }, [activeKey, containerRef]);
+   589→
+   590→  React.useEffect(() => {
+   591→    const step = () => {
+   592→      const hl = highlightRef.current;
+   593→      const target = targetRef.current;
+   594→      const container = containerRef.current;
+   595→      if (!hl || !target || !container) {
+   596→        rafRef.current = null;
+   597→        return;
+   598→      }
+   599→      const cur = hl.getBoundingClientRect();
+   600→      const cr = container.getBoundingClientRect();
+   601→      const cx = cur.left - cr.left;
+   602→      const cy = cur.top - cr.top;
+   603→      const FACTOR = 0.22;
+   604→      const nx = cx + (target.x - cx) * FACTOR;
+   605→      const ny = cy + (target.y - cy) * FACTOR;
+   606→      const nw = cur.width + (target.w - cur.width) * FACTOR;
+   607→      const nh = cur.height + (target.h - cur.height) * FACTOR;
+   608→      const settled =
+   609→        Math.abs(target.x - nx) < 0.5 &&
+   610→        Math.abs(target.y - ny) < 0.5 &&
+   611→        Math.abs(target.w - nw) < 0.5 &&
+   612→        Math.abs(target.h - nh) < 0.5;
+   613→      const fx = settled ? target.x : nx;
+   614→      const fy = settled ? target.y : ny;
+   615→      const fw = settled ? target.w : nw;
+   616→      const fh = settled ? target.h : nh;
+   617→      hl.style.transform = `translate(${fx}px, ${fy}px)`;
+   618→      hl.style.width = `${fw}px`;
+   619→      hl.style.height = `${fh}px`;
+   620→      if (settled) {
+   621→        rafRef.current = null;
+   622→        return;
+   623→      }
+   624→      rafRef.current = requestAnimationFrame(step);
+   625→    };
+   626→    animateRef.current = step;
+   627→    return () => {
+   628→      animateRef.current = null;
+   629→    };
+   630→  }, [containerRef]);
+   631→
+   632→  React.useEffect(() => {
+   633→    wasVisibleRef.current = visible;
+   634→  }, [visible]);
+   635→
+   636→  const kick = React.useCallback(() => {
+   637→    measure();
+   638→    if (!rafRef.current && animateRef.current) {
+   639→      rafRef.current = requestAnimationFrame(animateRef.current);
+   640→    }
+   641→  }, [measure]);
+   642→
+   643→  React.useEffect(() => {
+   644→    kick();
+   645→    return () => {
+   646→      if (rafRef.current) {
+   647→        cancelAnimationFrame(rafRef.current);
+   648→        rafRef.current = null;
+   649→      }
+   650→    };
+   651→  }, [activeKey, kick]);
+   652→
+   653→  React.useEffect(() => {
+   654→    const container = containerRef.current;
+   655→    if (!container) return;
+   656→    const observer = new MutationObserver(() => kick());
+   657→    observer.observe(container, {
+   658→      childList: true,
+   659→      subtree: true,
+   660→      attributes: true,
+   661→      attributeFilter: ["data-vault-key"],
+   662→    });
+   663→    return () => observer.disconnect();
+   664→  }, [containerRef, kick]);
+   665→
+   666→  React.useEffect(() => {
+   667→    const container = containerRef.current;
+   668→    if (!container) return;
+   669→    const handler = () => kick();
+   670→    container.addEventListener("scroll", handler, { passive: true });
+   671→    window.addEventListener("scroll", handler, { passive: true });
+   672→    window.addEventListener("resize", handler, { passive: true });
+   673→    return () => {
+   674→      container.removeEventListener("scroll", handler);
+   675→      window.removeEventListener("scroll", handler);
+   676→      window.removeEventListener("resize", handler);
+   677→    };
+   678→  }, [containerRef, kick]);
+   679→
+   680→  if (!visible) return null;
+   681→  return (
+   682→    <div
+   683→      ref={highlightRef}
+   684→      aria-hidden
+   685→      className="lcked-active-glow pointer-events-none absolute left-0 top-0 rounded-lg"
+   686→      style={{ width: 0, height: 0, transform: "translate(0px, 0px)" }}
+   687→    />
+   688→  );
+   689→}
+   690→
+   691→/* ----------------------------- VaultsSidebar ----------------------------- */
+   692→
+   693→export function VaultsSidebar() {
+   694→  const items = useVault((s) => s.items);
+   695→  const vaults = useVault((s) => s.vaults);
+   696→  const activeVault = useVault((s) => s.activeVault);
+   697→  const setActiveVault = useVault((s) => s.setActiveVault);
+   698→  const setCreateVaultDialogOpen = useVault((s) => s.setCreateVaultDialogOpen);
+   699→  const setVaultEditorOpen = useVault((s) => s.setVaultEditorOpen);
+   700→  const deleteVault = useVault((s) => s.deleteVault);
+   701→  const moveItemToVault = useVault((s) => s.moveItemToVault);
+   702→
+   703→  const containerRef = React.useRef<HTMLDivElement | null>(null);
+   704→
+   705→  const [overKey, setOverKey] = React.useState<string | null>(null);
+   706→
+   707→  const allCount = items.filter((i) => !i.trashed).length;
+   708→  const favCount = items.filter((i) => !i.trashed && i.favorite).length;
+   709→  const trashCount = items.filter((i) => i.trashed).length;
+   710→  const vaultCount = (id: string) =>
+   711→    items.filter((i) => !i.trashed && i.vaultId === id).length;
+   712→
+   713→  const handleDelete = async (v: VaultDef) => {
+   714→    try {
+   715→      await deleteVault(v.id);
+   716→      toast.success(`Deleted vault “${v.name}”`);
+   717→    } catch {
+   718→      toast.error("Could not delete vault");
+   719→    }
+   720→  };
+   721→
+   722→  const handleHide = (v: VaultDef) => {
+   723→    try {
+   724→      const hidden = JSON.parse(
+   725→        window.localStorage.getItem("lcked-hidden-vaults") || "[]",
+   726→      ) as string[];
+   727→      if (!hidden.includes(v.id)) hidden.push(v.id);
+   728→      window.localStorage.setItem("lcked-hidden-vaults", JSON.stringify(hidden));
+   729→      toast.success(`Vault “${v.name}” hidden`, {
+   730→        description: "Reload the app to apply.",
+   731→      });
+   732→    } catch {
+   733→      toast.error("Could not hide vault");
+   734→    }
+   735→  };
+   736→
+   737→  const handleMoveAll = async (source: VaultDef, target: string | null) => {
+   738→    const targets = items.filter((i) => !i.trashed && i.vaultId === source.id);
+   739→    if (targets.length === 0) {
+   740→      toast.info(`“${source.name}” has no items to move`);
+   741→      return;
+   742→    }
+   743→    try {
+   744→      await Promise.all(targets.map((i) => moveItemToVault(i.id, target)));
+   745→      const label =
+   746→        target === null
+   747→          ? "All Items"
+   748→          : vaults.find((v) => v.id === target)?.name ?? "target vault";
+   749→      toast.success(`Moved ${targets.length} item${targets.length === 1 ? "" : "s"} to ${label}`);
+   750→    } catch {
+   751→      toast.error("Could not move items");
+   752→    }
+   753→  };
+   754→
+   755→  const renderCustomVault = (v: VaultDef) => (
+   756→    <CustomVaultRow
+   757→      key={v.id}
+   758→      vault={v}
+   759→      active={activeVault === v.id}
+   760→      count={vaultCount(v.id)}
+   761→      dragOver={overKey === `vault-${v.id}`}
+   762→      onSelect={() => setActiveVault(v.id)}
+   763→      onRename={() => setVaultEditorOpen(true, v.id)}
+   764→      onDelete={() => handleDelete(v)}
+   765→      onHide={() => handleHide(v)}
+   766→      onMoveAll={(target) => handleMoveAll(v, target)}
+   767→      onDragEnterRow={() => setOverKey(`vault-${v.id}`)}
+   768→      onDragLeaveRow={(e) => {
+   769→        const related = e.relatedTarget as Node | null;
+   770→        if (related && (e.currentTarget as Node).contains(related)) return;
+   771→        setOverKey((c) => (c === `vault-${v.id}` ? null : c));
+   772→      }}
+   773→      onDropClear={() => setOverKey(null)}
+   774→    />
+   775→  );
+   776→
+   777→  return (
+   778→    <div
+   779→      ref={containerRef}
+   780→      className="relative flex h-full flex-col gap-1 px-2 py-2"
+   781→    >
+   782→      {/* Sliding highlight — lives in the OUTER container so it can reach
+   783→          Trash, which sits below the scroll area with `mt-auto`. */}
+   784→      <VaultActiveHighlight containerRef={containerRef} activeKey={activeVault} />
+   785→
+   786→      {/* Header */}
+   787→      <div className="relative flex items-center justify-between px-3 py-2">
+   788→        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+   789→          Vaults
+   790→        </span>
+   791→        <Button
+   792→          size="icon"
+   793→          variant="ghost"
+   794→          className="h-6 w-6 text-muted-foreground hover:text-foreground"
+   795→          onClick={() => setCreateVaultDialogOpen(true)}
+   796→          aria-label="Create vault"
+   797→        >
+   798→          <Plus className="h-4 w-4" />
+   799→        </Button>
+   800→      </div>
+   801→
+   802→      {/* Scrollable vault list area — All Items, Favorites, custom vaults.
+   803→          Trash is OUTSIDE this scroll area so it stays pinned at the bottom. */}
+   804→      <div className="lcked-scroll relative min-h-0 flex-1 overflow-y-auto">
+   805→
+   806→      {/* All items — drop = move to default vault (vaultId = null). */}
+   807→      <div
+   808→        data-vault-key="all"
+   809→        onDragEnter={() => setOverKey("all")}
+   810→        onDragLeave={(e) => {
+   811→          const related = e.relatedTarget as Node | null;
+   812→          if (related && (e.currentTarget as Node).contains(related)) return;
+   813→          setOverKey((c) => (c === "all" ? null : c));
+   814→        }}
+   815→        onDrop={async (e) => {
+   816→          setOverKey(null);
+   817→          const id = e.dataTransfer.getData("text/lcked-item");
+   818→          if (!id) return;
+   819→          try {
+   820→            await useVault.getState().moveItemToVault(id, null);
+   821→            toast.success("Moved to All Items");
+   822→          } catch {
+   823→            toast.error("Could not move item");
+   824→          }
+   825→        }}
+   826→        onDragOver={(e) => {
+   827→          e.preventDefault();
+   828→          e.dataTransfer.dropEffect = "move";
+   829→        }}
+   830→      >
+   831→        <VaultRow
+   832→          icon={
+   833→            <span
+   834→              className="inline-flex h-7 w-7 items-center justify-center rounded-lg"
+   835→              style={{ backgroundColor: "#7777F829", color: "#7777F8" }}
+   836→              aria-hidden="true"
+   837→            >
+   838→              <ShieldCheck className="h-4 w-4" />
+   839→            </span>
+   840→          }
+   841→          label="All Items"
+   842→          count={allCount}
+   843→          active={activeVault === "all"}
+   844→          onSelect={() => setActiveVault("all")}
+   845→          dragOver={overKey === "all"}
+   846→        />
+   847→      </div>
+   848→
+   849→      {/* Favorites — drop = toggle favorite on. */}
+   850→      <div
+   851→        data-vault-key="favorites"
+   852→        onDragEnter={() => setOverKey("favorites")}
+   853→        onDragLeave={(e) => {
+   854→          const related = e.relatedTarget as Node | null;
+   855→          if (related && (e.currentTarget as Node).contains(related)) return;
+   856→          setOverKey((c) => (c === "favorites" ? null : c));
+   857→        }}
+   858→        onDrop={async (e) => {
+   859→          setOverKey(null);
+   860→          const id = e.dataTransfer.getData("text/lcked-item");
+   861→          if (!id) return;
+   862→          const it = useVault.getState().items.find((i) => i.id === id);
+   863→          if (!it) return;
+   864→          if (it.favorite) {
+   865→            toast.info("Already a favorite");
+   866→            return;
+   867→          }
+   868→          try {
+   869→            await useVault.getState().toggleFavorite(id);
+   870→            toast.success("Added to Favorites");
+   871→          } catch {
+   872→            toast.error("Could not favorite item");
+   873→          }
+   874→        }}
+   875→        onDragOver={(e) => {
+   876→          e.preventDefault();
+   877→          e.dataTransfer.dropEffect = "move";
+   878→        }}
+   879→      >
+   880→        <VaultRow
+   881→          icon={
+   882→            <span
+   883→              className="inline-flex h-7 w-7 items-center justify-center rounded-lg"
+   884→              style={{ backgroundColor: "#FFB84D29", color: "#FFB84D" }}
+   885→              aria-hidden="true"
+   886→            >
+   887→              <Star className="h-4 w-4" />
+   888→            </span>
+   889→          }
+   890→          label="Favorites"
+   891→          count={favCount}
+   892→          active={activeVault === "favorites"}
+   893→          onSelect={() => setActiveVault("favorites")}
+   894→          dragOver={overKey === "favorites"}
+   895→        />
+   896→      </div>
+   897→
+   898→      {/* Custom vaults */}
+   899→      {vaults.length > 0 && (
+   900→        <div className="relative mt-1 flex flex-col gap-0.5">
+   901→          {vaults.map(renderCustomVault)}
+   902→        </div>
+   903→      )}
+   904→
+   905→      </div>{/* End scrollable vault list area */}
+   906→
+   907→      {/* Trash — pinned at the bottom, OUTSIDE the scroll area.
+   908→          A thin border-t separates it from the scrollable vault list. */}
+   909→      <div
+   910→        data-vault-key="trash"
+   911→        className="relative shrink-0 border-t border-border/60 pt-1"
+   912→        onDragEnter={() => setOverKey("trash")}
+   913→        onDragLeave={(e) => {
+   914→          const related = e.relatedTarget as Node | null;
+   915→          if (related && (e.currentTarget as Node).contains(related)) return;
+   916→          setOverKey((c) => (c === "trash" ? null : c));
+   917→        }}
+   918→        onDrop={async (e) => {
+   919→          setOverKey(null);
+   920→          const id = e.dataTransfer.getData("text/lcked-item");
+   921→          if (!id) return;
+   922→          try {
+   923→            await useVault.getState().trashItem(id);
+   924→            toast.success("Moved to Trash");
+   925→          } catch {
+   926→            toast.error("Could not move to Trash");
+   927→          }
+   928→        }}
+   929→        onDragOver={(e) => {
+   930→          e.preventDefault();
+   931→          e.dataTransfer.dropEffect = "move";
+   932→        }}
+   933→      >
+   934→        <VaultRow
+   935→          icon={
+   936→            <span
+   937→              className={cn(
+   938→                "inline-flex h-7 w-7 items-center justify-center rounded-lg",
+   939→                trashCount > 0
+   940→                  ? "bg-amber-500/15 text-amber-400"
+   941→                  : "bg-muted text-muted-foreground",
+   942→              )}
+   943→              aria-hidden="true"
+   944→            >
+   945→              <Trash2 className="h-4 w-4" />
+   946→            </span>
+   947→          }
+   948→          label="Trash"
+   949→          count={trashCount}
+   950→          active={activeVault === "trash"}
+   951→          warn={trashCount > 0}
+   952→          onSelect={() => setActiveVault("trash")}
+   953→          dragOver={overKey === "trash"}
+   954→        />
+   955→      </div>
+   956→    </div>
+   957→  );
+   958→}
+   959→

@@ -1,0 +1,941 @@
+     1→     1→"use client";
+     2→     2→
+     3→     3→import * as React from "react";
+     4→     4→import {
+     5→     5→  Star,
+     6→     6→  Trash2,
+     7→     7→  RotateCcw,
+     8→     8→  CheckSquare,
+     9→     9→  Square,
+    10→    10→  X,
+    11→    11→  FolderInput,
+    12→    12→  ChevronDown,
+    13→    13→  ArrowUpDown,
+    14→    14→  LayoutGrid,
+    15→    15→  MoreVertical,
+    16→    16→  KeyRound,
+    17→    17→  StickyNote,
+    18→    18→  CreditCard,
+    19→    19→  UserRound,
+    20→    20→} from "lucide-react";
+    21→    21→import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+    22→    22→import { Button } from "@/components/ui/button";
+    23→    23→import {
+    24→    24→  Select,
+    25→    25→  SelectContent,
+    26→    26→  SelectItem,
+    27→    27→  SelectTrigger,
+    28→    28→  SelectValue,
+    29→    29→} from "@/components/ui/select";
+    30→    30→import {
+    31→    31→  DropdownMenu,
+    32→    32→  DropdownMenuTrigger,
+    33→    33→  DropdownMenuContent,
+    34→    34→  DropdownMenuItem,
+    35→    35→  DropdownMenuSeparator,
+    36→    36→  DropdownMenuSub,
+    37→    37→  DropdownMenuSubTrigger,
+    38→    38→  DropdownMenuSubContent,
+    39→    39→} from "@/components/ui/dropdown-menu";
+    40→    40→import {
+    41→    41→  ContextMenu,
+    42→    42→  ContextMenuTrigger,
+    43→    43→  ContextMenuContent,
+    44→    44→  ContextMenuItem,
+    45→    45→  ContextMenuSeparator,
+    46→    46→} from "@/components/ui/context-menu";
+    47→    47→import { cn, isEmail } from "@/lib/utils";
+    48→    48→import { useVault, copyWithAutoClear } from "@/store/vault";
+    49→    49→import { searchItems } from "@/lib/fuzzy-search";
+    50→    50→import { toast } from "sonner";
+    51→    51→import type { FilterType, ItemType, VaultItem } from "@/lib/types";
+    52→    52→import { ItemTypeIcon, ITEM_TYPE_LABELS } from "./item-icons";
+    53→    53→import { DiamondMark } from "./diamond-mark";
+    54→    54→import { FaviconIcon } from "./favicon-icon";
+    55→    55→import { stashNewItemType } from "./new-item-stash";
+    56→    56→
+    57→    57→/* ------------------------------- helpers ------------------------------- */
+    58→    58→
+    59→    59→type SortKey = "newest" | "oldest" | "alphabetical";
+    60→    60→
+    61→    61→const TYPE_OPTIONS: { value: "all" | ItemType; label: string }[] = [
+    62→    62→  { value: "all", label: "All" },
+    63→    63→  { value: "login", label: "Logins" },
+    64→    64→  { value: "note", label: "Notes" },
+    65→    65→  { value: "card", label: "Cards" },
+    66→    66→  { value: "identity", label: "Identities" },
+    67→    67→];
+    68→    68→
+    69→    69→const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+    70→    70→  { value: "newest", label: "Newest" },
+    71→    71→  { value: "oldest", label: "Oldest" },
+    72→    72→  { value: "alphabetical", label: "A–Z" },
+    73→    73→];
+    74→    74→
+    75→    75→function subtitle(item: VaultItem): string {
+    76→    76→  switch (item.type) {
+    77→    77→    case "login":
+    78→    78→      return item.details.username || item.details.urls[0] || "—";
+    79→    79→    case "note":
+    80→    80→      return (item.details.content || "Empty note").replace(/\n/g, " ").trim();
+    81→    81→    case "card":
+    82→    82→      return (
+    83→    83→        item.details.brand ||
+    84→    84→        item.details.number.slice(-4).padStart(item.details.number.length, "•") ||
+    85→    85→        "—"
+    86→    86→      );
+    87→    87→    case "identity":
+    88→    88→      return [item.details.firstName, item.details.lastName].filter(Boolean).join(" ") || item.details.email || "—";
+    89→    89→  }
+    90→    90→}
+    91→    91→
+    92→    92→/* ----------------------- ActiveRowHighlight (rAF spring) --------------- */
+    93→    93→
+    94→    94→/**
+    95→    95→ * Single persistent highlight element rendered ONCE inside the <ul>.
+    96→    96→ *
+    97→    97→ * Slides toward the active item's bounding box via a requestAnimationFrame
+    98→    98→ * spring (exponential lerp, factor 0.22). Uses the `animateRef` pattern —
+    99→    99→ * the latest step function is stashed in a ref so external listeners
+   100→   100→ * (scroll, MutationObserver) can always kick the loop without re-binding.
+   101→   101→ *
+   102→   102→ * On `activeId` change: measure + start the animation. If the item isn't
+   103→   103→ * found in the DOM, `setVisible(false)` and bail. A MutationObserver re-
+   104→   104→ * checks when the list DOM changes; a scroll listener re-measures on
+   105→   105→ * scroll so the highlight stays glued to the active row.
+   106→   106→ */
+   107→   107→function ActiveRowHighlight({
+   108→   108→  listRef,
+   109→   109→  activeId,
+   110→   110→}: {
+   111→   111→  listRef: React.RefObject<HTMLUListElement | null>;
+   112→   112→  activeId: string | null;
+   113→   113→}) {
+   114→   114→  const highlightRef = React.useRef<HTMLDivElement | null>(null);
+   115→   115→  const rafRef = React.useRef<number | null>(null);
+   116→   116→  const targetRef = React.useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+   117→   117→  const wasVisibleRef = React.useRef(false);
+   118→   118→  const [visible, setVisible] = React.useState(false);
+   119→   119→  // animateRef holds the latest step function so external listeners can
+   120→   120→  // kick it without re-binding their own dependencies.
+   121→   121→  const animateRef = React.useRef<(() => void) | null>(null);
+   122→   122→
+   123→   123→  // Measure the active item's rect relative to the <ul>. If not found,
+   124→   124→  // hide the highlight.
+   125→   125→  const measure = React.useCallback(() => {
+   126→   126→    const list = listRef.current;
+   127→   127→    if (!activeId || !list) {
+   128→   128→      targetRef.current = null;
+   129→   129→      setVisible(false);
+   130→   130→      return;
+   131→   131→    }
+   132→   132→    const el = list.querySelector<HTMLElement>(
+   133→   133→      `[data-item-id="${CSS.escape(activeId)}"]`,
+   134→   134→    );
+   135→   135→    if (!el) {
+   136→   136→      targetRef.current = null;
+   137→   137→      setVisible(false);
+   138→   138→      return;
+   139→   139→    }
+   140→   140→    const r = el.getBoundingClientRect();
+   141→   141→    const lr = list.getBoundingClientRect();
+   142→   142→    const next = {
+   143→   143→      x: r.left - lr.left,
+   144→   144→      y: r.top - lr.top,
+   145→   145→      w: r.width,
+   146→   146→      h: r.height,
+   147→   147→    };
+   148→   148→    // First activation (or returning from invisible): snap to target so
+   149→   149→    // we don't slide in from (0, 0).
+   150→   150→    if (!wasVisibleRef.current) {
+   151→   151→      const hl = highlightRef.current;
+   152→   152→      if (hl) {
+   153→   153→        hl.style.transform = `translate(${next.x}px, ${next.y}px)`;
+   154→   154→        hl.style.width = `${next.w}px`;
+   155→   155→        hl.style.height = `${next.h}px`;
+   156→   156→      }
+   157→   157→    }
+   158→   158→    targetRef.current = next;
+   159→   159→    setVisible(true);
+   160→   160→  }, [activeId, listRef]);
+   161→   161→
+   162→   162→  // (Re)define the animation step on every render so it captures the
+   163→   163→  // latest refs. Store it in animateRef for external listeners.
+   164→   164→  React.useEffect(() => {
+   165→   165→    const step = () => {
+   166→   166→      const hl = highlightRef.current;
+   167→   167→      const target = targetRef.current;
+   168→   168→      const list = listRef.current;
+   169→   169→      if (!hl || !target || !list) {
+   170→   170→        rafRef.current = null;
+   171→   171→        return;
+   172→   172→      }
+   173→   173→      const cur = hl.getBoundingClientRect();
+   174→   174→      const lr = list.getBoundingClientRect();
+   175→   175→      const cx = cur.left - lr.left;
+   176→   176→      const cy = cur.top - lr.top;
+   177→   177→      const FACTOR = 0.22;
+   178→   178→      const nx = cx + (target.x - cx) * FACTOR;
+   179→   179→      const ny = cy + (target.y - cy) * FACTOR;
+   180→   180→      const nw = cur.width + (target.w - cur.width) * FACTOR;
+   181→   181→      const nh = cur.height + (target.h - cur.height) * FACTOR;
+   182→   182→      const settled =
+   183→   183→        Math.abs(target.x - nx) < 0.5 &&
+   184→   184→        Math.abs(target.y - ny) < 0.5 &&
+   185→   185→        Math.abs(target.w - nw) < 0.5 &&
+   186→   186→        Math.abs(target.h - nh) < 0.5;
+   187→   187→      const fx = settled ? target.x : nx;
+   188→   188→      const fy = settled ? target.y : ny;
+   189→   189→      const fw = settled ? target.w : nw;
+   190→   190→      const fh = settled ? target.h : nh;
+   191→   191→      hl.style.transform = `translate(${fx}px, ${fy}px)`;
+   192→   192→      hl.style.width = `${fw}px`;
+   193→   193→      hl.style.height = `${fh}px`;
+   194→   194→      if (settled) {
+   195→   195→        rafRef.current = null;
+   196→   196→        return;
+   197→   197→      }
+   198→   198→      rafRef.current = requestAnimationFrame(step);
+   199→   199→    };
+   200→   200→    animateRef.current = step;
+   201→   201→    return () => {
+   202→   202→      animateRef.current = null;
+   203→   203→    };
+   204→   204→  }, [listRef]);
+   205→   205→
+   206→   206→  // Track visibility transitions for the snap-on-first-show behavior.
+   207→   207→  React.useEffect(() => {
+   208→   208→    wasVisibleRef.current = visible;
+   209→   209→  }, [visible]);
+   210→   210→
+   211→   211→  // Re-measure + kick the animation if it isn't already running.
+   212→   212→  const kick = React.useCallback(() => {
+   213→   213→    measure();
+   214→   214→    if (!rafRef.current && animateRef.current) {
+   215→   215→      rafRef.current = requestAnimationFrame(animateRef.current);
+   216→   216→    }
+   217→   217→  }, [measure]);
+   218→   218→
+   219→   219→  // On activeId change: measure + start the animation. Cancel any in-
+   220→   220→  // flight loop on cleanup.
+   221→   221→  React.useEffect(() => {
+   222→   222→    kick();
+   223→   223→    return () => {
+   224→   224→      if (rafRef.current) {
+   225→   225→        cancelAnimationFrame(rafRef.current);
+   226→   226→        rafRef.current = null;
+   227→   227→      }
+   228→   228→    };
+   229→   229→  }, [activeId, kick]);
+   230→   230→
+   231→   231→  // MutationObserver — re-check when the list DOM changes (items added,
+   232→   232→  // removed, reordered by sort, attributes toggled). Uses a microtask delay
+   233→   233→  // so the DOM has time to settle after AnimatePresence exit animations.
+   234→   234→  React.useEffect(() => {
+   235→   235→    const list = listRef.current;
+   236→   236→    if (!list) return;
+   237→   237→    let pending = false;
+   238→   238→    const observer = new MutationObserver(() => {
+   239→   239→      if (pending) return;
+   240→   240→      pending = true;
+   241→   241→      requestAnimationFrame(() => {
+   242→   242→        pending = false;
+   243→   243→        kick();
+   244→   244→      });
+   245→   245→    });
+   246→   246→    observer.observe(list, {
+   247→   247→      childList: true,
+   248→   248→      subtree: true,
+   249→   249→      attributes: true,
+   250→   250→      attributeFilter: ["data-item-id"],
+   251→   251→    });
+   252→   252→    return () => observer.disconnect();
+   253→   253→  }, [listRef, kick]);
+   254→   254→
+   255→   255→  // Scroll listener — re-measure + re-animate on scroll so the highlight
+   256→   256→  // stays glued to the active row (both inside the scroll viewport and
+   257→   257→  // when the page itself scrolls).
+   258→   258→  React.useEffect(() => {
+   259→   259→    const list = listRef.current;
+   260→   260→    if (!list) return;
+   261→   261→    const container =
+   262→   262→      list.closest('[data-radix-scroll-area-viewport]') ??
+   263→   263→      list.parentElement ??
+   264→   264→      null;
+   265→   265→    const handler = () => kick();
+   266→   266→    container?.addEventListener("scroll", handler, { passive: true });
+   267→   267→    window.addEventListener("scroll", handler, { passive: true });
+   268→   268→    return () => {
+   269→   269→      container?.removeEventListener("scroll", handler);
+   270→   270→      window.removeEventListener("scroll", handler);
+   271→   271→    };
+   272→   272→  }, [listRef, kick]);
+   273→   273→
+   274→   274→  if (!visible) return null;
+   275→   275→  return (
+   276→   276→    <div
+   277→   277→      ref={highlightRef}
+   278→   278→      aria-hidden
+   279→   279→      className="lcked-active-glow pointer-events-none absolute left-0 top-0 rounded-lg"
+   280→   280→      style={{ width: 0, height: 0, transform: "translate(0px, 0px)" }}
+   281→   281→    />
+   282→   282→  );
+   283→   283→}
+   284→   284→
+   285→   285→/* ------------------------------- ItemList ------------------------------ */
+   286→   286→
+   287→   287→export function ItemList({
+   288→   288→  filter,
+   289→   289→  setFilter,
+   290→   290→  activeVault: activeVaultProp,
+   291→   291→  onMobileBack,
+   292→   292→}: {
+   293→   293→  /** Type filter (All / Login / Note / Card / Identity). */
+   294→   294→  filter: FilterType;
+   295→   295→  setFilter: (f: FilterType) => void;
+   296→   296→  /** Active vault filter from the store — passed explicitly so the list re-
+   297→   297→   *  renders when the sidebar switches between All/Favorites/Trash/vault. */
+   298→   298→  activeVault?: string;
+   299→   299→  /** Mobile-only callback when the user taps Back from a Trash detail. */
+   300→   300→  onMobileBack?: () => void;
+   301→   301→}) {
+   302→   302→  // Store hooks — we read activeVault directly here as well so the list
+   303→   303→  // always re-renders even if a parent forgets to thread the prop through.
+   304→   304→  const items = useVault((s) => s.items);
+   305→   305→  const vaults = useVault((s) => s.vaults);
+   306→   306→  const selectedId = useVault((s) => s.selectedId);
+   307→   307→  const setSelected = useVault((s) => s.setSelected);
+   308→   308→  const searchQuery = useVault((s) => s.searchQuery);
+   309→   309→  const setEditorOpen = useVault((s) => s.setEditorOpen);
+   310→   310→  const trashItem = useVault((s) => s.trashItem);
+   311→   311→  const restoreItem = useVault((s) => s.restoreItem);
+   312→   312→  const permanentlyDeleteItem = useVault((s) => s.permanentlyDeleteItem);
+   313→   313→  const moveItemToVault = useVault((s) => s.moveItemToVault);
+   314→   314→  const toggleFavorite = useVault((s) => s.toggleFavorite);
+   315→   315→  const sortFavoritesFirst = useVault((s) => s.settings.sortFavoritesFirst);
+   316→   316→
+   317→   317→  const activeVault = activeVaultProp ?? useVault.getState().activeVault;
+   318→   318→  const isTrashView = activeVault === "trash";
+   319→   319→
+   320→   320→  // Sort persistence — read the initial value from localStorage so the
+   321→   321→  // user's last sort preference survives reloads.
+   322→   322→  const [sort, setSortState] = React.useState<SortKey>(() => {
+   323→   323→    if (typeof window === "undefined") return "newest";
+   324→   324→    const stored = window.localStorage.getItem("lcked-sort") as SortKey | null;
+   325→   325→    return stored === "newest" || stored === "oldest" || stored === "alphabetical"
+   326→   326→      ? stored
+   327→   327→      : "newest";
+   328→   328→  });
+   329→   329→  const setSort = React.useCallback((next: SortKey) => {
+   330→   330→    setSortState(next);
+   331→   331→    try {
+   332→   332→      window.localStorage.setItem("lcked-sort", next);
+   333→   333→    } catch {
+   334→   334→      // localStorage may be denied (private mode, etc.) — best-effort.
+   335→   335→    }
+   336→   336→  }, []);
+   337→   337→
+   338→   338→  const [multiSelect, setMultiSelect] = React.useState(false);
+   339→   339→  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+   340→   340→  // Reset multi-select whenever we leave multi-select mode.
+   341→   341→  React.useEffect(() => {
+   342→   342→    if (!multiSelect) setSelectedIds(new Set());
+   343→   343→  }, [multiSelect]);
+   344→   344→
+   345→   345→  // Deferred search query — keeps typing responsive on large vaults by
+   346→   346→  // letting the filter/sort work happen at lower priority.
+   347→   347→  const deferredSearch = React.useDeferredValue(searchQuery);
+   348→   348→
+   349→   349→  // List ref for the ActiveRowHighlight.
+   350→   350→  const listRef = React.useRef<HTMLUListElement | null>(null);
+   351→   351→
+   352→   352→  /* --------------------------- filtering + sorting --------------------------- */
+   353→   353→  const filtered = React.useMemo(() => {
+   354→   354→    let list = items;
+   355→   355→    // Vault-level filter.
+   356→   356→    if (activeVault === "trash") list = list.filter((i) => i.trashed);
+   357→   357→    else if (activeVault === "favorites") list = list.filter((i) => !i.trashed && i.favorite);
+   358→   358→    else if (activeVault && activeVault !== "all")
+   359→   359→      list = list.filter((i) => !i.trashed && i.vaultId === activeVault);
+   360→   360→    else list = list.filter((i) => !i.trashed);
+   361→   361→    // Type filter (secondary, list-header dropdown).
+   362→   362→    if (filter !== "all" && typeof filter === "string") {
+   363→   363→      list = list.filter((i) => i.type === filter);
+   364→   364→    }
+   365→   365→    // Fuzzy search.
+   366→   366→    list = searchItems(list, deferredSearch);
+   367→   367→    // Sort.
+   368→   368→    const sorted = [...list];
+   369→   369→    sorted.sort((a, b) => {
+   370→   370→      // Pin ALWAYS pins to top (unconditional). The schema doesn't have a
+   371→   371→      // dedicated `pinned` flag yet — this branch is a placeholder so the
+   372→   372→      // behavior is correct the moment one is added.
+   373→   373→      const aPin = false;
+   374→   374→      const bPin = false;
+   375→   375→      // Favorite only when sortFavoritesFirst is on.
+   376→   376→      const aFav = sortFavoritesFirst && a.favorite;
+   377→   377→      const bFav = sortFavoritesFirst && b.favorite;
+   378→   378→      // Favorite takes priority over pin when both active.
+   379→   379→      if (aFav !== bFav) return aFav ? -1 : 1;
+   380→   380→      if (aPin !== bPin) return aPin ? -1 : 1;
+   381→   381→      // Primary sort.
+   382→   382→      if (sort === "newest") return b.updatedAt - a.updatedAt;
+   383→   383→      if (sort === "oldest") return a.updatedAt - b.updatedAt;
+   384→   384→      return a.name.localeCompare(b.name);
+   385→   385→    });
+   386→   386→    return sorted;
+   387→   387→  }, [items, activeVault, filter, deferredSearch, sort, sortFavoritesFirst]);
+   388→   388→
+   389→   389→  // Scroll-into-view when selection changes via keyboard.
+   390→   390→  React.useEffect(() => {
+   391→   391→    if (!selectedId) return;
+   392→   392→    const el = document.querySelector(`[data-item-id="${CSS.escape(selectedId)}"]`);
+   393→   393→    el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+   394→   394→  }, [selectedId]);
+   395→   395→
+   396→   396→  /* --------------------------- multi-select actions --------------------------- */
+   397→   397→  const toggleSelected = (id: string) => {
+   398→   398→    setSelectedIds((prev) => {
+   399→   399→      const next = new Set(prev);
+   400→   400→      if (next.has(id)) next.delete(id);
+   401→   401→      else next.add(id);
+   402→   402→      return next;
+   403→   403→    });
+   404→   404→  };
+   405→   405→  const selectAll = () => setSelectedIds(new Set(filtered.map((i) => i.id)));
+   406→   406→  const deselectAll = () => setSelectedIds(new Set());
+   407→   407→
+   408→   408→  const handleMultiTrash = async () => {
+   409→   409→    if (selectedIds.size === 0) return;
+   410→   410→    const ids = Array.from(selectedIds);
+   411→   411→    try {
+   412→   412→      await Promise.all(ids.map((id) => trashItem(id)));
+   413→   413→      toast.success(`Moved ${ids.length} to Trash`);
+   414→   414→      setMultiSelect(false);
+   415→   415→    } catch {
+   416→   416→      toast.error("Could not move items");
+   417→   417→    }
+   418→   418→  };
+   419→   419→  const handleMultiMove = async (vaultId: string | null) => {
+   420→   420→    if (selectedIds.size === 0) return;
+   421→   421→    const ids = Array.from(selectedIds);
+   422→   422→    try {
+   423→   423→      await Promise.all(ids.map((id) => moveItemToVault(id, vaultId)));
+   424→   424→      const label =
+   425→   425→        vaultId === null
+   426→   426→          ? "All Items"
+   427→   427→          : vaults.find((v) => v.id === vaultId)?.name ?? "vault";
+   428→   428→      toast.success(`Moved ${ids.length} to ${label}`);
+   429→   429→      setMultiSelect(false);
+   430→   430→    } catch {
+   431→   431→      toast.error("Could not move items");
+   432→   432→    }
+   433→   433→  };
+   434→   434→
+   435→   435→  /* ------------------------------- item helpers ------------------------------- */
+   436→   436→  // Helper used by the empty-area context menu (and any other caller that
+   437→   437→  // wants to spawn the editor pre-seeded with a type).
+   438→   438→  const createItem = React.useCallback((type: ItemType) => {
+   439→   439→    stashNewItemType(type);
+   440→   440→    setEditorOpen(true);
+   441→   441→  }, [setEditorOpen]);
+   442→   442→
+   443→   443→  const copyField = React.useCallback(
+   444→   444→    async (value: string | undefined, label: string) => {
+   445→   445→      if (!value) return;
+   446→   446→      try {
+   447→   447→        await copyWithAutoClear(value, label);
+   448→   448→        toast.success(`${label} copied`, { description: "Auto-clears in 30s" });
+   449→   449→      } catch {
+   450→   450→        toast.error("Clipboard access denied");
+   451→   451→      }
+   452→   452→    },
+   453→   453→    [],
+   454→   454→  );
+   455→   455→
+   456→   456→  /* ------------------------------- rendering ------------------------------- */
+   457→   457→  return (
+   458→   458→    <div className="flex h-full flex-col">
+   459→   459→      {/* Filter bar — type + sort + multi-select menu */}
+   460→   460→      <div className="border-b border-border bg-background px-3 py-2">
+   461→   461→        <div className="flex items-center gap-2">
+   462→   462→          <Select
+   463→   463→            value={typeof filter === "string" ? filter : "all"}
+   464→   464→            onValueChange={(v) => setFilter(v as FilterType)}
+   465→   465→          >
+   466→   466→            <SelectTrigger size="sm" className="h-8 w-[110px] shrink-0 border-border bg-muted/40 dark:bg-secondary/20">
+   467→   467→              <LayoutGrid className="h-3.5 w-3.5 text-muted-foreground" />
+   468→   468→              <SelectValue placeholder="Type" />
+   469→   469→            </SelectTrigger>
+   470→   470→            <SelectContent>
+   471→   471→              {TYPE_OPTIONS.map((opt) => (
+   472→   472→                <SelectItem key={opt.value} value={opt.value}>
+   473→   473→                  {opt.label}
+   474→   474→                </SelectItem>
+   475→   475→              ))}
+   476→   476→            </SelectContent>
+   477→   477→          </Select>
+   478→   478→          {/* Sort dropdown — outline + muted/40 + border-border to match
+   479→   479→              the type Select (fixes the visual mismatch from the old
+   480→   480→              `variant="secondary"` button). */}
+   481→   481→          <DropdownMenu>
+   482→   482→            <DropdownMenuTrigger asChild>
+   483→   483→              <Button
+   484→   484→                variant="outline"
+   485→   485→                size="sm"
+   486→   486→                className="h-8 shrink-0 gap-1.5 border-border bg-muted/40 px-2.5 hover:bg-muted/60 dark:bg-secondary/20"
+   487→   487→              >
+   488→   488→                <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+   489→   489→                <span className="text-xs">{SORT_OPTIONS.find((o) => o.value === sort)?.label ?? "Sort"}</span>
+   490→   490→                <ChevronDown className="h-3 w-3 opacity-50" />
+   491→   491→              </Button>
+   492→   492→            </DropdownMenuTrigger>
+   493→   493→            <DropdownMenuContent align="start" className="w-40">
+   494→   494→              {SORT_OPTIONS.map((opt) => (
+   495→   495→                <DropdownMenuItem key={opt.value} onClick={() => setSort(opt.value)} className="text-xs">
+   496→   496→                  {opt.label}
+   497→   497→                </DropdownMenuItem>
+   498→   498→              ))}
+   499→   499→            </DropdownMenuContent>
+   500→   500→          </DropdownMenu>
+   501→   501→
+   502→   502→          {/* 3-dots multi-select + select-all menu */}
+   503→   503→          <DropdownMenu>
+   504→   504→            <DropdownMenuTrigger asChild>
+   505→   505→              <Button
+   506→   506→                variant="ghost"
+   507→   507→                size="icon"
+   508→   508→                className="ml-auto h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+   509→   509→                aria-label="List actions"
+   510→   510→                aria-pressed={multiSelect}
+   511→   511→              >
+   512→   512→                <MoreVertical className="h-4 w-4" />
+   513→   513→              </Button>
+   514→   514→            </DropdownMenuTrigger>
+   515→   515→            <DropdownMenuContent align="end" className="w-44">
+   516→   516→              <DropdownMenuItem onClick={() => setMultiSelect((m) => !m)}>
+   517→   517→                {multiSelect ? "Exit multi-select" : "Multi-select"}
+   518→   518→              </DropdownMenuItem>
+   519→   519→              <DropdownMenuSeparator />
+   520→   520→              <DropdownMenuItem onClick={selectAll} disabled={filtered.length === 0}>
+   521→   521→                Select all
+   522→   522→              </DropdownMenuItem>
+   523→   523→              <DropdownMenuItem onClick={deselectAll} disabled={selectedIds.size === 0}>
+   524→   524→                Deselect all
+   525→   525→              </DropdownMenuItem>
+   526→   526→            </DropdownMenuContent>
+   527→   527→          </DropdownMenu>
+   528→   528→        </div>
+   529→   529→
+   530→   530→      </div>
+   531→   531→
+   532→   532→      {/* Multi-select action bar */}
+   533→   533→      <AnimatePresence>
+   534→   534→        {multiSelect && (
+   535→   535→          <motion.div
+   536→   536→            initial={{ height: 0, opacity: 0 }}
+   537→   537→            animate={{ height: "auto", opacity: 1 }}
+   538→   538→            exit={{ height: 0, opacity: 0 }}
+   539→   539→            className="overflow-hidden border-b border-border bg-muted/40"
+   540→   540→          >
+   541→   541→            <div className="flex items-center gap-2 px-3 py-2">
+   542→   542→              <Button size="sm" variant="ghost" className="h-7 gap-1.5 px-2" onClick={() => setMultiSelect(false)}>
+   543→   543→                <X className="h-3.5 w-3.5" />
+   544→   544→                Cancel
+   545→   545→              </Button>
+   546→   546→              {/* "N Item(s) selected" — fixed minWidth prevents layout
+   547→   547→                  shift as the count changes between 0/1/many. */}
+   548→   548→              <span
+   549→   549→                className="text-xs text-muted-foreground"
+   550→   550→                style={{ minWidth: 130, display: "inline-block" }}
+   551→   551→              >
+   552→   552→                {selectedIds.size} Item{selectedIds.size === 1 ? "" : "s"} selected
+   553→   553→              </span>
+   554→   554→              <div className="ml-auto flex items-center gap-1.5">
+   555→   555→                {/* Single Actions dropdown — combines Move + Trash/Restore/Delete */}
+   556→   556→                <DropdownMenu>
+   557→   557→                  <DropdownMenuTrigger asChild>
+   558→   558→                    <Button size="sm" variant="outline" className="h-7 gap-1.5 px-2" disabled={selectedIds.size === 0}>
+   559→   559→                      Actions
+   560→   560→                      <ChevronDown className="h-3 w-3 opacity-90" />
+   561→   561→                    </Button>
+   562→   562→                  </DropdownMenuTrigger>
+   563→   563→                  <DropdownMenuContent align="end" className="w-48">
+   564→   564→                    {/* Move to vault submenu */}
+   565→   565→                    <DropdownMenuSub>
+   566→   566→                      <DropdownMenuSubTrigger>
+   567→   567→                        <FolderInput className="h-3.5 w-3.5" />
+   568→   568→                        Move to vault
+   569→   569→                      </DropdownMenuSubTrigger>
+   570→   570→                      <DropdownMenuSubContent className="w-44">
+   571→   571→                        <DropdownMenuItem onSelect={() => handleMultiMove(null)}>
+   572→   572→                          All Items
+   573→   573→                        </DropdownMenuItem>
+   574→   574→                        {vaults.map((v) => (
+   575→   575→                          <DropdownMenuItem key={v.id} onSelect={() => handleMultiMove(v.id)}>
+   576→   576→                            {v.name}
+   577→   577→                          </DropdownMenuItem>
+   578→   578→                        ))}
+   579→   579→                      </DropdownMenuSubContent>
+   580→   580→                    </DropdownMenuSub>
+   581→   581→                    {isTrashView ? (
+   582→   582→                      <>
+   583→   583→                        <DropdownMenuSeparator />
+   584→   584→                        <DropdownMenuItem onSelect={handleMultiRestore}>
+   585→   585→                          <RotateCcw className="h-3.5 w-3.5" />
+   586→   586→                          Restore all
+   587→   587→                        </DropdownMenuItem>
+   588→   588→                        <DropdownMenuSeparator />
+   589→   589→                        <DropdownMenuItem variant="destructive" onSelect={handleMultiDelete}>
+   590→   590→                          <Trash2 className="h-3.5 w-3.5" />
+   591→   591→                          Delete permanently
+   592→   592→                        </DropdownMenuItem>
+   593→   593→                      </>
+   594→   594→                    ) : (
+   595→   595→                      <>
+   596→   596→                        <DropdownMenuSeparator />
+   597→   597→                        <DropdownMenuItem variant="destructive" onSelect={handleMultiTrash}>
+   598→   598→                          <Trash2 className="h-3.5 w-3.5" />
+   599→   599→                          Move to trash
+   600→   600→                        </DropdownMenuItem>
+   601→   601→                      </>
+   602→   602→                    )}
+   603→   603→                  </DropdownMenuContent>
+   604→   604→                </DropdownMenu>
+   605→   605→              </div>
+   606→   606→            </div>
+   607→   607→          </motion.div>
+   608→   608→        )}
+   609→   609→      </AnimatePresence>
+   610→   610→
+   611→   611→      {/* List — wrapped in a ContextMenu so right-clicking empty space
+   612→   612→          offers quick "New Login/Note/Card/Identity" actions. */}
+   613→   613→      <ContextMenu>
+   614→   614→        <ContextMenuTrigger asChild>
+   615→   615→          <div className="lcked-scroll min-h-0 flex-1 overflow-y-auto">
+   616→   616→            <div className="p-2">
+   617→   617→              {filtered.length === 0 ? (
+   618→   618→                <EmptyList
+   619→   619→                  hasItems={items.length > 0}
+   620→   620→                  isTrash={isTrashView}
+   621→   621→                  onCreate={() => createItem("login")}
+   622→   622→                />
+   623→   623→              ) : (
+   624→   624→                <LayoutGroup>
+   625→   625→                  <ul
+   626→   626→                    ref={listRef}
+   627→   627→                    className="relative space-y-0.5"
+   628→   628→                    role="listbox"
+   629→   629→                    aria-label="Vault items"
+   630→   630→                  >
+   631→   631→                    {/* Single persistent highlight — slides between active
+   632→   632→                        items via rAF spring (see ActiveRowHighlight). */}
+   633→   633→                    <ActiveRowHighlight
+   634→   634→                      listRef={listRef}
+   635→   635→                      activeId={multiSelect ? null : selectedId}
+   636→   636→                    />
+   637→   637→                    <AnimatePresence initial={false}>
+   638→   638→                      {filtered.map((item) => {
+   639→   639→                        const active = item.id === selectedId && !multiSelect;
+   640→   640→                        const checked = selectedIds.has(item.id);
+   641→   641→                        return (
+   642→   642→                          <motion.li
+   643→   643→                            key={item.id}
+   644→   644→                            layout
+   645→   645→                            initial={{ opacity: 0 }}
+   646→   646→                            animate={{ opacity: 1 }}
+   647→   647→                            exit={{ opacity: 0 }}
+   648→   648→                            transition={{ duration: 0.12 }}
+   649→   649→                            data-item-id={item.id}
+   650→   650→                            className="relative"
+   651→   651→                          >
+   652→   652→                            <ItemRow
+   653→   653→                              item={item}
+   654→   654→                              active={active}
+   655→   655→                              checked={checked}
+   656→   656→                              multiSelect={multiSelect}
+   657→   657→                              isTrashView={isTrashView}
+   658→   658→                              onPick={() =>
+   659→   659→                                multiSelect ? toggleSelected(item.id) : setSelected(item.id)
+   660→   660→                              }
+   661→   661→                              onToggleSelected={() => toggleSelected(item.id)}
+   662→   662→                              onRestore={() =>
+   663→   663→                                restoreItem(item.id).then(() =>
+   664→   664→                                  toast.success("Item restored"),
+   665→   665→                                )
+   666→   666→                              }
+   667→   667→                              onPermanentDelete={() =>
+   668→   668→                                permanentlyDeleteItem(item.id).then(() =>
+   669→   669→                                  toast.success("Permanently deleted"),
+   670→   670→                                )
+   671→   671→                              }
+   672→   672→                              onCopyField={copyField}
+   673→   673→                              onToggleFavorite={() => toggleFavorite(item.id)}
+   674→   674→                              onEdit={() => setEditorOpen(true, item.id)}
+   675→   675→                              onTrash={() =>
+   676→   676→                                trashItem(item.id).then(() =>
+   677→   677→                                  toast.success("Moved to Trash"),
+   678→   678→                                )
+   679→   679→                              }
+   680→   680→                            />
+   681→   681→                          </motion.li>
+   682→   682→                        );
+   683→   683→                      })}
+   684→   684→                    </AnimatePresence>
+   685→   685→                  </ul>
+   686→   686→                </LayoutGroup>
+   687→   687→              )}
+   688→   688→            </div>
+   689→   689→          </div>
+   690→   690→        </ContextMenuTrigger>
+   691→   691→        <ContextMenuContent>
+   692→   692→          <ContextMenuItem onSelect={() => createItem("login")}>
+   693→   693→            <KeyRound className="h-4 w-4 text-violet-400" />
+   694→   694→            New Login
+   695→   695→          </ContextMenuItem>
+   696→   696→          <ContextMenuItem onSelect={() => createItem("note")}>
+   697→   697→            <StickyNote className="h-4 w-4 text-amber-400" />
+   698→   698→            New Note
+   699→   699→          </ContextMenuItem>
+   700→   700→          <ContextMenuItem onSelect={() => createItem("card")}>
+   701→   701→            <CreditCard className="h-4 w-4 text-emerald-400" />
+   702→   702→            New Card
+   703→   703→          </ContextMenuItem>
+   704→   704→          <ContextMenuItem onSelect={() => createItem("identity")}>
+   705→   705→            <UserRound className="h-4 w-4 text-sky-400" />
+   706→   706→            New Identity
+   707→   707→          </ContextMenuItem>
+   708→   708→        </ContextMenuContent>
+   709→   709→      </ContextMenu>
+   710→   710→
+   711→   711→      {/* Mobile back hint (only in trash view, for screen-reader friendliness) */}
+   712→   712→      {isTrashView && onMobileBack && (
+   713→   713→        <button
+   714→   714→          onClick={onMobileBack}
+   715→   715→          className="sr-only focus:not-sr-only"
+   716→   716→        >
+   717→   717→          Back to All Items
+   718→   718→        </button>
+   719→   719→      )}
+   720→   720→    </div>
+   721→   721→  );
+   722→   722→}
+   723→   723→
+   724→   724→/* ------------------------------- ItemRow ------------------------------- */
+   725→   725→
+   726→   726→/**
+   727→   727→ * The per-item row, extracted so it can carry its own ContextMenu without
+   728→   728→ * forcing the parent map to re-render every row when one is right-clicked.
+   729→   729→ */
+   730→   730→function ItemRow({
+   731→   731→  item,
+   732→   732→  active,
+   733→   733→  checked,
+   734→   734→  multiSelect,
+   735→   735→  isTrashView,
+   736→   736→  onPick,
+   737→   737→  onToggleSelected,
+   738→   738→  onRestore,
+   739→   739→  onPermanentDelete,
+   740→   740→  onCopyField,
+   741→   741→  onToggleFavorite,
+   742→   742→  onEdit,
+   743→   743→  onTrash,
+   744→   744→}: {
+   745→   745→  item: VaultItem;
+   746→   746→  active: boolean;
+   747→   747→  checked: boolean;
+   748→   748→  multiSelect: boolean;
+   749→   749→  isTrashView: boolean;
+   750→   750→  onPick: () => void;
+   751→   751→  onToggleSelected: () => void;
+   752→   752→  onRestore: () => void;
+   753→   753→  onPermanentDelete: () => void;
+   754→   754→  onCopyField: (value: string | undefined, label: string) => void;
+   755→   755→  onToggleFavorite: () => void;
+   756→   756→  onEdit: () => void;
+   757→   757→  onTrash: () => void;
+   758→   758→}) {
+   759→   759→  // Per-item context menu — wraps the button so left-click still picks the
+   760→   760→  // item, and right-click opens the context menu with copy/edit/etc.
+   761→   761→  return (
+   762→   762→    <ContextMenu>
+   763→   763→      <ContextMenuTrigger asChild>
+   764→   764→        <div
+   765→   765→          onClick={onPick}
+   766→   766→          role="option"
+   767→   767→          aria-selected={active || checked}
+   768→   768→          draggable={!multiSelect}
+   769→   769→          onDragStart={(e) => {
+   770→   770→            e.dataTransfer.setData("text/lcked-item", item.id);
+   771→   771→            e.dataTransfer.effectAllowed = "move";
+   772→   772→          }}
+   773→   773→          className={cn(
+   774→   774→            "group relative flex w-full cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors",
+   775→   775→            active ? "text-accent-foreground" : "hover:bg-muted/60",
+   776→   776→            checked && "bg-accent/60",
+   777→   777→          )}
+   778→   778→        >
+   779→   779→          {/* Multi-select checkbox OR favicon/type-icon */}
+   780→   780→          {multiSelect ? (
+   781→   781→            <span className="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center">
+   782→   782→              {checked ? (
+   783→   783→                <CheckSquare className="h-5 w-5 text-primary" />
+   784→   784→              ) : (
+   785→   785→                <Square className="h-5 w-5 text-muted-foreground" />
+   786→   786→              )}
+   787→   787→            </span>
+   788→   788→          ) : item.type === "login" && item.details.urls[0] ? (
+   789→   789→            <FaviconIcon
+   790→   790→              url={item.details.urls[0]}
+   791→   791→              size={28}
+   792→   792→              className="relative z-10"
+   793→   793→              fallback={<ItemTypeIcon type={item.type} size="sm" className="relative z-10" />}
+   794→   794→            />
+   795→   795→          ) : (
+   796→   796→            <ItemTypeIcon type={item.type} size="sm" className="relative z-10" />
+   797→   797→          )}
+   798→   798→
+   799→   799→          <div className="relative z-10 min-w-0 flex-1">
+   800→   800→            <div className="flex items-center gap-1.5">
+   801→   801→              <span className={cn("truncate text-sm font-medium", item.trashed && "line-through opacity-60")}>
+   802→   802→                {item.name}
+   803→   803→              </span>
+   804→   804→              {item.favorite && !item.trashed && (
+   805→   805→                <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />
+   806→   806→              )}
+   807→   807→            </div>
+   808→   808→            <div className="truncate text-xs text-muted-foreground">
+   809→   809→              {subtitle(item)}
+   810→   810→            </div>
+   811→   811→          </div>
+   812→   812→
+   813→   813→          {/* Type badge OR trash hover actions */}
+   814→   814→          {isTrashView ? (
+   815→   815→            <div className="relative z-10 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+   816→   816→              <Button
+   817→   817→                size="icon"
+   818→   818→                variant="ghost"
+   819→   819→                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+   820→   820→                onClick={(e) => {
+   821→   821→                  e.stopPropagation();
+   822→   822→                  onRestore();
+   823→   823→                }}
+   824→   824→                aria-label="Restore"
+   825→   825→                title="Restore"
+   826→   826→              >
+   827→   827→                <RotateCcw className="h-3.5 w-3.5" />
+   828→   828→              </Button>
+   829→   829→              <Button
+   830→   830→                size="icon"
+   831→   831→                variant="ghost"
+   832→   832→                className="h-7 w-7 text-muted-foreground hover:text-red-400"
+   833→   833→                onClick={(e) => {
+   834→   834→                  e.stopPropagation();
+   835→   835→                  onPermanentDelete();
+   836→   836→                }}
+   837→   837→                aria-label="Delete permanently"
+   838→   838→                title="Delete permanently"
+   839→   839→              >
+   840→   840→                <Trash2 className="h-3.5 w-3.5" />
+   841→   841→              </Button>
+   842→   842→            </div>
+   843→   843→          ) : null}
+   844→   844→        </div>
+   845→   845→      </ContextMenuTrigger>
+   846→   846→      <ContextMenuContent>
+   847→   847→        {item.type === "login" && (
+   848→   848→          <>
+   849→   849→            <ContextMenuItem
+   850→   850→              onSelect={() => onCopyField(item.details.username, isEmail(item.details.username) ? "Email" : "Username")}
+   851→   851→              disabled={!item.details.username}
+   852→   852→            >
+   853→   853→              {isEmail(item.details.username) ? "Copy email" : "Copy username"}
+   854→   854→            </ContextMenuItem>
+   855→   855→            {item.details.password && (
+   856→   856→              <ContextMenuItem onSelect={() => onCopyField(item.details.password, "Password")}>
+   857→   857→                Copy password
+   858→   858→              </ContextMenuItem>
+   859→   859→            )}
+   860→   860→            {item.details.urls[0] && (
+   861→   861→              <ContextMenuItem onSelect={() => onCopyField(item.details.urls[0], "URL")}>
+   862→   862→                Copy URL
+   863→   863→              </ContextMenuItem>
+   864→   864→            )}
+   865→   865→            <ContextMenuSeparator />
+   866→   866→          </>
+   867→   867→        )}
+   868→   868→        {!isTrashView && (
+   869→   869→          <ContextMenuItem onSelect={onToggleFavorite}>
+   870→   870→            {item.favorite ? "Unfavorite" : "Favorite"}
+   871→   871→          </ContextMenuItem>
+   872→   872→        )}
+   873→   873→        <ContextMenuItem onSelect={onEdit}>Edit</ContextMenuItem>
+   874→   874→        {!isTrashView && (
+   875→   875→          <>
+   876→   876→            <ContextMenuSeparator />
+   877→   877→            <ContextMenuItem variant="destructive" onSelect={onTrash}>
+   878→   878→              Move to trash
+   879→   879→            </ContextMenuItem>
+   880→   880→          </>
+   881→   881→        )}
+   882→   882→      </ContextMenuContent>
+   883→   883→    </ContextMenu>
+   884→   884→  );
+   885→   885→}
+   886→   886→
+   887→   887→/* ------------------------------ EmptyList ------------------------------ */
+   888→   888→
+   889→   889→function EmptyList({
+   890→   890→  hasItems,
+   891→   891→  isTrash,
+   892→   892→  onCreate,
+   893→   893→}: {
+   894→   894→  hasItems: boolean;
+   895→   895→  isTrash: boolean;
+   896→   896→  onCreate: () => void;
+   897→   897→}) {
+   898→   898→  const setActiveVault = useVault((s) => s.setActiveVault);
+   899→   899→  const setImportExportOpen = useVault((s) => s.setImportExportOpen);
+   900→   900→  return (
+   901→   901→    <div className="lcked-grid flex flex-col items-center justify-center px-6 py-20 text-center">
+   902→   902→      <DiamondMark size={56} glow className="mb-4" />
+   903→   903→      <h3 className="text-sm font-semibold">
+   904→   904→        {isTrash
+   905→   905→          ? "Trash is empty"
+   906→   906→          : hasItems
+   907→   907→            ? "No matches"
+   908→   908→            : "Your vault is empty"}
+   909→   909→      </h3>
+   910→   910→      <p className="mt-1.5 max-w-[16rem] text-xs leading-relaxed text-muted-foreground">
+   911→   911→        {isTrash
+   912→   912→          ? "Deleted items land here. They auto-purge after 30 days."
+   913→   913→          : hasItems
+   914→   914→            ? "Try a different search or filter."
+   915→   915→            : "Your secrets, encrypted on this device. Nothing leaves. Ever."}
+   916→   916→      </p>
+   917→   917→      {!hasItems && !isTrash && (
+   918→   918→        <div className="mt-5 flex flex-col gap-2">
+   919→   919→          <Button size="sm" onClick={onCreate}>
+   920→   920→            Add your first item
+   921→   921→          </Button>
+   922→   922→          <Button size="sm" variant="ghost" onClick={() => setImportExportOpen(true)}>
+   923→   923→            Import from Bitwarden / 1Password / Proton Pass
+   924→   924→          </Button>
+   925→   925→        </div>
+   926→   926→      )}
+   927→   927→      {isTrash && hasItems && (
+   928→   928→        <Button
+   929→   929→          size="sm"
+   930→   930→          variant="ghost"
+   931→   931→          className="mt-5"
+   932→   932→          onClick={() => setActiveVault("all")}
+   933→   933→        >
+   934→   934→          Back to All Items
+   935→   935→        </Button>
+   936→   936→      )}
+   937→   937→    </div>
+   938→   938→  );
+   939→   939→}
+   940→   940→
+   941→   941→

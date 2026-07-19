@@ -1,0 +1,765 @@
+     1→/**
+     2→ * LCKED — Vault store (Zustand)
+     3→ * ---------------------------------------------------------------------------
+     4→ * Owns the auth state machine + every vault mutation. CryptoKey objects live
+     5→ * only in memory here — they are NEVER persisted. All async actions are
+     6→ * fault-tolerant: a failed IndexedDB write reverts the optimistic UI change.
+     7→ */
+     8→
+     9→import { create } from "zustand";
+    10→import { persist } from "zustand/middleware";
+    11→import {
+    12→  buildVerifier,
+    13→  bytesToBase64,
+    14→  checkVerifier,
+    15→  decryptJson,
+    16→  deriveMasterKey,
+    17→  encryptJson,
+    18→  generateVaultKey,
+    19→  PBKDF2_ITERATIONS,
+    20→  randomBytes,
+    21→  randomId,
+    22→  unwrapVaultKey,
+    23→  wrapVaultKey,
+    24→} from "@/lib/crypto";
+    25→import {
+    26→  deleteStoredItem,
+    27→  loadAllStoredItems,
+    28→  loadVaultMeta,
+    29→  putStoredItem,
+    30→  saveVaultMeta,
+    31→  vaultExists,
+    32→  wipeVault,
+    33→} from "@/lib/vault-db";
+    34→import {
+    35→  DEFAULT_VAULT_SETTINGS,
+    36→  type GeneratorOptions,
+    37→  type NewItemInput,
+    38→  type VaultDef,
+    39→  type VaultItem,
+    40→  type VaultMeta,
+    41→  type VaultSettings,
+    42→} from "@/lib/types";
+    43→import {
+    44→  exportToCsv,
+    45→  importFromText,
+    46→  type ImportResult,
+    47→  type LckedExport,
+    48→} from "@/lib/import-export";
+    49→
+    50→export type VaultStatus = "loading" | "setup" | "locked" | "unlocked";
+    51→
+    52→interface VaultState {
+    53→  status: VaultStatus;
+    54→  items: VaultItem[];
+    55→  /** User-defined vaults (colored containers, Proton Pass–style). */
+    56→  vaults: VaultDef[];
+    57→  /** Active vault filter: "all" | "trash" | vault id. */
+    58→  activeVault: string;
+    59→  /** Vault editor (create/rename/delete vault) dialog state. */
+    60→  vaultEditorOpen: boolean;
+    61→  editingVaultId: string | null;
+    62→  createVaultDialogOpen: boolean;
+    63→  settings: VaultSettings;
+    64→  /** UI-only selection / filter state (not persisted). */
+    65→  selectedId: string | null;
+    66→  searchQuery: string;
+    67→  /** CryptoKey handles — held in memory only while unlocked. */
+    68→  masterKey: CryptoKey | null;
+    69→  vaultKey: CryptoKey | null;
+    70→  /** Whether the active editor is open (and which item, if editing). */
+    71→  editorOpen: boolean;
+    72→  editorItemId: string | null;
+    73→  generatorOpen: boolean;
+    74→  importExportOpen: boolean;
+    75→  settingsOpen: boolean;
+    76→  commandOpen: boolean;
+    77→
+    78→  // lifecycle
+    79→  init: () => Promise<void>;
+    80→  setupVault: (masterPassword: string) => Promise<void>;
+    81→  unlock: (masterPassword: string) => Promise<boolean>;
+    82→  lock: () => void;
+    83→  resetVault: () => Promise<void>;
+    84→
+    85→  // item CRUD
+    86→  saveItem: (input: NewItemInput, existingId?: string) => Promise<VaultItem>;
+    87→  /** Soft-delete — moves the item to Trash with a 30-day TTL. */
+    88→  trashItem: (id: string) => Promise<void>;
+    89→  restoreItem: (id: string) => Promise<void>;
+    90→  permanentlyDeleteItem: (id: string) => Promise<void>;
+    91→  emptyTrash: () => Promise<void>;
+    92→  moveItemToVault: (itemId: string, vaultId: string | null) => Promise<void>;
+    93→  toggleFavorite: (id: string) => Promise<void>;
+    94→  duplicateItem: (id: string) => Promise<void>;
+    95→  importItems: (filename: string, text: string) => Promise<ImportResult>;
+    96→
+    97→  // vault (custom containers) CRUD
+    98→  createVault: (name: string, color: string, icon: string) => Promise<VaultDef>;
+    99→  deleteVault: (id: string) => Promise<void>;
+   100→  renameVault: (id: string, name: string) => Promise<void>;
+   101→  updateVault: (id: string, patch: Partial<Omit<VaultDef, "id" | "createdAt">>) => Promise<void>;
+   102→  setActiveVault: (v: string) => void;
+   103→  setVaultEditorOpen: (open: boolean, vaultId?: string | null) => void;
+   104→  setCreateVaultDialogOpen: (open: boolean) => void;
+   105→
+   106→  // settings
+   107→  updateSettings: (patch: Partial<VaultSettings>) => Promise<void>;
+   108→  updateGenerator: (patch: Partial<GeneratorOptions>) => void;
+   109→  changeMasterPassword: (current: string, next: string) => Promise<boolean>;
+   110→
+   111→  // export
+   112→  exportEncrypted: (password: string) => Promise<string>;
+   113→  exportCsv: () => string;
+   114→
+   115→  // UI helpers
+   116→  setSelected: (id: string | null) => void;
+   117→  setSearch: (q: string) => void;
+   118→  setEditorOpen: (open: boolean, itemId?: string | null) => void;
+   119→  setGeneratorOpen: (open: boolean) => void;
+   120→  setImportExportOpen: (open: boolean) => void;
+   121→  setSettingsOpen: (open: boolean) => void;
+   122→  setCommandOpen: (open: boolean) => void;
+   123→}
+   124→
+   125→export const useVault = create<VaultState>()(
+   126→  persist(
+   127→    (set, get) => ({
+   128→      status: "loading",
+   129→      items: [],
+   130→      vaults: [],
+   131→      activeVault: "all",
+   132→      vaultEditorOpen: false,
+   133→      editingVaultId: null,
+   134→      createVaultDialogOpen: false,
+   135→      settings: DEFAULT_VAULT_SETTINGS,
+   136→      selectedId: null,
+   137→      searchQuery: "",
+   138→      masterKey: null,
+   139→      vaultKey: null,
+   140→      editorOpen: false,
+   141→      editorItemId: null,
+   142→      generatorOpen: false,
+   143→      importExportOpen: false,
+   144→      settingsOpen: false,
+   145→      commandOpen: false,
+   146→
+   147→      /* ------------------------------ lifecycle ------------------------------ */
+   148→
+   149→      init: async () => {
+   150→        try {
+   151→          if (typeof window === "undefined") return;
+   152→          const exists = await vaultExists();
+   153→          set({ status: exists ? "locked" : "setup" });
+   154→        } catch (err) {
+   155→          console.error("init failed", err);
+   156→          set({ status: "setup" });
+   157→        }
+   158→      },
+   159→
+   160→      setupVault: async (masterPassword) => {
+   161→        const salt = bytesToBase64(randomBytes(16));
+   162→        const masterKey = await deriveMasterKey(masterPassword, salt, PBKDF2_ITERATIONS);
+   163→        const vaultKey = await generateVaultKey();
+   164→        const { ciphertext, iv } = await wrapVaultKey(vaultKey, masterKey);
+   165→        const verifier = await buildVerifier(masterKey);
+   166→
+   167→        const meta: VaultMeta = {
+   168→          id: "singleton",
+   169→          salt,
+   170→          iterations: PBKDF2_ITERATIONS,
+   171→          encryptedVaultKey: ciphertext,
+   172→          vaultKeyIv: iv,
+   173→          verifier: verifier.verifier,
+   174→          verifierIv: verifier.verifierIv,
+   175→          verifierToken: verifier.verifierToken,
+   176→          createdAt: Date.now(),
+   177→          settings: DEFAULT_VAULT_SETTINGS,
+   178→          vaults: [],
+   179→        };
+   180→        await saveVaultMeta(meta);
+   181→
+   182→        set({
+   183→          status: "unlocked",
+   184→          masterKey,
+   185→          vaultKey,
+   186→          settings: DEFAULT_VAULT_SETTINGS,
+   187→          items: [],
+   188→          vaults: [],
+   189→          activeVault: "all",
+   190→          selectedId: null,
+   191→        });
+   192→      },
+   193→
+   194→      unlock: async (masterPassword) => {
+   195→        const meta = await loadVaultMeta();
+   196→        if (!meta) {
+   197→          set({ status: "setup" });
+   198→          return false;
+   199→        }
+   200→        const masterKey = await deriveMasterKey(
+   201→          masterPassword,
+   202→          meta.salt,
+   203→          meta.iterations,
+   204→        );
+   205→        const ok = await checkVerifier(
+   206→          masterKey,
+   207→          meta.verifier,
+   208→          meta.verifierIv,
+   209→          meta.verifierToken,
+   210→        );
+   211→        if (!ok) return false;
+   212→
+   213→        const vaultKey = await unwrapVaultKey(
+   214→          meta.encryptedVaultKey,
+   215→          meta.vaultKeyIv,
+   216→          masterKey,
+   217→        );
+   218→
+   219→        // Decrypt every stored item.
+   220→        const stored = await loadAllStoredItems();
+   221→        const items: VaultItem[] = [];
+   222→        const toReencrypt: VaultItem[] = [];
+   223→        let needsMetaSave = false;
+   224→        const TRASH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+   225→        const now = Date.now();
+   226→        for (const s of stored) {
+   227→          try {
+   228→            const item = await decryptJson<VaultItem>(s.ciphertext, s.iv, vaultKey);
+   229→            // Migration: ensure the new soft-delete + vaultId fields exist on
+   230→            // items written by older LCKED versions. Mutated records are queued
+   231→            // for a transparent re-encrypt + persist.
+   232→            let migrated: VaultItem | null = null;
+   233→            if (item.vaultId === undefined) {
+   234→              item.vaultId = null;
+   235→              migrated = item;
+   236→            }
+   237→            if (item.trashed === undefined) {
+   238→              item.trashed = false;
+   239→              migrated = item;
+   240→            }
+   241→            if (item.trashedAt === undefined) {
+   242→              item.trashedAt = null;
+   243→              migrated = item;
+   244→            }
+   245→            // 30-day auto-delete: drop trashed items whose TTL has expired.
+   246→            if (item.trashed && item.trashedAt && now - item.trashedAt > TRASH_TTL_MS) {
+   247→              try {
+   248→                await deleteStoredItem(item.id);
+   249→              } catch {
+   250→                // best-effort; keep going
+   251→              }
+   252→              continue;
+   253→            }
+   254→            if (migrated) toReencrypt.push(migrated);
+   255→            items.push(item);
+   256→          } catch {
+   257→            // skip corrupt record but keep the vault usable
+   258→            console.warn("Failed to decrypt item", s.id);
+   259→          }
+   260→        }
+   261→        // Persist any migrated records so we never re-migrate them again.
+   262→        if (toReencrypt.length > 0) {
+   263→          await Promise.all(
+   264→            toReencrypt.map(async (it) => {
+   265→              const { ciphertext, iv } = await encryptJson(it, vaultKey);
+   266→              await putStoredItem({
+   267→                id: it.id,
+   268→                type: it.type,
+   269→                ciphertext,
+   270→                iv,
+   271→                createdAt: it.createdAt,
+   272→                updatedAt: it.updatedAt,
+   273→              });
+   274→            }),
+   275→          );
+   276→        }
+   277→        items.sort((a, b) => b.updatedAt - a.updatedAt);
+   278→
+   279→        // Hydrate vaults (custom containers) — migrate older meta that lacks
+   280→        // the field by persisting an empty array.
+   281→        const vaults: VaultDef[] = Array.isArray(meta.vaults) ? meta.vaults : [];
+   282→        if (!Array.isArray(meta.vaults)) {
+   283→          needsMetaSave = true;
+   284→        }
+   285→        if (needsMetaSave) {
+   286→          await saveVaultMeta({ ...meta, vaults });
+   287→        }
+   288→
+   289→        set({
+   290→          status: "unlocked",
+   291→          masterKey,
+   292→          vaultKey,
+   293→          items,
+   294→          vaults,
+   295→          activeVault: "all",
+   296→          // Merge with defaults so vaults persisted before the
+   297→          // showFavicons / sortFavoritesFirst settings existed still get
+   298→          // sane values instead of `undefined`.
+   299→          settings: { ...DEFAULT_VAULT_SETTINGS, ...meta.settings },
+   300→        });
+   301→        return true;
+   302→      },
+   303→
+   304→      lock: () => {
+   305→        set({
+   306→          status: "locked",
+   307→          masterKey: null,
+   308→          vaultKey: null,
+   309→          items: [],
+   310→          vaults: [],
+   311→          activeVault: "all",
+   312→          selectedId: null,
+   313→          searchQuery: "",
+   314→          editorOpen: false,
+   315→          generatorOpen: false,
+   316→          settingsOpen: false,
+   317→          commandOpen: false,
+   318→          vaultEditorOpen: false,
+   319→          editingVaultId: null,
+   320→          createVaultDialogOpen: false,
+   321→        });
+   322→      },
+   323→
+   324→      resetVault: async () => {
+   325→        await wipeVault();
+   326→        set({
+   327→          status: "setup",
+   328→          items: [],
+   329→          vaults: [],
+   330→          activeVault: "all",
+   331→          masterKey: null,
+   332→          vaultKey: null,
+   333→          selectedId: null,
+   334→          settings: DEFAULT_VAULT_SETTINGS,
+   335→          vaultEditorOpen: false,
+   336→          editingVaultId: null,
+   337→          createVaultDialogOpen: false,
+   338→        });
+   339→      },
+   340→
+   341→      /* ------------------------------- CRUD -------------------------------- */
+   342→
+   343→      saveItem: async (input, existingId) => {
+   344→        const { vaultKey } = get();
+   345→        if (!vaultKey) throw new Error("Vault is locked");
+   346→
+   347→        const now = Date.now();
+   348→        const id = existingId ?? randomId();
+   349→        const existing = existingId ? get().items.find((i) => i.id === existingId) : undefined;
+   350→        // Never inherit trashed state from a duplicated item — duplicates land
+   351→        // in the active view, not in Trash.
+   352→        const baseTrashed = existing ? existing.trashed : false;
+   353→        const baseTrashedAt = existing ? existing.trashedAt : null;
+   354→        const baseVaultId = existing ? existing.vaultId : (input as VaultItem).vaultId ?? null;
+   355→        const item: VaultItem = {
+   356→          ...(input as VaultItem),
+   357→          id,
+   358→          createdAt: existing?.createdAt ?? now,
+   359→          updatedAt: now,
+   360→          vaultId: baseVaultId,
+   361→          trashed: baseTrashed,
+   362→          trashedAt: baseTrashedAt,
+   363→        } as VaultItem;
+   364→
+   365→        const { ciphertext, iv } = await encryptJson(item, vaultKey);
+   366→        await putStoredItem({ id, type: item.type, ciphertext, iv, createdAt: item.createdAt, updatedAt: now });
+   367→
+   368→        set((state) => {
+   369→          const others = state.items.filter((i) => i.id !== id);
+   370→          const next = [item, ...others].sort((a, b) => b.updatedAt - a.updatedAt);
+   371→          return { items: next, selectedId: id };
+   372→        });
+   373→        return item;
+   374→      },
+   375→
+   376→      /**
+   377→       * Soft-delete: marks the item as trashed and stamps trashedAt. The record
+   378→       * stays in IndexedDB (still encrypted) so it can be restored. Auto-purged
+   379→       * 30 days later on the next unlock.
+   380→       */
+   381→      trashItem: async (id) => {
+   382→        await updateItemFlags(id, { trashed: true, trashedAt: Date.now() }, get, set);
+   383→      },
+   384→
+   385→      restoreItem: async (id) => {
+   386→        await updateItemFlags(id, { trashed: false, trashedAt: null }, get, set);
+   387→      },
+   388→
+   389→      permanentlyDeleteItem: async (id) => {
+   390→        const prev = get().items;
+   391→        set((state) => ({
+   392→          items: state.items.filter((i) => i.id !== id),
+   393→          selectedId: state.selectedId === id ? null : state.selectedId,
+   394→        }));
+   395→        try {
+   396→          await deleteStoredItem(id);
+   397→        } catch (err) {
+   398→          console.error("permanent delete failed", err);
+   399→          set({ items: prev });
+   400→          throw err;
+   401→        }
+   402→      },
+   403→
+   404→      emptyTrash: async () => {
+   405→        const trashed = get().items.filter((i) => i.trashed);
+   406→        const prev = get().items;
+   407→        // Optimistic: drop all trashed items from UI.
+   408→        set((state) => ({
+   409→          items: state.items.filter((i) => !i.trashed),
+   410→          selectedId:
+   411→            state.selectedId && trashed.some((t) => t.id === state.selectedId)
+   412→              ? null
+   413→              : state.selectedId,
+   414→        }));
+   415→        try {
+   416→          await Promise.all(trashed.map((t) => deleteStoredItem(t.id)));
+   417→        } catch (err) {
+   418→          console.error("emptyTrash failed", err);
+   419→          set({ items: prev });
+   420→          throw err;
+   421→        }
+   422→      },
+   423→
+   424→      moveItemToVault: async (itemId, vaultId) => {
+   425→        await updateItemFlags(itemId, { vaultId, updatedAt: Date.now() }, get, set);
+   426→      },
+   427→
+   428→      toggleFavorite: async (id) => {
+   429→        const item = get().items.find((i) => i.id === id);
+   430→        if (!item) return;
+   431→        const updated: VaultItem = {
+   432→          ...item,
+   433→          favorite: !item.favorite,
+   434→          updatedAt: Date.now(),
+   435→        } as VaultItem;
+   436→        const { vaultKey } = get();
+   437→        if (vaultKey) {
+   438→          const { ciphertext, iv } = await encryptJson(updated, vaultKey);
+   439→          await putStoredItem({ id, type: updated.type, ciphertext, iv, createdAt: updated.createdAt, updatedAt: updated.updatedAt });
+   440→        }
+   441→        set((state) => ({
+   442→          items: state.items
+   443→            .map((i) => (i.id === id ? updated : i))
+   444→            .sort((a, b) => b.updatedAt - a.updatedAt),
+   445→        }));
+   446→      },
+   447→
+   448→      duplicateItem: async (id) => {
+   449→        const item = get().items.find((i) => i.id === id);
+   450→        if (!item) return;
+   451→        const { id: _id, createdAt: _c, updatedAt: _u, trashed: _t, trashedAt: _ta, ...rest } = item;
+   452→        void _id; void _c; void _u; void _t; void _ta;
+   453→        await get().saveItem(rest as NewItemInput);
+   454→      },
+   455→
+   456→      importItems: async (filename, text) => {
+   457→        const { vaultKey } = get();
+   458→        if (!vaultKey) throw new Error("Vault is locked");
+   459→        const { result, items } = importFromText(filename, text);
+   460→
+   461→        // Encrypted LCKED imports require the export's password — handled by a
+   462→        // dedicated UI flow. Here we surface a clear hint instead of failing.
+   463→        if ((result as any).__raw) {
+   464→          return {
+   465→            imported: 0,
+   466→            skipped: 0,
+   467→            warnings: ["Encrypted LCKED files need their own password — use the dedicated import path."],
+   468→          };
+   469→        }
+   470→
+   471→        let imported = 0;
+   472→        for (const input of items) {
+   473→          try {
+   474→            await get().saveItem(input);
+   475→            imported++;
+   476→          } catch {
+   477→            result.skipped++;
+   478→          }
+   479→        }
+   480→        result.imported = imported;
+   481→        return result;
+   482→      },
+   483→
+   484→      /* --------------------------- vaults (containers) ---------------------- */
+   485→
+   486→      createVault: async (name, color, icon) => {
+   487→        const meta = await loadVaultMeta();
+   488→        if (!meta) throw new Error("Vault meta missing");
+   489→        const vault: VaultDef = {
+   490→          id: randomId(),
+   491→          name: name.trim() || "Untitled vault",
+   492→          color,
+   493→          icon,
+   494→          createdAt: Date.now(),
+   495→        };
+   496→        const vaults = [...(meta.vaults ?? []), vault];
+   497→        await saveVaultMeta({ ...meta, vaults });
+   498→        set({ vaults, createVaultDialogOpen: false, vaultEditorOpen: false, editingVaultId: null });
+   499→        return vault;
+   500→      },
+   501→
+   502→      deleteVault: async (id) => {
+   503→        const meta = await loadVaultMeta();
+   504→        if (!meta) return;
+   505→        const vaults = (meta.vaults ?? []).filter((v) => v.id !== id);
+   506→        await saveVaultMeta({ ...meta, vaults });
+   507→        // Orphan any items that lived in this vault — they fall back to the
+   508→        // default vault (vaultId = null). Re-encrypt + persist each.
+   509→        const { vaultKey, items } = get();
+   510→        const orphaned = items.filter((i) => i.vaultId === id);
+   511→        if (vaultKey && orphaned.length > 0) {
+   512→          await Promise.all(
+   513→            orphaned.map(async (it) => {
+   514→              const next: VaultItem = { ...it, vaultId: null, updatedAt: Date.now() } as VaultItem;
+   515→              const { ciphertext, iv } = await encryptJson(next, vaultKey);
+   516→              await putStoredItem({
+   517→                id: next.id,
+   518→                type: next.type,
+   519→                ciphertext,
+   520→                iv,
+   521→                createdAt: next.createdAt,
+   522→                updatedAt: next.updatedAt,
+   523→              });
+   524→            }),
+   525→          );
+   526→          set((state) => ({
+   527→            items: state.items.map((i) =>
+   528→              i.vaultId === id ? ({ ...i, vaultId: null, updatedAt: Date.now() } as VaultItem) : i,
+   529→            ),
+   530→          }));
+   531→        }
+   532→        set((state) => ({
+   533→          vaults,
+   534→          activeVault: state.activeVault === id ? "all" : state.activeVault,
+   535→          vaultEditorOpen: state.editingVaultId === id ? false : state.vaultEditorOpen,
+   536→          editingVaultId: state.editingVaultId === id ? null : state.editingVaultId,
+   537→        }));
+   538→      },
+   539→
+   540→      renameVault: async (id, name) => {
+   541→        await get().updateVault(id, { name });
+   542→      },
+   543→
+   544→      updateVault: async (id, patch) => {
+   545→        const meta = await loadVaultMeta();
+   546→        if (!meta) return;
+   547→        const vaults = (meta.vaults ?? []).map((v) =>
+   548→          v.id === id ? { ...v, ...patch, name: patch.name ?? v.name } : v,
+   549→        );
+   550→        await saveVaultMeta({ ...meta, vaults });
+   551→        set({ vaults, vaultEditorOpen: false, editingVaultId: null });
+   552→      },
+   553→
+   554→      setActiveVault: (v) => set({ activeVault: v }),
+   555→      setVaultEditorOpen: (open, vaultId = null) =>
+   556→        set({ vaultEditorOpen: open, editingVaultId: vaultId }),
+   557→      setCreateVaultDialogOpen: (open) => set({ createVaultDialogOpen: open }),
+   558→
+   559→      /* ----------------------------- settings ------------------------------- */
+   560→
+   561→      updateSettings: async (patch) => {
+   562→        const next = { ...get().settings, ...patch };
+   563→        set({ settings: next });
+   564→        const meta = await loadVaultMeta();
+   565→        if (meta) {
+   566→          await saveVaultMeta({ ...meta, settings: next });
+   567→        }
+   568→      },
+   569→
+   570→      updateGenerator: (patch) => {
+   571→        set((state) => ({
+   572→          settings: { ...state.settings, generator: { ...state.settings.generator, ...patch } },
+   573→        }));
+   574→      },
+   575→
+   576→      changeMasterPassword: async (current, next) => {
+   577→        const meta = await loadVaultMeta();
+   578→        if (!meta) return false;
+   579→        const currentKey = await deriveMasterKey(current, meta.salt, meta.iterations);
+   580→        const ok = await checkVerifier(currentKey, meta.verifier, meta.verifierIv, meta.verifierToken);
+   581→        if (!ok) return false;
+   582→
+   583→        // New salt + new master key; re-wrap the SAME vault key so no item
+   584→        // needs re-encryption.
+   585→        const newSalt = bytesToBase64(randomBytes(16));
+   586→        const newMasterKey = await deriveMasterKey(next, newSalt, PBKDF2_ITERATIONS);
+   587→        const { vaultKey } = get();
+   588→        if (!vaultKey) return false;
+   589→        const wrapped = await wrapVaultKey(vaultKey, newMasterKey);
+   590→        const verifier = await buildVerifier(newMasterKey);
+   591→        await saveVaultMeta({
+   592→          ...meta,
+   593→          salt: newSalt,
+   594→          iterations: PBKDF2_ITERATIONS,
+   595→          encryptedVaultKey: wrapped.ciphertext,
+   596→          vaultKeyIv: wrapped.iv,
+   597→          verifier: verifier.verifier,
+   598→          verifierIv: verifier.verifierIv,
+   599→        });
+   600→        set({ masterKey: newMasterKey });
+   601→        return true;
+   602→      },
+   603→
+   604→      /* ------------------------------ export -------------------------------- */
+   605→
+   606→      exportEncrypted: async (password) => {
+   607→        const items = get().items;
+   608→        const vaults = get().vaults;
+   609→        const salt = bytesToBase64(randomBytes(16));
+   610→        const exportMasterKey = await deriveMasterKey(password, salt, PBKDF2_ITERATIONS);
+   611→        const exportVaultKey = await generateVaultKey();
+   612→        const verifier = await buildVerifier(exportMasterKey);
+   613→        const wrapped = await wrapVaultKey(exportVaultKey, exportMasterKey);
+   614→
+   615→        // Bundle the wrapped vault key + items + custom vaults together so a
+   616→        // single password unlocks the whole export. The vaults array is small
+   617→        // plaintext-side metadata (names/colors/icons only) but rides inside
+   618→        // the encrypted blob to keep the export self-contained.
+   619→        const fullPayload = {
+   620→          wrappedVaultKey: wrapped.ciphertext,
+   621→          wrappedVaultKeyIv: wrapped.iv,
+   622→          items,
+   623→          vaults,
+   624→        };
+   625→        const { ciphertext: fullCipher, iv: fullIv } = await encryptJson(fullPayload, exportVaultKey);
+   626→
+   627→        const envelope: LckedExport = {
+   628→          format: "lcked-encrypted-v1",
+   629→          version: 1,
+   630→          exportedAt: Date.now(),
+   631→          salt,
+   632→          iterations: PBKDF2_ITERATIONS,
+   633→          verifier: verifier.verifier,
+   634→          verifierIv: verifier.verifierIv,
+   635→          data: fullCipher,
+   636→          dataIv: fullIv,
+   637→        };
+   638→        return JSON.stringify(envelope, null, 2);
+   639→      },
+   640→
+   641→      exportCsv: () => exportToCsv(get().items),
+   642→
+   643→      /* ------------------------------- UI ---------------------------------- */
+   644→
+   645→      setSelected: (id) => set({ selectedId: id }),
+   646→      setSearch: (q) => set({ searchQuery: q }),
+   647→      setEditorOpen: (open, itemId = null) =>
+   648→        set({ editorOpen: open, editorItemId: itemId }),
+   649→      setGeneratorOpen: (open) => set({ generatorOpen: open }),
+   650→      setImportExportOpen: (open) => set({ importExportOpen: open }),
+   651→      setSettingsOpen: (open) => set({ settingsOpen: open }),
+   652→      setCommandOpen: (open) => set({ commandOpen: open }),
+   653→    }),
+   654→    {
+   655→      name: "lcked-ui-prefs",
+   656→      // Only persist non-sensitive UI preferences — NEVER keys or items.
+   657→      partialize: (state) => ({
+   658→        settings: state.settings,
+   659→      }),
+   660→    },
+   661→  ),
+   662→);
+   663→
+   664→/* --------------------------- clipboard helper ----------------------------- */
+   665→
+   666→/**
+   667→ * Patch one or more flags on an item (vaultId / trashed / trashedAt / favorite)
+   668→ * and re-encrypt + persist it. Used by trashItem / restoreItem / moveItemToVault
+   669→ * so we have a single fault-tolerant code path.
+   670→ */
+   671→async function updateItemFlags(
+   672→  id: string,
+   673→  patch: Partial<Pick<VaultItem, "vaultId" | "trashed" | "trashedAt" | "updatedAt">>,
+   674→  get: () => VaultState,
+   675→  set: (partial: Partial<VaultState>) => void,
+   676→): Promise<void> {
+   677→  const item = get().items.find((i) => i.id === id);
+   678→  if (!item) return;
+   679→  const now = patch.updatedAt ?? Date.now();
+   680→  const updated: VaultItem = { ...item, ...patch, updatedAt: now } as VaultItem;
+   681→  const { vaultKey } = get();
+   682→  if (vaultKey) {
+   683→    const { ciphertext, iv } = await encryptJson(updated, vaultKey);
+   684→    await putStoredItem({
+   685→      id,
+   686→      type: updated.type,
+   687→      ciphertext,
+   688→      iv,
+   689→      createdAt: updated.createdAt,
+   690→      updatedAt: now,
+   691→    });
+   692→  }
+   693→  set({
+   694→    items: get()
+   695→      .items.map((i) => (i.id === id ? updated : i))
+   696→      .sort((a, b) => b.updatedAt - a.updatedAt),
+   697→  });
+   698→}
+   699→
+   700→/**
+   701→ * Copy-to-clipboard with an automatic 30-second clear. Returns the timeout id
+   702→ * so callers can cancel early if needed. Sensitive values never linger.
+   703→ */
+   704→const clipboardTimers = new Map<string, ReturnType<typeof setTimeout>>();
+   705→
+   706→export async function copyWithAutoClear(
+   707→  value: string,
+   708→  key = "default",
+   709→  clearMs = 30_000,
+   710→): Promise<void> {
+   711→  if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+   712→    throw new Error("Clipboard API unavailable");
+   713→  }
+   714→  await navigator.clipboard.writeText(value);
+   715→  // Clear any prior timer for this key.
+   716→  const prior = clipboardTimers.get(key);
+   717→  if (prior) clearTimeout(prior);
+   718→  const timer = setTimeout(async () => {
+   719→    try {
+   720→      const current = await navigator.clipboard.readText().catch(() => "");
+   721→      if (current === value) {
+   722→        await navigator.clipboard.writeText("");
+   723→      }
+   724→    } catch {
+   725→      // readText may be denied — best-effort clear.
+   726→    }
+   727→    clipboardTimers.delete(key);
+   728→  }, clearMs);
+   729→  clipboardTimers.set(key, timer);
+   730→}
+   731→
+   732→export function cancelClipboardClear(key = "default"): void {
+   733→  const t = clipboardTimers.get(key);
+   734→  if (t) {
+   735→    clearTimeout(t);
+   736→    clipboardTimers.delete(key);
+   737→  }
+   738→}
+   739→
+   740→/* ----------------------- generator callback ------------------------------- */
+   741→
+   742→/**
+   743→ * When the user clicks the dice button in a password field, the generator
+   744→ * sidebar opens with a callback. Clicking "Use this password" calls the
+   745→ * callback with the generated password and inserts it into the field.
+   746→ */
+   747→let _generatorCallback: ((password: string) => void) | null = null;
+   748→
+   749→export function setGeneratorCallback(cb: ((password: string) => void) | null): void {
+   750→  _generatorCallback = cb;
+   751→}
+   752→
+   753→export function getGeneratorCallback(): ((password: string) => void) | null {
+   754→  return _generatorCallback;
+   755→}
+   756→
+   757→export function consumeGeneratorCallback(password: string): boolean {
+   758→  if (_generatorCallback) {
+   759→    _generatorCallback(password);
+   760→    _generatorCallback = null;
+   761→    return true;
+   762→  }
+   763→  return false;
+   764→}
+   765→
