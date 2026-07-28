@@ -105,18 +105,6 @@ interface VaultState {
   // vault (custom containers) CRUD
   createVault: (name: string, color: string, icon: string) => Promise<VaultDef>;
   deleteVault: (id: string) => Promise<void>;
-  /** Delete a vault with item-transfer options. `mode`:
-   *  - "transfer": move ALL items to `targetVaultId` (null = All Items).
-   *  - "delete":   permanently delete ALL items in this vault.
-   *  - "selective": permanently delete only `itemIdsToDelete`; move the rest
-   *    to `targetVaultId`.
-   *  Then the vault itself is removed. */
-  deleteVaultWithOptions: (
-    id: string,
-    mode: "transfer" | "delete" | "selective",
-    targetVaultId: string | null,
-    itemIdsToDelete?: string[],
-  ) => Promise<void>;
   renameVault: (id: string, name: string) => Promise<void>;
   updateVault: (id: string, patch: Partial<Omit<VaultDef, "id" | "createdAt">>) => Promise<void>;
   /** Reorder vaults (drag-and-drop in the organize dialog). */
