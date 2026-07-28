@@ -105,8 +105,22 @@ interface VaultState {
   // vault (custom containers) CRUD
   createVault: (name: string, color: string, icon: string) => Promise<VaultDef>;
   deleteVault: (id: string) => Promise<void>;
+  /** Delete a vault with item-transfer options. `mode`:
+   *  - "transfer": move ALL items to `targetVaultId` (null = All Items).
+   *  - "delete":   permanently delete ALL items in this vault.
+   *  - "selective": permanently delete only `itemIdsToDelete`; move the rest
+   *    to `targetVaultId`.
+   *  Then the vault itself is removed. */
+  deleteVaultWithOptions: (
+    id: string,
+    mode: "transfer" | "delete" | "selective",
+    targetVaultId: string | null,
+    itemIdsToDelete?: string[],
+  ) => Promise<void>;
   renameVault: (id: string, name: string) => Promise<void>;
   updateVault: (id: string, patch: Partial<Omit<VaultDef, "id" | "createdAt">>) => Promise<void>;
+  /** Reorder vaults (drag-and-drop in the organize dialog). */
+  reorderVaults: (newOrder: VaultDef[]) => Promise<void>;
   setActiveVault: (v: string) => void;
   setVaultEditorOpen: (open: boolean, vaultId?: string | null) => void;
   setCreateVaultDialogOpen: (open: boolean) => void;
@@ -752,6 +766,76 @@ export const useVault = create<VaultState>()(
 
       renameVault: async (id, name) => {
         await get().updateVault(id, { name });
+      },
+
+      deleteVaultWithOptions: async (id, mode, targetVaultId, itemIdsToDelete) => {
+        const meta = await loadVaultMeta();
+        if (!meta) return;
+        const { vaultKey, items } = get();
+        if (!vaultKey) throw new Error("Vault is locked");
+        const now = Date.now();
+        const vaultItems = items.filter((i) => i.vaultId === id && !i.trashed);
+
+        // Determine which items to delete vs. transfer.
+        let toDelete: VaultItem[] = [];
+        let toTransfer: VaultItem[] = [];
+        if (mode === "delete") {
+          toDelete = vaultItems;
+        } else if (mode === "transfer") {
+          toTransfer = vaultItems;
+        } else if (mode === "selective") {
+          const deleteSet = new Set(itemIdsToDelete ?? []);
+          toDelete = vaultItems.filter((i) => deleteSet.has(i.id));
+          toTransfer = vaultItems.filter((i) => !deleteSet.has(i.id));
+        }
+
+        // Permanently delete items (remove from IDB + state).
+        if (toDelete.length > 0) {
+          await Promise.all(
+            toDelete.map(async (it) => {
+              try { await deleteStoredItem(it.id); } catch { /* best-effort */ }
+            }),
+          );
+        }
+
+        // Transfer items to the target vault (re-encrypt + persist).
+        if (toTransfer.length > 0) {
+          await Promise.all(
+            toTransfer.map(async (it) => {
+              const next: VaultItem = { ...it, vaultId: targetVaultId, updatedAt: now } as VaultItem;
+              const { ciphertext, iv } = await encryptJson(next, vaultKey);
+              await putStoredItem({ id: next.id, type: next.type, ciphertext, iv, createdAt: next.createdAt, updatedAt: now });
+            }),
+          );
+        }
+
+        // Remove the vault from meta.
+        const vaults = (meta.vaults ?? []).filter((v) => v.id !== id);
+        await saveVaultMeta({ ...meta, vaults });
+
+        // Update in-memory state.
+        const deletedIds = new Set(toDelete.map((d) => d.id));
+        const transferredIds = new Set(toTransfer.map((t) => t.id));
+        set((state) => ({
+          vaults,
+          items: state.items
+            .filter((i) => !deletedIds.has(i.id))
+            .map((i) =>
+              transferredIds.has(i.id)
+                ? { ...i, vaultId: targetVaultId, updatedAt: now } as VaultItem
+                : i,
+            )
+            .sort((a, b) => b.updatedAt - a.updatedAt),
+          activeVault: state.activeVault === id ? "all" : state.activeVault,
+          selectedId: state.selectedId && deletedIds.has(state.selectedId) ? null : state.selectedId,
+        }));
+      },
+
+      reorderVaults: async (newOrder) => {
+        const meta = await loadVaultMeta();
+        if (!meta) return;
+        await saveVaultMeta({ ...meta, vaults: newOrder });
+        set({ vaults: newOrder });
       },
 
       updateVault: async (id, patch) => {
