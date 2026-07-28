@@ -389,10 +389,6 @@ export function ItemList({
             onValueChange={(v) => setFilter(v as FilterType)}
           >
             <SelectTrigger size="sm" className="h-8 w-[142px] shrink-0 border-border bg-muted/40 dark:bg-secondary/20">
-              {(() => {
-                const ActiveIcon = TYPE_OPTIONS.find((o) => o.value === (typeof filter === "string" ? filter : "all"))?.icon ?? LayoutGrid;
-                return <ActiveIcon className="h-3.5 w-3.5 text-muted-foreground" />;
-              })()}
               <SelectValue placeholder="Type" />
             </SelectTrigger>
             <SelectContent>
