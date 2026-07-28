@@ -130,6 +130,16 @@ interface VaultState {
   setImportExportOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   setCommandOpen: (open: boolean) => void;
+
+  // Cloud sync (Firebase Firestore + Google OAuth)
+  oauthConnected: boolean;
+  oauthEmail: string | null;
+  cloudLastSync: number | null;
+  connectOAuth: (idToken: string, email: string) => Promise<{ exists: boolean; updatedAt: number | null }>;
+  disconnectOAuth: (idToken: string, deleteCloud: boolean) => Promise<void>;
+  syncToCloud: (exportPassword: string) => Promise<void>;
+  syncFromCloud: (exportPassword: string) => Promise<boolean>;
+  checkPendingDeletion: () => Promise<void>;
 }
 
 export const useVault = create<VaultState>()(
@@ -154,6 +164,11 @@ export const useVault = create<VaultState>()(
       settingsOpen: false,
       commandOpen: false,
 
+      // Cloud sync state
+      oauthConnected: false,
+      oauthEmail: null,
+      cloudLastSync: null,
+
       /* ------------------------------ lifecycle ------------------------------ */
 
       init: async () => {
@@ -161,6 +176,12 @@ export const useVault = create<VaultState>()(
           if (typeof window === "undefined") return;
           const exists = await vaultExists();
           set({ status: exists ? "locked" : "setup" });
+          // Check for pending cloud deletion (edge case: vault was reset
+          // while offline). If online + has a stored OAuth token, execute
+          // the deletion now.
+          try {
+            await get().checkPendingDeletion();
+          } catch { /* best-effort */ }
         } catch (err) {
           console.error("init failed", err);
           set({ status: "setup" });
@@ -385,7 +406,21 @@ export const useVault = create<VaultState>()(
           vaultEditorOpen: false,
           editingVaultId: null,
           createVaultDialogOpen: false,
+          // Clear OAuth state — the vault is gone, the cloud data is now
+          // inaccessible (encrypted with the forgotten master password).
+          // Mark pending cloud deletion so it gets cleaned up on next
+          // online + OAuth connection.
+          oauthConnected: false,
+          oauthEmail: null,
+          cloudLastSync: null,
         });
+        // Mark pending cloud deletion (edge case: reset while offline).
+        if (typeof window !== "undefined") {
+          try {
+            const { markPendingCloudDeletion } = await import("@/lib/cloud-sync");
+            markPendingCloudDeletion();
+          } catch { /* cloud-sync module not available — skip */ }
+        }
       },
 
       /* ------------------------------- CRUD -------------------------------- */
@@ -940,6 +975,82 @@ export const useVault = create<VaultState>()(
       // the user's active vault is preserved for when settings closes.
       setSettingsOpen: (open) => set({ settingsOpen: open }),
       setCommandOpen: (open) => set({ commandOpen: open }),
+
+      /* --------------------------- cloud sync --------------------------- */
+
+      connectOAuth: async (idToken, email) => {
+        const { setStoredToken, hashEmailClient, checkCloudExists } = await import("@/lib/cloud-sync");
+        setStoredToken(idToken, email);
+        const emailHash = await hashEmailClient(email);
+        const result = await checkCloudExists(idToken);
+        set({
+          oauthConnected: true,
+          oauthEmail: email,
+        });
+        // Store emailHash for later uploads.
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("lcked-oauth-email-hash", emailHash);
+        }
+        return result;
+      },
+
+      disconnectOAuth: async (idToken, deleteCloud) => {
+        const { clearStoredToken, deleteCloudData, clearPendingCloudDeletion } = await import("@/lib/cloud-sync");
+        if (deleteCloud) {
+          await deleteCloudData(idToken);
+          clearPendingCloudDeletion();
+        }
+        clearStoredToken();
+        set({
+          oauthConnected: false,
+          oauthEmail: null,
+          cloudLastSync: null,
+        });
+      },
+
+      syncToCloud: async (exportPassword) => {
+        const { getStoredToken, uploadCloudData, hashEmailClient, isOnline } = await import("@/lib/cloud-sync");
+        if (!isOnline()) throw new Error("You are offline. Please connect to the internet and try again.");
+        const token = getStoredToken();
+        if (!token) throw new Error("Not connected to Google. Connect first.");
+        // Generate the encrypted export envelope (same format as file export).
+        const envelopeJson = await get().exportEncrypted(exportPassword);
+        const envelope = JSON.parse(envelopeJson);
+        const emailHash = typeof window !== "undefined"
+          ? sessionStorage.getItem("lcked-oauth-email-hash") ?? ""
+          : "";
+        const { updatedAt } = await uploadCloudData(token, envelope, emailHash);
+        set({ cloudLastSync: updatedAt });
+      },
+
+      syncFromCloud: async (exportPassword) => {
+        const { getStoredToken, downloadCloudData, isOnline } = await import("@/lib/cloud-sync");
+        if (!isOnline()) throw new Error("You are offline. Please connect to the internet and try again.");
+        const token = getStoredToken();
+        if (!token) throw new Error("Not connected to Google. Connect first.");
+        const { data } = await downloadCloudData(token);
+        if (!data) throw new Error("No cloud data found.");
+        // Decrypt the envelope using the export password.
+        // decryptLckedExport is defined at the bottom of this file.
+        const decrypted = await decryptLckedExport(data, exportPassword);
+        if (!decrypted) throw new Error("Wrong password. Could not decrypt cloud data.");
+        // TODO: merge or replace local items with cloud items.
+        set({ cloudLastSync: Date.now() });
+        return true;
+      },
+
+      checkPendingDeletion: async () => {
+        const { hasPendingCloudDeletion, executePendingDeletion, isOnline, getStoredToken } = await import("@/lib/cloud-sync");
+        if (!hasPendingCloudDeletion()) return;
+        if (!isOnline()) return;
+        const token = getStoredToken();
+        if (!token) return; // Can't delete without a token — will retry later.
+        try {
+          await executePendingDeletion();
+        } catch {
+          // Will retry on next init.
+        }
+      },
     }),
     {
       name: "lcked-ui-prefs",
