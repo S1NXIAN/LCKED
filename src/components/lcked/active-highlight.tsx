@@ -20,20 +20,19 @@
  *   as soon as the active row leaves the visible viewport.
  *
  * Animation logic:
- *   - `wasVisibleRef`: tracks whether the highlight was visible in the LAST
- *     committed frame. When the highlight transitions from hidden→visible,
- *     we SNAP (no animation) to the target so it doesn't slide in from (0,0).
- *   - When the highlight is already visible and the target changes (e.g.
- *     selecting a different item, or the list re-renders), we GLIDE from
- *     the current animated position to the new target via the rAF spring.
- *   - `wasVisibleRef` is updated SYNCHRONOUSLY inside `measure()` (not in a
- *     separate useEffect) so there's no 1-frame window where the ref lags
- *     the actual state — that lag caused snap-instead-of-glide and
- *     off-by-a-few-pixels bugs.
- *   - The rAF loop is NOT canceled on activeKey change. It's a persistent
- *     loop that runs whenever there's a target to glide toward. This
- *     prevents the "teleport" bug where canceling + re-scheduling caused
- *     the spring to never start.
+ *   - `everVisibleRef`: the snap-on-first-show behavior fires ONLY on the
+ *     very first appearance. On subsequent hide→show transitions, the
+ *     indicator glides from its last known position.
+ *   - `wasVisibleRef` / `everVisibleRef` are NOT reset when hiding — they
+ *     persist so the next show glides instead of snapping.
+ *   - The rAF loop is persistent — NOT canceled on activeKey change.
+ *   - A DOUBLE rAF (two consecutive requestAnimationFrame calls) is used on
+ *     activeKey change to ensure the DOM has fully painted before measuring.
+ *     A single rAF fires before paint; a double rAF guarantees the first
+ *     paint has completed and the layout is stable (pinned items sorted,
+ *     AnimatePresence exits done, etc).
+ *   - Fade-in/fade-out: instead of unmounting when hidden, the element
+ *     stays mounted with opacity:0 and a CSS transition for a smooth fade.
  */
 
 import * as React from "react";
@@ -57,37 +56,34 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
   // writes `transform` (NO getBoundingClientRect reads = no layout thrash).
   const posRef = React.useRef({ x: 0, y: 0 });
   // Tracks whether the highlight was visible in the last committed frame.
-  // Updated SYNCHRONOUSLY inside measure() — NOT in a separate useEffect —
-  // so there's no 1-frame lag that caused snap-instead-of-glide bugs.
   const wasVisibleRef = React.useRef(false);
   // Tracks whether the highlight has EVER been visible in this component's
   // lifetime. The snap-on-first-show behavior only fires when this is false.
-  // On subsequent hide→show transitions (e.g. switching to a vault that
-  // doesn't have the item, then back), the indicator GLIDES from its last
-  // known position instead of snapping — no teleporting.
   const everVisibleRef = React.useRef(false);
-  const [visible, setVisible] = React.useState(false);
+  // `mounted` ensures the element is always in the DOM (for CSS transitions).
+  // `opacity` controls the fade-in/fade-out.
+  const [mounted] = React.useState(true);
+  const [opacity, setOpacity] = React.useState(0);
   // animateRef holds the latest step function so external listeners can
   // kick it without re-binding their own dependencies.
   const animateRef = React.useRef<(() => void) | null>(null);
 
   // The activeKey is stored in a ref so the MutationObserver / scroll
   // listeners (which don't re-bind on activeKey change) always read the
-  // latest value. Updated in an effect (not during render) per React rules.
+  // latest value.
   const activeKeyRef = React.useRef(activeKey);
   React.useEffect(() => { activeKeyRef.current = activeKey; }, [activeKey]);
 
   // Measure the active element's rect relative to the container. If not
-  // found (or no active key), hide the highlight. Width/height are written
-  // IMMEDIATELY (a single layout write per switch) — only `transform` is
-  // animated per-frame by the rAF loop.
+  // found (or no active key), hide the highlight (fade out). Width/height
+  // are written IMMEDIATELY — only `transform` is animated per-frame.
   const measure = React.useCallback(() => {
     const container = containerRef.current;
     const hl = highlightRef.current;
     const key = activeKeyRef.current;
     if (!key || !container) {
       targetRef.current = null;
-      setVisible(false);
+      setOpacity(0);
       return;
     }
     const selector = `[${selectorAttr}="${CSS.escape(key)}"]`;
@@ -96,7 +92,7 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
       : container.querySelector<HTMLElement>(selector)) as HTMLElement | null;
     if (!el) {
       targetRef.current = null;
-      setVisible(false);
+      setOpacity(0);
       return;
     }
     const r = el.getBoundingClientRect();
@@ -111,10 +107,6 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
       hl.style.width = `${next.w}px`;
       hl.style.height = `${next.h}px`;
       // Snap ONLY on the very first appearance (everVisibleRef === false).
-      // On subsequent hide→show transitions (e.g. switching to a vault that
-      // doesn't have the item, then back), glide from the last known
-      // position — posRef still holds the previous position so the rAF
-      // spring animates smoothly instead of teleporting.
       if (!everVisibleRef.current) {
         hl.style.transform = `translate(${next.x}px, ${next.y}px)`;
         posRef.current = { x: next.x, y: next.y };
@@ -123,12 +115,11 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
       wasVisibleRef.current = true;
     }
     targetRef.current = next;
-    setVisible(true);
+    setOpacity(1);
   }, [containerRef, selectorAttr]);
 
   // (Re)define the animation step. Per-frame we ONLY write `transform`.
-  // This effect runs ONCE (empty deps) — the step function reads from refs
-  // so it always has the latest target/position without re-binding.
+  // This effect runs ONCE (empty deps).
   React.useEffect(() => {
     const step = () => {
       const hl = highlightRef.current;
@@ -138,7 +129,6 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
         return;
       }
       const pos = posRef.current;
-      // Higher factor = snappier. 0.35 settles in ~10 frames (~160ms).
       const FACTOR = 0.35;
       const nx = pos.x + (target.x - pos.x) * FACTOR;
       const ny = pos.y + (target.y - pos.y) * FACTOR;
@@ -154,9 +144,7 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
       rafRef.current = requestAnimationFrame(step);
     };
     animateRef.current = step;
-    return () => {
-      animateRef.current = null;
-    };
+    return () => { animateRef.current = null; };
   }, []);
 
   // Re-measure + kick the animation if it isn't already running.
@@ -167,34 +155,43 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
     }
   }, [measure]);
 
-  // On activeKey change: measure + start the animation. The rAF loop is
-  // NOT canceled here — it's a persistent loop that settles naturally.
-  // We only cancel on unmount. A short rAF delay lets the DOM settle
-  // after UI transitions (e.g. settings panel closing, vault switch).
+  // On activeKey change: use a TRIPLE rAF to ensure the DOM has fully
+  // painted and AnimatePresence animations have started before measuring.
+  // A single rAF fires before paint; a double rAF guarantees the first
+  // paint completed; a triple rAF also catches the frame where
+  // AnimatePresence's exit animations finish and the final sort order is
+  // committed. This prevents the "off by a few pixels" bug when switching
+  // vaults where the item's position changes due to pinned/favorited items
+  // pushing it down.
   React.useEffect(() => {
     if (!activeKey) {
-      // Hide: clear target so the rAF loop stops. Do NOT reset
-      // wasVisibleRef or everVisibleRef — the next show should GLIDE
-      // from the last known position, not snap (no teleporting).
       targetRef.current = null;
-      setVisible(false);
+      setOpacity(0);
       return;
     }
-    // Defer measure by one rAF so the DOM has settled after the
-    // activeKey change (e.g. the new vault's items rendered).
-    const frame = requestAnimationFrame(() => kick());
+    let frame2 = 0;
+    let frame3 = 0;
+    const frame1 = requestAnimationFrame(() => {
+      frame2 = requestAnimationFrame(() => {
+        frame3 = requestAnimationFrame(() => kick());
+      });
+    });
     return () => {
-      cancelAnimationFrame(frame);
+      cancelAnimationFrame(frame1);
+      cancelAnimationFrame(frame2);
+      cancelAnimationFrame(frame3);
     };
   }, [activeKey, kick]);
 
-  // MutationObserver — re-check when the container DOM changes (items added,
-  // removed, reordered by sort, attributes toggled). Uses a rAF delay so the
-  // DOM has time to settle after AnimatePresence exit animations.
+  // MutationObserver — re-check when the container DOM changes. Uses a
+  // rAF delay so the DOM has time to settle. A second delayed kick (300ms)
+  // catches AnimatePresence exit animations that complete after the initial
+  // mutation — these change item positions without triggering a new mutation.
   React.useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     let pending = false;
+    let delayedTimer: ReturnType<typeof setTimeout> | null = null;
     const observer = new MutationObserver(() => {
       if (pending) return;
       pending = true;
@@ -202,6 +199,9 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
         pending = false;
         kick();
       });
+      // Schedule a delayed re-measure to catch post-animation layout shifts.
+      if (delayedTimer) clearTimeout(delayedTimer);
+      delayedTimer = setTimeout(() => kick(), 300);
     });
     observer.observe(container, {
       childList: true,
@@ -209,11 +209,13 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
       attributes: true,
       attributeFilter: [selectorAttr],
     });
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (delayedTimer) clearTimeout(delayedTimer);
+    };
   }, [containerRef, kick, selectorAttr]);
 
-  // Scroll + resize listeners — re-measure + re-animate so the highlight
-  // stays glued to the active row.
+  // Scroll + resize listeners — throttled via rAF.
   React.useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -249,28 +251,29 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
     };
   }, []);
 
-  // When the highlight re-appears after being hidden (e.g. switching back
-  // to a vault that has the item), the DOM element is freshly mounted with
-  // transform translate(0,0). Restore the last known position from posRef
-  // so the rAF spring glides from the previous position instead of from
-  // (0,0) — prevents the "slide from top-left" teleport effect.
+  // When the highlight re-appears (opacity goes 0→1), restore posRef
+  // position to the element so the rAF spring glides from the last
+  // known position instead of from (0,0).
   React.useEffect(() => {
-    if (visible && everVisibleRef.current && highlightRef.current) {
+    if (opacity === 1 && everVisibleRef.current && highlightRef.current) {
       const { x, y } = posRef.current;
       highlightRef.current.style.transform = `translate(${x}px, ${y}px)`;
     }
-  }, [visible]);
+  }, [opacity]);
 
-  if (!visible) return null;
+  // The element is ALWAYS mounted (never returns null). Opacity controls
+  // the fade-in/fade-out via a CSS transition. This avoids the DOM
+  // remount that caused teleporting and enables smooth fades.
+  if (!mounted) return null;
   return (
     <div
       ref={highlightRef}
       aria-hidden
       className={cn(
-        "lcked-active-glow pointer-events-none absolute left-0 top-0 rounded-lg",
+        "lcked-active-glow pointer-events-none absolute left-0 top-0 rounded-lg transition-opacity duration-200 ease-out",
         className,
       )}
-      style={{ width: 0, height: 0, transform: "translate(0px, 0px)" }}
+      style={{ width: 0, height: 0, transform: "translate(0px, 0px)", opacity }}
     />
   );
 }
