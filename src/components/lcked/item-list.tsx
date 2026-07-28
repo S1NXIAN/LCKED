@@ -258,19 +258,22 @@ export function ItemList({
     list = searchItems(list, deferredSearch);
     // Sort. Priority order (highest first):
     //   1. Favorite (only when sortFavoritesFirst is on)
-    //   2. Pinned    (always — pin is lower priority than favorite)
-    //   3. Primary sort (newest / oldest / A–Z)
+    //   2. Pinned    (only when sortFavoritesFirst is on — pin follows the
+    //      same toggle so disabling it treats both favorites AND pins as
+    //      normal items, sorted purely by the primary key)
+    //   3. Primary sort (newest / oldest / A–Z / Z–A)
     // Edge cases:
     //   - starred + pinned → sorted as favorite (higher priority wins)
-    //   - !sortFavoritesFirst → pinned still sorts to top, favorites sort normally
+    //   - !sortFavoritesFirst → both favorites AND pins sort normally
     const sorted = [...list];
     sorted.sort((a, b) => {
       const aFav = sortFavoritesFirst && a.favorite;
       const bFav = sortFavoritesFirst && b.favorite;
       if (aFav !== bFav) return aFav ? -1 : 1;
-      // Both are favorites OR both are non-favorites → check pinned.
-      const aPin = a.pinned ?? false;
-      const bPin = b.pinned ?? false;
+      // Both are favorites OR both are non-favorites → check pinned
+      // (only when sortFavoritesFirst is on).
+      const aPin = sortFavoritesFirst && (a.pinned ?? false);
+      const bPin = sortFavoritesFirst && (b.pinned ?? false);
       if (aPin !== bPin) return aPin ? -1 : 1;
       // Primary sort.
       if (sort === "newest") return b.updatedAt - a.updatedAt;
@@ -388,7 +391,7 @@ export function ItemList({
             value={typeof filter === "string" ? filter : "all"}
             onValueChange={(v) => setFilter(v as FilterType)}
           >
-            <SelectTrigger size="sm" className="h-8 w-[142px] shrink-0 border-border bg-muted/40 dark:bg-secondary/20">
+            <SelectTrigger size="sm" className="h-8 w-[142px] shrink-0 border-border bg-muted/40 dark:bg-secondary/20 [&_[data-slot=select-value]]:flex-1 [&_[data-slot=select-value]]:justify-center">
               <SelectValue placeholder="Type" />
             </SelectTrigger>
             <SelectContent>
