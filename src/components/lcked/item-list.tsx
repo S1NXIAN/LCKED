@@ -111,11 +111,12 @@ function subtitle(item: VaultItem): string {
 /* --------------------------- TypeSelectItem ---------------------------- */
 
 /**
- * Custom SelectItem for the Type filter that renders a leading type icon
- * AND its own check indicator (replaces the radix SelectItem's built-in
- * CheckIcon so there's no double-SVG on the active item).
+ * Custom SelectItem for the Type filter. Renders a leading type icon
+ * OUTSIDE the ItemText (so it does NOT get cloned into the trigger by
+ * radix SelectValue) + its own check indicator.
  *
- * Layout: [type-icon] [label] ……… [check] (check only on active item).
+ * Layout in the dropdown: [type-icon] [label] ……… [check]
+ * The trigger shows only the cloned text (label), centered.
  */
 function TypeSelectItem({
   value,
@@ -136,12 +137,9 @@ function TypeSelectItem({
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       )}
     >
-      <SelectPrimitive.ItemText asChild>
-        <span className="flex items-center gap-2">
-          <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          <span>{label}</span>
-        </span>
-      </SelectPrimitive.ItemText>
+      {/* Icon is OUTSIDE ItemText so radix does NOT clone it into the trigger. */}
+      <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      <SelectPrimitive.ItemText>{label}</SelectPrimitive.ItemText>
       <span className="absolute right-2 flex size-4 items-center justify-center">
         <SelectPrimitive.ItemIndicator>
           <Check className="h-3.5 w-3.5 text-primary" />
@@ -391,8 +389,17 @@ export function ItemList({
             value={typeof filter === "string" ? filter : "all"}
             onValueChange={(v) => setFilter(v as FilterType)}
           >
-            <SelectTrigger size="sm" className="h-8 w-[142px] shrink-0 border-border bg-muted/40 dark:bg-secondary/20 [&_[data-slot=select-value]]:flex-1 [&_[data-slot=select-value]]:justify-center">
-              <SelectValue placeholder="Type" />
+            {/* Trigger: [icon left] [text centered in remaining space] [chevron]
+                The icon is rendered explicitly on the left; the SelectValue
+                (which clones only the label text, NOT the icon) is flex-1 +
+                text-center so the label centers in the space between the icon
+                and the chevron. */}
+            <SelectTrigger size="sm" className="h-8 w-[142px] shrink-0 border-border bg-muted/40 dark:bg-secondary/20">
+              {(() => {
+                const ActiveIcon = TYPE_OPTIONS.find((o) => o.value === (typeof filter === "string" ? filter : "all"))?.icon ?? LayoutGrid;
+                return <ActiveIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />;
+              })()}
+              <SelectValue placeholder="Type" className="flex-1 text-center" />
             </SelectTrigger>
             <SelectContent>
               {TYPE_OPTIONS.map((opt) => (
