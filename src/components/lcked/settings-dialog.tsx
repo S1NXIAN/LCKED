@@ -691,11 +691,10 @@ function AccountTab() {
   const oauthEmail = useVault((s) => s.oauthEmail);
   const connectOAuth = useVault((s) => s.connectOAuth);
   const disconnectOAuth = useVault((s) => s.disconnectOAuth);
-  const syncToCloud = useVault((s) => s.syncToCloud);
+  const cloudSyncing = useVault((s) => s.cloudSyncing);
   const cloudLastSync = useVault((s) => s.cloudLastSync);
 
   const [connecting, setConnecting] = React.useState(false);
-  const [syncing, setSyncing] = React.useState(false);
   const [disconnecting, setDisconnecting] = React.useState(false);
   const [showDisconnectConfirm, setShowDisconnectConfirm] = React.useState(false);
   const [deleteCloudOnDisconnect, setDeleteCloudOnDisconnect] = React.useState(true);
@@ -759,30 +758,11 @@ function AccountTab() {
     }
   };
 
-  const handleSyncUpload = async () => {
-    setSyncing(true);
-    try {
-      // Use the master password as the export password for cloud sync.
-      // The user will be prompted to enter it.
-      // For now, use the current vault key's password (stored in session).
-      // TODO: add a password prompt dialog.
-      toast.info("Enter your master password to encrypt the cloud backup");
-      // This is a placeholder — in production, show a password prompt dialog.
-      setSyncing(false);
-    } catch {
-      toast.error("Could not sync to cloud");
-      setSyncing(false);
-    }
-  };
-
   const handleDisconnect = async () => {
     setShowDisconnectConfirm(false);
     setDisconnecting(true);
     try {
-      const { getStoredToken } = await import("@/lib/cloud-sync");
-      const token = getStoredToken();
-      if (!token) throw new Error("No token");
-      await disconnectOAuth(token, deleteCloudOnDisconnect);
+      await disconnectOAuth(deleteCloudOnDisconnect);
       toast.success(deleteCloudOnDisconnect ? "Disconnected and cloud data deleted" : "Disconnected");
     } catch {
       toast.error("Could not disconnect. Make sure you are online.");
@@ -858,18 +838,26 @@ function AccountTab() {
                 </div>
               </div>
 
-              {/* Sync actions */}
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 gap-1.5"
-                  onClick={handleSyncUpload}
-                  disabled={syncing}
-                >
-                  {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                  Sync now
-                </Button>
+              {/* Auto-sync status + disconnect */}
+              <div className="flex items-center gap-2">
+                <div className="flex flex-1 items-center gap-1.5 text-xs text-muted-foreground">
+                  {cloudSyncing ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                      <span>Syncing…</span>
+                    </>
+                  ) : cloudLastSync ? (
+                    <>
+                      <Check className="h-3.5 w-3.5 text-emerald-400" />
+                      <span>Auto-sync active · Last: {new Date(cloudLastSync).toLocaleTimeString()}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-3.5 w-3.5 text-emerald-400" />
+                      <span>Auto-sync active · Changes sync automatically</span>
+                    </>
+                  )}
+                </div>
                 <Button
                   variant="outline"
                   size="sm"

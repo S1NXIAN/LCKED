@@ -29,11 +29,13 @@
     "storage",
     "scripting",
     "contextMenus",
-    "clipboardWrite"
+    "clipboardWrite",
+    "identity"
   ],
   "host_permissions": [
     "http://*/*",
-    "https://*/*"
+    "https://*/*",
+    "http://localhost:3000/*"
   ],
   "content_scripts": [
     {

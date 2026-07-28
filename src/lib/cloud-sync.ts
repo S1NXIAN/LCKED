@@ -1,35 +1,31 @@
 /**
- * LCKED — Cloud Sync (client-side)
+ * LCKED — Smart Cloud Sync (automatic, lightweight)
  * ---------------------------------------------------------------------------
- * Handles all communication with the /api/sync/* API routes.
+ * Replaces manual push/pull with automatic debounced sync.
  *
- * The flow:
- *   1. User connects with Google OAuth → gets a Firebase ID token.
- *   2. Client checks if cloud data exists (/api/sync/exists).
- *   3. If cloud data exists and is newer → offer to download + decrypt.
- *   4. If no cloud data → upload current encrypted vault.
- *   5. On vault changes → auto-upload (debounced).
- *   6. On disconnect → delete cloud data + clear token.
+ * How it works:
+ *   1. On vault unlock: pull from cloud. If cloud is newer → merge.
+ *   2. On any vault mutation: debounce 3s → auto-upload.
+ *   3. On going online (after offline): flush pending upload + check cloud.
+ *   4. On going offline: mark offline; mutations are saved locally (IDB)
+ *      and will sync when online.
+ *   5. On lock: flush any pending upload immediately.
  *
- * ALL data uploaded to the cloud is the encrypted vault export envelope
- * (AES-256-GCM). The server NEVER sees plaintext. The email is hashed
- * with SHA-256 before storage.
+ * Conflict resolution: last-write-wins based on `updatedAt` timestamp.
+ * If cloud `updatedAt` > local latest `updatedAt` → pull (merge items by id,
+ * cloud wins on conflict). If local is newer → push.
  *
- * Edge cases handled:
- *   - Forgot master password while offline: mark "pending cloud deletion"
- *     flag in localStorage. On next online + OAuth, execute the deletion.
- *   - Two vaults connected to same Google account: check exists() before
- *     uploading. If data exists, warn the user and require confirmation.
- *   - Disconnect while offline: require online connection. Show error toast.
- *   - OAuth verification before disconnect: require re-authentication with
- *     Google before disconnecting (second validation).
+ * All data is encrypted client-side (AES-256-GCM) before upload.
+ * The server NEVER sees plaintext.
  */
 
 import type { LckedExport } from "@/lib/import-export";
 
-const PENDING_DELETION_KEY = "lcked-pending-cloud-deletion";
 const OAUTH_TOKEN_KEY = "lcked-oauth-token";
 const OAUTH_EMAIL_KEY = "lcked-oauth-email";
+const OAUTH_EMAIL_HASH_KEY = "lcked-oauth-email-hash";
+const PENDING_DELETION_KEY = "lcked-pending-cloud-deletion";
+const LAST_SYNC_KEY = "lcked-cloud-last-sync";
 
 /* ─── Token management ────────────────────────────────────────────────── */
 
@@ -48,6 +44,7 @@ export function clearStoredToken() {
   if (typeof window === "undefined") return;
   sessionStorage.removeItem(OAUTH_TOKEN_KEY);
   sessionStorage.removeItem(OAUTH_EMAIL_KEY);
+  sessionStorage.removeItem(OAUTH_EMAIL_HASH_KEY);
 }
 
 export function getStoredEmail(): string | null {
@@ -59,13 +56,19 @@ export function isOAuthConnected(): boolean {
   return !!getStoredToken();
 }
 
+/* ─── Email hashing ───────────────────────────────────────────────────── */
+
+export async function hashEmailClient(email: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(email.toLowerCase().trim());
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 /* ─── Pending deletion (offline edge case) ────────────────────────────── */
 
-/**
- * When the user resets their vault while offline (forgot master password),
- * we can't delete the cloud data immediately. Mark a pending deletion flag.
- * On next online + OAuth connection, execute the deletion.
- */
 export function markPendingCloudDeletion() {
   if (typeof window === "undefined") return;
   localStorage.setItem(PENDING_DELETION_KEY, "true");
@@ -81,28 +84,27 @@ export function hasPendingCloudDeletion(): boolean {
   return localStorage.getItem(PENDING_DELETION_KEY) === "true";
 }
 
-/**
- * Execute any pending cloud deletion. Called on app init when online + OAuth.
- * Returns true if a deletion was executed, false otherwise.
- */
-export async function executePendingDeletion(): Promise<boolean> {
-  if (!hasPendingCloudDeletion()) return false;
-  const token = getStoredToken();
-  if (!token) return false; // Can't delete without a token — will retry later.
+/* ─── Online/offline detection ────────────────────────────────────────── */
 
-  try {
-    await deleteCloudData(token);
-    clearPendingCloudDeletion();
-    return true;
-  } catch {
-    // Will retry on next init.
-    return false;
-  }
+export function isOnline(): boolean {
+  return typeof navigator !== "undefined" ? navigator.onLine : true;
+}
+
+/* ─── Last sync timestamp ─────────────────────────────────────────────── */
+
+export function getLastSync(): number | null {
+  if (typeof window === "undefined") return null;
+  const v = sessionStorage.getItem(LAST_SYNC_KEY);
+  return v ? parseInt(v, 10) : null;
+}
+
+export function setLastSync(ts: number) {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(LAST_SYNC_KEY, String(ts));
 }
 
 /* ─── API calls ───────────────────────────────────────────────────────── */
 
-/** Check if cloud data exists for the current user. */
 export async function checkCloudExists(idToken: string): Promise<{
   exists: boolean;
   updatedAt: number | null;
@@ -113,7 +115,6 @@ export async function checkCloudExists(idToken: string): Promise<{
   return { exists: json.exists, updatedAt: json.updatedAt };
 }
 
-/** Upload encrypted vault data to the cloud. */
 export async function uploadCloudData(
   idToken: string,
   data: LckedExport,
@@ -129,7 +130,6 @@ export async function uploadCloudData(
   return { updatedAt: json.updatedAt };
 }
 
-/** Download encrypted vault data from the cloud. */
 export async function downloadCloudData(
   idToken: string,
 ): Promise<{ data: LckedExport | null; updatedAt: number | null }> {
@@ -139,7 +139,6 @@ export async function downloadCloudData(
   return { data: json.data, updatedAt: json.updatedAt };
 }
 
-/** Delete cloud data (used on disconnect + pending deletion). */
 export async function deleteCloudData(idToken: string): Promise<void> {
   const res = await fetch("/api/sync/delete", {
     method: "DELETE",
@@ -149,19 +148,138 @@ export async function deleteCloudData(idToken: string): Promise<void> {
   if (!res.ok) throw new Error("Failed to delete cloud data");
 }
 
-/* ─── Email hashing (client-side, before sending to server) ───────────── */
+/* ─── Pending cloud deletion execution ────────────────────────────────── */
 
-export async function hashEmailClient(email: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(email.toLowerCase().trim());
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+export async function executePendingDeletion(): Promise<boolean> {
+  if (!hasPendingCloudDeletion()) return false;
+  const token = getStoredToken();
+  if (!token) return false;
+  try {
+    await deleteCloudData(token);
+    clearPendingCloudDeletion();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-/* ─── Online/offline detection ────────────────────────────────────────── */
+/* ─── Smart sync engine ───────────────────────────────────────────────── */
 
-export function isOnline(): boolean {
-  return typeof navigator !== "undefined" ? navigator.onLine : true;
+/**
+ * The smart sync engine. Created once on unlock; destroyed on lock.
+ * Handles debounced auto-upload, auto-pull, and online/offline transitions.
+ */
+export class SmartSync {
+  private uploadTimer: ReturnType<typeof setTimeout> | null = null;
+  private onlineListener: (() => void) | null = null;
+  private offlineListener: (() => void) | null = null;
+  private isSyncing = false;
+  private lastLocalUpdate = 0;
+  private uploadFn: () => Promise<void>;
+  private pullFn: () => Promise<void>;
+
+  constructor(uploadFn: () => Promise<void>, pullFn: () => Promise<void>) {
+    this.uploadFn = uploadFn;
+    this.pullFn = pullFn;
+  }
+
+  /** Start the sync engine. Listens to online/offline events. */
+  start() {
+    this.onlineListener = () => {
+      // Going online: flush pending upload, then check for newer cloud data.
+      this.flush().then(() => this.pull()).catch(() => {});
+    };
+    this.offlineListener = () => {
+      // Going offline: cancel pending upload timer (will retry when online).
+      if (this.uploadTimer) {
+        clearTimeout(this.uploadTimer);
+        this.uploadTimer = null;
+      }
+    };
+    window.addEventListener("online", this.onlineListener);
+    window.addEventListener("offline", this.offlineListener);
+  }
+
+  /** Stop the sync engine. Flush any pending upload. */
+  async stop() {
+    if (this.onlineListener) window.removeEventListener("online", this.onlineListener);
+    if (this.offlineListener) window.removeEventListener("offline", this.offlineListener);
+    if (this.uploadTimer) {
+      clearTimeout(this.uploadTimer);
+      this.uploadTimer = null;
+    }
+    // Flush pending upload before stopping (e.g., on lock).
+    await this.flush();
+  }
+
+  /** Schedule a debounced upload (3s after the last mutation). */
+  scheduleUpload() {
+    this.lastLocalUpdate = Date.now();
+    if (this.uploadTimer) clearTimeout(this.uploadTimer);
+    this.uploadTimer = setTimeout(() => {
+      this.uploadTimer = null;
+      this.flush().catch(() => {});
+    }, 3000);
+  }
+
+  /** Execute the upload immediately (cancel debounce timer). */
+  async flush() {
+    if (this.uploadTimer) {
+      clearTimeout(this.uploadTimer);
+      this.uploadTimer = null;
+    }
+    if (this.isSyncing) return;
+    if (!isOnline()) return;
+    if (!isOAuthConnected()) return;
+    this.isSyncing = true;
+    try {
+      await this.uploadFn();
+    } catch (err) {
+      // Silent fail — will retry on next mutation or online event.
+      console.warn("[smart-sync] Upload failed:", err);
+    } finally {
+      this.isSyncing = false;
+    }
+  }
+
+  /** Pull from cloud (e.g., on unlock or on going online). */
+  async pull() {
+    if (this.isSyncing) return;
+    if (!isOnline()) return;
+    if (!isOAuthConnected()) return;
+    this.isSyncing = true;
+    try {
+      await this.pullFn();
+    } catch (err) {
+      console.warn("[smart-sync] Pull failed:", err);
+    } finally {
+      this.isSyncing = false;
+    }
+  }
+}
+
+/* ─── Singleton instance ──────────────────────────────────────────────── */
+
+let syncEngine: SmartSync | null = null;
+
+export function getSyncEngine(): SmartSync | null {
+  return syncEngine;
+}
+
+export function startSyncEngine(uploadFn: () => Promise<void>, pullFn: () => Promise<void>) {
+  if (syncEngine) syncEngine.stop();
+  syncEngine = new SmartSync(uploadFn, pullFn);
+  syncEngine.start();
+  return syncEngine;
+}
+
+export async function stopSyncEngine() {
+  if (syncEngine) {
+    await syncEngine.stop();
+    syncEngine = null;
+  }
+}
+
+export function notifyVaultMutation() {
+  if (syncEngine) syncEngine.scheduleUpload();
 }

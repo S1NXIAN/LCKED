@@ -131,16 +131,20 @@ interface VaultState {
   setSettingsOpen: (open: boolean) => void;
   setCommandOpen: (open: boolean) => void;
 
-  // Cloud sync (Firebase Firestore + Google OAuth)
+  // Cloud sync (automatic, debounced)
   oauthConnected: boolean;
   oauthEmail: string | null;
   cloudLastSync: number | null;
+  cloudSyncing: boolean;
   connectOAuth: (idToken: string, email: string) => Promise<{ exists: boolean; updatedAt: number | null }>;
-  disconnectOAuth: (idToken: string, deleteCloud: boolean) => Promise<void>;
-  syncToCloud: (exportPassword: string) => Promise<void>;
-  syncFromCloud: (exportPassword: string) => Promise<boolean>;
+  disconnectOAuth: (deleteCloud: boolean) => Promise<void>;
   checkPendingDeletion: () => Promise<void>;
 }
+
+// Module-level: stores the master password while unlocked (in-memory only,
+// never persisted). Used by the auto-sync engine to encrypt cloud backups
+// without re-prompting the user. Cleared on lock.
+let _masterPassword: string | null = null;
 
 export const useVault = create<VaultState>()(
   persist(
@@ -168,6 +172,7 @@ export const useVault = create<VaultState>()(
       oauthConnected: false,
       oauthEmail: null,
       cloudLastSync: null,
+      cloudSyncing: false,
 
       /* ------------------------------ lifecycle ------------------------------ */
 
@@ -247,6 +252,10 @@ export const useVault = create<VaultState>()(
           activeVault: "all",
           selectedId: null,
         });
+        // Store master password for auto-sync encryption (in-memory only).
+        _masterPassword = masterPassword;
+        // Start the smart sync engine (if OAuth is connected).
+        await startAutoSync(get, set);
       },
 
       unlock: async (masterPassword) => {
@@ -359,6 +368,10 @@ export const useVault = create<VaultState>()(
           // sane values instead of `undefined`.
           settings: { ...DEFAULT_VAULT_SETTINGS, ...meta.settings },
         });
+        // Store master password for auto-sync encryption (in-memory only).
+        _masterPassword = masterPassword;
+        // Start the smart sync engine (if OAuth is connected).
+        await startAutoSync(get, set);
         return true;
       },
 
@@ -366,6 +379,9 @@ export const useVault = create<VaultState>()(
         // Clear any pending clipboard auto-clear timers so a password copied
         // just before locking doesn't linger in the system clipboard.
         clearAllClipboardTimers();
+        // Clear the in-memory master password + stop the sync engine.
+        _masterPassword = null;
+        stopSyncEngine();
         set({
           status: "locked",
           masterKey: null,
@@ -388,6 +404,8 @@ export const useVault = create<VaultState>()(
 
       resetVault: async () => {
         clearAllClipboardTimers();
+        _masterPassword = null;
+        await stopSyncEngine();
         await wipeVault();
         set({
           status: "setup",
@@ -455,6 +473,7 @@ export const useVault = create<VaultState>()(
           const next = [item, ...others].sort((a, b) => b.updatedAt - a.updatedAt);
           return { items: next, selectedId: id };
         });
+        notifyVaultMutation();
         return item;
       },
 
@@ -540,6 +559,7 @@ export const useVault = create<VaultState>()(
             .map((i) => (i.id === id ? updated : i))
             .sort((a, b) => b.updatedAt - a.updatedAt),
         }));
+        notifyVaultMutation();
       },
 
       togglePin: async (id) => {
@@ -559,6 +579,7 @@ export const useVault = create<VaultState>()(
             .map((i) => (i.id === id ? updated : i))
             .sort((a, b) => b.updatedAt - a.updatedAt),
         }));
+        notifyVaultMutation();
       },
 
       /* ----------- bulk actions (multi-select drag-and-drop) ----------- */
@@ -785,6 +806,7 @@ export const useVault = create<VaultState>()(
           vaultEditorOpen: state.editingVaultId === id ? false : state.vaultEditorOpen,
           editingVaultId: state.editingVaultId === id ? null : state.editingVaultId,
         }));
+        notifyVaultMutation();
       },
 
       renameVault: async (id, name) => {
@@ -852,6 +874,7 @@ export const useVault = create<VaultState>()(
           activeVault: state.activeVault === id ? "all" : state.activeVault,
           selectedId: state.selectedId && deletedIds.has(state.selectedId) ? null : state.selectedId,
         }));
+        notifyVaultMutation();
       },
 
       reorderVaults: async (newOrder) => {
@@ -891,6 +914,7 @@ export const useVault = create<VaultState>()(
         set((state) => ({
           settings: { ...state.settings, generator: { ...state.settings.generator, ...patch } },
         }));
+        notifyVaultMutation();
       },
 
       changeMasterPassword: async (current, next) => {
@@ -982,61 +1006,26 @@ export const useVault = create<VaultState>()(
         const { setStoredToken, hashEmailClient, checkCloudExists } = await import("@/lib/cloud-sync");
         setStoredToken(idToken, email);
         const emailHash = await hashEmailClient(email);
-        const result = await checkCloudExists(idToken);
-        set({
-          oauthConnected: true,
-          oauthEmail: email,
-        });
-        // Store emailHash for later uploads.
         if (typeof window !== "undefined") {
           sessionStorage.setItem("lcked-oauth-email-hash", emailHash);
         }
+        const result = await checkCloudExists(idToken);
+        set({ oauthConnected: true, oauthEmail: email });
+        // Start the smart sync engine now that OAuth is connected.
+        await startAutoSync(get, set);
         return result;
       },
 
-      disconnectOAuth: async (idToken, deleteCloud) => {
-        const { clearStoredToken, deleteCloudData, clearPendingCloudDeletion } = await import("@/lib/cloud-sync");
-        if (deleteCloud) {
-          await deleteCloudData(idToken);
+      disconnectOAuth: async (deleteCloud) => {
+        const { getStoredToken, clearStoredToken, deleteCloudData, clearPendingCloudDeletion } = await import("@/lib/cloud-sync");
+        await stopSyncEngine();
+        const token = getStoredToken();
+        if (deleteCloud && token) {
+          try { await deleteCloudData(token); } catch { /* best-effort */ }
           clearPendingCloudDeletion();
         }
         clearStoredToken();
-        set({
-          oauthConnected: false,
-          oauthEmail: null,
-          cloudLastSync: null,
-        });
-      },
-
-      syncToCloud: async (exportPassword) => {
-        const { getStoredToken, uploadCloudData, hashEmailClient, isOnline } = await import("@/lib/cloud-sync");
-        if (!isOnline()) throw new Error("You are offline. Please connect to the internet and try again.");
-        const token = getStoredToken();
-        if (!token) throw new Error("Not connected to Google. Connect first.");
-        // Generate the encrypted export envelope (same format as file export).
-        const envelopeJson = await get().exportEncrypted(exportPassword);
-        const envelope = JSON.parse(envelopeJson);
-        const emailHash = typeof window !== "undefined"
-          ? sessionStorage.getItem("lcked-oauth-email-hash") ?? ""
-          : "";
-        const { updatedAt } = await uploadCloudData(token, envelope, emailHash);
-        set({ cloudLastSync: updatedAt });
-      },
-
-      syncFromCloud: async (exportPassword) => {
-        const { getStoredToken, downloadCloudData, isOnline } = await import("@/lib/cloud-sync");
-        if (!isOnline()) throw new Error("You are offline. Please connect to the internet and try again.");
-        const token = getStoredToken();
-        if (!token) throw new Error("Not connected to Google. Connect first.");
-        const { data } = await downloadCloudData(token);
-        if (!data) throw new Error("No cloud data found.");
-        // Decrypt the envelope using the export password.
-        // decryptLckedExport is defined at the bottom of this file.
-        const decrypted = await decryptLckedExport(data, exportPassword);
-        if (!decrypted) throw new Error("Wrong password. Could not decrypt cloud data.");
-        // TODO: merge or replace local items with cloud items.
-        set({ cloudLastSync: Date.now() });
-        return true;
+        set({ oauthConnected: false, oauthEmail: null, cloudLastSync: null });
       },
 
       checkPendingDeletion: async () => {
@@ -1044,12 +1033,8 @@ export const useVault = create<VaultState>()(
         if (!hasPendingCloudDeletion()) return;
         if (!isOnline()) return;
         const token = getStoredToken();
-        if (!token) return; // Can't delete without a token — will retry later.
-        try {
-          await executePendingDeletion();
-        } catch {
-          // Will retry on next init.
-        }
+        if (!token) return;
+        try { await executePendingDeletion(); } catch { /* retry later */ }
       },
     }),
     {
@@ -1061,6 +1046,104 @@ export const useVault = create<VaultState>()(
     },
   ),
 );
+
+/* ----------------------- smart sync helpers ----------------------------- */
+
+/**
+ * Start the automatic cloud sync engine. Called after unlock or OAuth
+ * connect. The engine debounces uploads (3s after last mutation) and
+ * auto-pulls on going online. All uploads use the in-memory master
+ * password to encrypt the vault data — no user interaction needed.
+ */
+async function startAutoSync(
+  get: () => VaultState,
+  set: (partial: Partial<VaultState>) => void,
+) {
+  const { startSyncEngine, isOAuthConnected, getStoredToken, uploadCloudData,
+    downloadCloudData, isOnline, setLastSync, getLastSync } =
+    await import("@/lib/cloud-sync");
+
+  if (!isOAuthConnected()) return;
+
+  // Upload function: encrypt the current vault + upload to Firestore.
+  const uploadFn = async () => {
+    if (!_masterPassword) return;
+    const token = getStoredToken();
+    if (!token) return;
+    if (!isOnline()) return;
+    set({ cloudSyncing: true });
+    try {
+      const envelopeJson = await get().exportEncrypted(_masterPassword);
+      const envelope = JSON.parse(envelopeJson);
+      const emailHash = typeof window !== "undefined"
+        ? sessionStorage.getItem("lcked-oauth-email-hash") ?? ""
+        : "";
+      const { updatedAt } = await uploadCloudData(token, envelope, emailHash);
+      setLastSync(updatedAt);
+      set({ cloudLastSync: updatedAt });
+    } finally {
+      set({ cloudSyncing: false });
+    }
+  };
+
+  // Pull function: check for newer cloud data and merge if found.
+  const pullFn = async () => {
+    if (!_masterPassword) return;
+    const token = getStoredToken();
+    if (!token) return;
+    if (!isOnline()) return;
+    const { data, updatedAt } = await downloadCloudData(token);
+    if (!data || !updatedAt) return;
+    const lastSync = getLastSync();
+    // Only pull if cloud is newer than our last sync.
+    if (lastSync && updatedAt <= lastSync) return;
+    // Decrypt the cloud data.
+    const decrypted = await decryptLckedExport(data, _masterPassword);
+    if (!decrypted) return;
+    // Merge: replace local items with cloud items (last-write-wins).
+    // Re-encrypt each cloud item with the local vault key + persist.
+    const { vaultKey } = get();
+    if (!vaultKey) return;
+    set({ cloudSyncing: true });
+    try {
+      const { putStoredItem } = await import("@/lib/vault-db");
+      const now = Date.now();
+      await Promise.all(
+        decrypted.items.map(async (item) => {
+          const { ciphertext, iv } = await encryptJson(item, vaultKey);
+          await putStoredItem({ id: item.id, type: item.type, ciphertext, iv, createdAt: item.createdAt, updatedAt: item.updatedAt });
+        }),
+      );
+      // Update local state with merged items.
+      set({
+        items: decrypted.items.sort((a, b) => b.updatedAt - a.updatedAt),
+        vaults: decrypted.vaults,
+        cloudLastSync: updatedAt,
+      });
+      setLastSync(updatedAt);
+    } finally {
+      set({ cloudSyncing: false });
+    }
+  };
+
+  startSyncEngine(uploadFn, pullFn);
+  // Immediately pull on start (in case cloud is newer).
+  const engine = (await import("@/lib/cloud-sync")).getSyncEngine();
+  engine?.pull().catch(() => {});
+}
+
+async function stopSyncEngine() {
+  const { stopSyncEngine: stop } = await import("@/lib/cloud-sync");
+  await stop();
+}
+
+/**
+ * Call after any vault mutation to schedule a debounced auto-upload.
+ * Safe to call even if sync is not active (no-op if engine is null).
+ */
+function notifyVaultMutation() {
+  import("@/lib/cloud-sync").then(({ notifyVaultMutation: notify }) => notify());
+}
 
 /* --------------------------- clipboard helper ----------------------------- */
 
@@ -1098,6 +1181,7 @@ async function updateItemFlags(
       .map((i) => (i.id === id ? updated : i))
       .sort((a, b) => b.updatedAt - a.updatedAt),
   }));
+  notifyVaultMutation();
 }
 
 /**
