@@ -60,6 +60,12 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
   // Updated SYNCHRONOUSLY inside measure() — NOT in a separate useEffect —
   // so there's no 1-frame lag that caused snap-instead-of-glide bugs.
   const wasVisibleRef = React.useRef(false);
+  // Tracks whether the highlight has EVER been visible in this component's
+  // lifetime. The snap-on-first-show behavior only fires when this is false.
+  // On subsequent hide→show transitions (e.g. switching to a vault that
+  // doesn't have the item, then back), the indicator GLIDES from its last
+  // known position instead of snapping — no teleporting.
+  const everVisibleRef = React.useRef(false);
   const [visible, setVisible] = React.useState(false);
   // animateRef holds the latest step function so external listeners can
   // kick it without re-binding their own dependencies.
@@ -81,22 +87,15 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
     const key = activeKeyRef.current;
     if (!key || !container) {
       targetRef.current = null;
-      wasVisibleRef.current = false;
       setVisible(false);
       return;
     }
-    // NOTE: `querySelector` only searches DESCENDANTS — it does NOT match
-    // the container itself. Some callers (e.g. the vaults-sidebar Trash
-    // instance) set `containerRef` ON the element that carries the
-    // `selectorAttr`. To support both shapes, we match the container first
-    // and fall back to a descendant query.
     const selector = `[${selectorAttr}="${CSS.escape(key)}"]`;
     const el = (container.matches(selector)
       ? container
       : container.querySelector<HTMLElement>(selector)) as HTMLElement | null;
     if (!el) {
       targetRef.current = null;
-      wasVisibleRef.current = false;
       setVisible(false);
       return;
     }
@@ -111,15 +110,17 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
     if (hl) {
       hl.style.width = `${next.w}px`;
       hl.style.height = `${next.h}px`;
-      // First activation (or returning from invisible): snap transform to
-      // target too, so we don't slide in from (0, 0). wasVisibleRef is
-      // updated SYNCHRONOUSLY here so subsequent measure() calls in the
-      // same frame see the correct state.
-      if (!wasVisibleRef.current) {
+      // Snap ONLY on the very first appearance (everVisibleRef === false).
+      // On subsequent hide→show transitions (e.g. switching to a vault that
+      // doesn't have the item, then back), glide from the last known
+      // position — posRef still holds the previous position so the rAF
+      // spring animates smoothly instead of teleporting.
+      if (!everVisibleRef.current) {
         hl.style.transform = `translate(${next.x}px, ${next.y}px)`;
         posRef.current = { x: next.x, y: next.y };
-        wasVisibleRef.current = true;
+        everVisibleRef.current = true;
       }
+      wasVisibleRef.current = true;
     }
     targetRef.current = next;
     setVisible(true);
@@ -172,9 +173,10 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
   // after UI transitions (e.g. settings panel closing, vault switch).
   React.useEffect(() => {
     if (!activeKey) {
-      // Hide: clear target, reset wasVisibleRef so the next show snaps.
+      // Hide: clear target so the rAF loop stops. Do NOT reset
+      // wasVisibleRef or everVisibleRef — the next show should GLIDE
+      // from the last known position, not snap (no teleporting).
       targetRef.current = null;
-      wasVisibleRef.current = false;
       setVisible(false);
       return;
     }
@@ -246,6 +248,18 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
       }
     };
   }, []);
+
+  // When the highlight re-appears after being hidden (e.g. switching back
+  // to a vault that has the item), the DOM element is freshly mounted with
+  // transform translate(0,0). Restore the last known position from posRef
+  // so the rAF spring glides from the previous position instead of from
+  // (0,0) — prevents the "slide from top-left" teleport effect.
+  React.useEffect(() => {
+    if (visible && everVisibleRef.current && highlightRef.current) {
+      const { x, y } = posRef.current;
+      highlightRef.current.style.transform = `translate(${x}px, ${y}px)`;
+    }
+  }, [visible]);
 
   if (!visible) return null;
   return (
