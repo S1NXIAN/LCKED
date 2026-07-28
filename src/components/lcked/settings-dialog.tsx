@@ -97,25 +97,11 @@ const TABS: TabDef[] = [
   { id: "export", label: "Export", icon: Download },
 ];
 
-interface ImportSource {
-  id: string;
-  label: string;
-  icon: string; // path under /icons/pm/
-  hint: string;
-}
-
-const IMPORT_SOURCES: ImportSource[] = [
-  { id: "bitwarden", label: "Bitwarden", icon: "/icons/pm/bitwarden.svg", hint: "JSON / CSV" },
-  { id: "1password", label: "1Password", icon: "/icons/pm/1password.svg", hint: "CSV" },
-  { id: "chrome", label: "Chrome", icon: "/icons/pm/chrome.svg", hint: "CSV" },
-  { id: "firefox", label: "Firefox", icon: "/icons/pm/firefox.svg", hint: "CSV" },
-  { id: "proton-pass", label: "Proton Pass", icon: "/icons/pm/proton-pass.svg", hint: "CSV" },
-  { id: "safari", label: "Safari", icon: "/icons/pm/safari.svg", hint: "CSV" },
-  { id: "microsoft-edge", label: "Microsoft Edge", icon: "/icons/pm/microsoft-edge.svg", hint: "CSV" },
-  { id: "lastpass", label: "LastPass", icon: "/icons/pm/lastpass.svg", hint: "CSV" },
-  { id: "keeper-security", label: "Keeper", icon: "/icons/pm/keeper-security.svg", hint: "CSV" },
-  { id: "keepassxc", label: "KeePassXC", icon: "/icons/pm/keepassxc.svg", hint: "XML" },
-];
+// Import sources are defined in a shared catalog so both the Settings
+// import tab and the ImportExportDialog read from the same source of truth.
+// To add a new password manager, see src/lib/import-sources.ts.
+import { IMPORT_SOURCES } from "@/lib/import-sources";
+type ImportSource = (typeof IMPORT_SOURCES)[number];
 
 const UNLOCK_METHODS: {
   id: UnlockMethod;
@@ -164,15 +150,17 @@ export function SettingsView() {
   const resetVault = useVault((s) => s.resetVault);
   const items = useVault((s) => s.items);
 
-  // Subscribe to next-themes reactively (D-6). The old code read localStorage
-  // once and never updated — if the user toggled the theme via the sidebar
-  // while Settings was open, the picker highlighted the wrong card. Using
-  // useTheme() + a mounted guard avoids both the "system" flash AND the
-  // desync.
+  // Read the theme for the picker. On first render, read directly from
+  // localStorage to avoid the "dark" (Mocha) flash — next-themes returns
+  // "system" before mount, which would default to "dark" and flash. After
+  // mount, use the reactive useTheme() value so the picker updates if the
+  // theme is toggled via the sidebar while Settings is open.
   const { theme: resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
-  const themeId = mounted ? (resolvedTheme ?? "dark") : "dark";
+  const themeId = mounted
+    ? (resolvedTheme ?? "dark")
+    : (typeof window !== "undefined" && window.localStorage.getItem("theme")) || "dark";
 
   const [tab, setTab] = React.useState<TabId>("general");
 
