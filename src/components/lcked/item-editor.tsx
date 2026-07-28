@@ -386,13 +386,13 @@ export function ItemEditor() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Save / Create */}
+            {/* Save / Create — type="submit" so Enter inside any input saves. */}
             <Button
-              type="button"
+              type="submit"
               size="sm"
-              onClick={handleSave}
               disabled={busy}
               className="min-w-[72px]"
+              form="lcked-item-editor-form"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : isEditing ? "Save" : "Create"}
             </Button>
@@ -402,7 +402,10 @@ export function ItemEditor() {
           {isEditing ? "Edit the selected vault item." : "Create a new vault item."}
         </SheetDescription>
 
-        {/* Body — flat scrollable form */}
+        {/* Body — flat scrollable form. The <form> wraps the body + footer so
+            Enter inside any input triggers handleSave (type="submit" button
+            in the header references this form via the `form` attribute). */}
+        <form id="lcked-item-editor-form" onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="flex min-h-0 flex-1 flex-col">
         <div className="lcked-scroll flex-1 overflow-y-auto p-4">
           {/* Type selector — only when creating */}
           {!isEditing && (
@@ -866,6 +869,7 @@ export function ItemEditor() {
             Cancel
           </Button>
         </div>
+        </form>
       </SheetContent>
 
       {/* Confirm-discard dialog (IE-4) — shown when the user closes the

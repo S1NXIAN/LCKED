@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Lock, ShieldCheck, Eye, EyeOff, AlertTriangle, Loader2 } from "lucide-react";
+import { Lock, ShieldCheck, Eye, EyeOff, AlertTriangle, Loader2, KeyRound } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -51,15 +51,15 @@ export function SetupView() {
       <div className="lcked-glow pointer-events-none absolute inset-0" aria-hidden="true" />
 
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        initial={{ opacity: 0, y: 12, filter: "blur(8px)" }}
+        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         className="relative w-full max-w-md"
       >
         {/* Centered brand header — diamond + LCKED + LOCAL VAULT */}
         <div className="mb-8 flex flex-col items-center gap-2 text-center">
           <div className="text-primary">
-            <DiamondMark size={36} glow />
+            <DiamondMark size={36} glow className="lcked-pulse" />
           </div>
           <div className="text-2xl font-bold tracking-tight">
             LCK<span className="text-primary">ED</span>
@@ -70,10 +70,11 @@ export function SetupView() {
         </div>
 
         <div className="rounded-2xl border border-border/60 bg-card/40 p-6 shadow-2xl backdrop-blur-xl md:p-8">
-          <div className="mb-6 text-center">
+          {/* Centered title — matches the unlock view's clean centered layout. */}
+          <div className="mb-6 flex flex-col items-center text-center">
             <h1 className="text-xl font-semibold tracking-tight">Create your vault</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Choose a strong master password. It encrypts everything and can never be recovered.
+              Choose a master password to encrypt everything on this device.
             </p>
           </div>
 
@@ -123,7 +124,8 @@ export function SetupView() {
               )}
             </div>
 
-            <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-border bg-muted/30 p-3 text-sm">
+            {/* Agreement — cleaner inline row instead of a bordered box. */}
+            <label className="flex cursor-pointer items-start gap-2.5 pt-1 text-sm">
               <input
                 type="checkbox"
                 checked={agreed}
@@ -133,7 +135,7 @@ export function SetupView() {
               <span className="text-muted-foreground">
                 I understand that if I lose this password,{" "}
                 <span className="font-medium text-foreground">no one can recover my data</span> —
-                not even LCKED. There is no server, no reset link, no backdoor.
+                not even LCKED.
               </span>
             </label>
 
@@ -151,16 +153,9 @@ export function SetupView() {
               Create encrypted vault
             </Button>
           </form>
-
-          <div className="mt-5 flex items-start gap-2 rounded-lg bg-amber-500/10 p-3 text-xs text-amber-200/90">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>
-              Tip: write your master password down on paper and store it somewhere safe.
-              All encryption runs locally in your browser.
-            </p>
-          </div>
         </div>
 
+        {/* Footer — minimal, matches unlock view's single-line footer. */}
         <p className="mt-6 text-center text-xs text-muted-foreground">
           Your data never leaves this device.
         </p>

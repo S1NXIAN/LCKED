@@ -31,12 +31,14 @@ import * as React from "react";
 import {
   Plus,
   Star,
+  StarOff,
   Trash2,
   ShieldCheck,
   MoreVertical,
   Pencil,
   FolderInput,
   Home,
+  LayoutGrid,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -51,6 +53,7 @@ import {
 } from "@/lib/vault-assets";
 import { VAULT_LUCIDE_BY_ID } from "./vault-lucide-icons";
 import { ActiveHighlight } from "./active-highlight";
+import { OrganizeVaultDialog } from "./organize-vault-dialog";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -535,6 +538,7 @@ export function VaultsSidebar() {
   const setVaultEditorOpen = useVault((s) => s.setVaultEditorOpen);
   const deleteVault = useVault((s) => s.deleteVault);
   const moveItemToVault = useVault((s) => s.moveItemToVault);
+  const clearFavorites = useVault((s) => s.clearFavorites);
   const hoverItemActions = useVault((s) => s.settings.hoverItemActions);
 
   // Refs for the two ActiveHighlight instances:
@@ -549,6 +553,7 @@ export function VaultsSidebar() {
   const trashRef = React.useRef<HTMLDivElement | null>(null);
 
   const [overKey, setOverKey] = React.useState<string | null>(null);
+  const [organizeOpen, setOrganizeOpen] = React.useState(false);
 
   const allCount = items.filter((i) => !i.trashed).length;
   const favCount = items.filter((i) => !i.trashed && i.favorite).length;
@@ -559,6 +564,17 @@ export function VaultsSidebar() {
   const handleDelete = async (v: VaultDef) => {
     await deleteVault(v.id);
     toast.success(`Deleted vault “${v.name}”`);
+  };
+
+  const handleClearFavorites = async () => {
+    const { cleared, failed } = await clearFavorites();
+    if (cleared > 0 && failed === 0) {
+      toast.success(`Cleared ${cleared} favorite${cleared === 1 ? "" : "s"}`);
+    } else if (cleared > 0 && failed > 0) {
+      toast.warning(`Cleared ${cleared}, ${failed} failed`);
+    } else if (failed > 0) {
+      toast.error(`Could not clear ${failed} favorite${failed === 1 ? "" : "s"}`);
+    }
   };
 
   const handleMoveAll = async (source: VaultDef, target: string | null) => {
@@ -678,6 +694,29 @@ export function VaultsSidebar() {
               active={activeVault === "all"}
               onSelect={() => setActiveVault("all")}
               dragOver={overKey === "all"}
+              menu={
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className={cn(
+                        "flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground",
+                        hoverItemActions && "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+                      )}
+                      aria-label="All items options"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuItem onSelect={() => setOrganizeOpen(true)}>
+                      <LayoutGrid className="h-3.5 w-3.5" />
+                      Organize vault
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              }
             />
           </div>
 
@@ -729,6 +768,33 @@ export function VaultsSidebar() {
               active={activeVault === "favorites"}
               onSelect={() => setActiveVault("favorites")}
               dragOver={overKey === "favorites"}
+              menu={
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className={cn(
+                        "flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground",
+                        hoverItemActions && "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+                      )}
+                      aria-label="Favorites options"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuItem
+                      variant="destructive"
+                      disabled={favCount === 0}
+                      onSelect={handleClearFavorites}
+                    >
+                      <StarOff className="h-3.5 w-3.5" />
+                      Clear favorites
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              }
             />
           </div>
 
@@ -800,6 +866,9 @@ export function VaultsSidebar() {
           dragOver={overKey === "trash"}
         />
       </div>
+
+      {/* Organize vault dialog — opened from the "All Items" 3-dots menu. */}
+      <OrganizeVaultDialog open={organizeOpen} onOpenChange={setOrganizeOpen} />
     </div>
   );
 }

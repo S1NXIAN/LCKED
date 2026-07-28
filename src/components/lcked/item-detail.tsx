@@ -175,6 +175,7 @@ export function ItemDetail() {
   const permanentlyDeleteItem = useVault((s) => s.permanentlyDeleteItem);
   const duplicateItem = useVault((s) => s.duplicateItem);
   const showFavicons = useVault((s) => s.settings.showFavicons);
+  const setActiveVault = useVault((s) => s.setActiveVault);
 
   const item = items.find((i) => i.id === selectedId);
   const itemVault = item?.vaultId ? vaults.find((v) => v.id === item.vaultId) ?? null : null;
@@ -239,15 +240,28 @@ export function ItemDetail() {
                     </h2>
                   </div>
                   <div className="mt-1.5 flex items-center gap-1.5 text-xs">
-                    <span className="rounded-md bg-secondary/40 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    {/* Type chip — clickable: filters the item list by this type. */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent("lcked:set-type-filter", { detail: item.type }));
+                      }}
+                      className="rounded-md bg-secondary/40 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground"
+                      title={`Filter list by ${ITEM_TYPE_LABELS[item.type]}`}
+                    >
                       {ITEM_TYPE_LABELS[item.type]}
-                    </span>
+                    </button>
+                    {/* Vault chip — clickable: switches the sidebar to this vault. */}
                     {itemVault && (
-                      <span className="flex items-center gap-1.5 text-sm text-muted-foreground/80">
-                        ·
+                      <button
+                        type="button"
+                        onClick={() => setActiveVault(itemVault.id)}
+                        className="flex items-center gap-1.5 rounded-md px-1 py-0.5 text-sm text-muted-foreground/80 transition-colors hover:bg-muted/60 hover:text-foreground"
+                        title={`Go to ${itemVault.name} vault`}
+                      >
                         <VaultIcon icon={itemVault.icon} color={itemVault.color} size={22} bare />
                         <span className="font-medium">{itemVault.name}</span>
-                      </span>
+                      </button>
                     )}
                     {item.trashed && (
                       <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
@@ -497,7 +511,7 @@ export function ItemDetail() {
             </div>
             <h3 className="text-sm font-medium text-foreground/80">Select an item</h3>
             <p className="mt-1.5 max-w-xs text-xs text-muted-foreground/70">
-              Pick an item from the list, or press <kbd className="rounded border border-border bg-secondary/30 px-1 font-mono text-[10px]">⌘\</kbd> for commands.
+              Pick an item from the list to view its details.
             </p>
           </motion.div>
         )}

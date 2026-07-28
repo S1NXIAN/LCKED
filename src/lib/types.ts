@@ -200,7 +200,7 @@ export const DEFAULT_VAULT_SETTINGS: VaultSettings = {
   generator: DEFAULT_GENERATOR_OPTIONS,
   theme: "dark",
   showFavicons: true,
-  sortFavoritesFirst: true,
+  sortFavoritesFirst: false,
   hoverItemActions: true,
   unlockMethod: "master",
 };

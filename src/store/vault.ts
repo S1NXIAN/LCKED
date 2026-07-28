@@ -94,6 +94,8 @@ interface VaultState {
   moveItemToVault: (itemId: string, vaultId: string | null) => Promise<void>;
   toggleFavorite: (id: string) => Promise<void>;
   togglePin: (id: string) => Promise<void>;
+  /** Unfavorite ALL favorited items at once. */
+  clearFavorites: () => Promise<{ cleared: number; failed: number }>;
   /** Move multiple items at once (used by multi-select drag-and-drop). */
   moveItemsToVault: (itemIds: string[], vaultId: string | null) => Promise<{ moved: number; failed: number }>;
   trashItems: (itemIds: string[]) => Promise<{ moved: number; failed: number }>;
@@ -523,6 +525,37 @@ export const useVault = create<VaultState>()(
       },
 
       /* ----------- bulk actions (multi-select drag-and-drop) ----------- */
+
+      clearFavorites: async () => {
+        const { vaultKey } = get();
+        if (!vaultKey) throw new Error("Vault is locked");
+        const favs = get().items.filter((i) => i.favorite && !i.trashed);
+        if (favs.length === 0) return { cleared: 0, failed: 0 };
+        const now = Date.now();
+        const outcomes = await Promise.allSettled(
+          favs.map(async (it) => {
+            const next: VaultItem = { ...it, favorite: false, updatedAt: now } as VaultItem;
+            const { ciphertext, iv } = await encryptJson(next, vaultKey);
+            await putStoredItem({ id: next.id, type: next.type, ciphertext, iv, createdAt: next.createdAt, updatedAt: now });
+            return next;
+          }),
+        );
+        const cleared: VaultItem[] = [];
+        let failed = 0;
+        for (let i = 0; i < outcomes.length; i++) {
+          if (outcomes[i].status === "fulfilled") cleared.push(favs[i]);
+          else failed++;
+        }
+        if (cleared.length > 0) {
+          const clearedIds = new Set(cleared.map((c) => c.id));
+          set((state) => ({
+            items: state.items
+              .map((i) => (clearedIds.has(i.id) ? { ...i, favorite: false, updatedAt: now } as VaultItem : i))
+              .sort((a, b) => b.updatedAt - a.updatedAt),
+          }));
+        }
+        return { cleared: cleared.length, failed };
+      },
 
       moveItemsToVault: async (itemIds, vaultId) => {
         const { vaultKey } = get();

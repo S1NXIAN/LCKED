@@ -96,6 +96,18 @@ export function VaultView() {
     }
   }, [selectedId]);
 
+  // Listen for "lcked:set-type-filter" events so the item-detail's type chip
+  // can change the list filter (the filter lives here in vault-view, not the
+  // store, so we use a window event to bridge the component gap).
+  React.useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as FilterType | undefined;
+      if (detail) setTypeFilter(detail);
+    };
+    window.addEventListener("lcked:set-type-filter", handler as EventListener);
+    return () => window.removeEventListener("lcked:set-type-filter", handler as EventListener);
+  }, []);
+
   const createItem = (type: ItemType) => {
     stashNewItemType(type);
     setEditorOpen(true);
