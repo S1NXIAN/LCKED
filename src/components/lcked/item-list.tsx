@@ -256,22 +256,20 @@ export function ItemList({
     list = searchItems(list, deferredSearch);
     // Sort. Priority order (highest first):
     //   1. Favorite (only when sortFavoritesFirst is on)
-    //   2. Pinned    (only when sortFavoritesFirst is on — pin follows the
-    //      same toggle so disabling it treats both favorites AND pins as
-    //      normal items, sorted purely by the primary key)
+    //   2. Pinned    (ALWAYS — pin is independent of the favorites toggle)
     //   3. Primary sort (newest / oldest / A–Z / Z–A)
     // Edge cases:
     //   - starred + pinned → sorted as favorite (higher priority wins)
-    //   - !sortFavoritesFirst → both favorites AND pins sort normally
+    //   - !sortFavoritesFirst → favorites sort normally, pins still sort to top
     const sorted = [...list];
     sorted.sort((a, b) => {
       const aFav = sortFavoritesFirst && a.favorite;
       const bFav = sortFavoritesFirst && b.favorite;
       if (aFav !== bFav) return aFav ? -1 : 1;
-      // Both are favorites OR both are non-favorites → check pinned
-      // (only when sortFavoritesFirst is on).
-      const aPin = sortFavoritesFirst && (a.pinned ?? false);
-      const bPin = sortFavoritesFirst && (b.pinned ?? false);
+      // Both are favorites OR both are non-favorites → check pinned.
+      // Pin ALWAYS sorts to top — it's independent of sortFavoritesFirst.
+      const aPin = a.pinned ?? false;
+      const bPin = b.pinned ?? false;
       if (aPin !== bPin) return aPin ? -1 : 1;
       // Primary sort.
       if (sort === "newest") return b.updatedAt - a.updatedAt;
@@ -740,7 +738,20 @@ function ItemRow({
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
-          onClick={onPick}
+          onClick={(e) => {
+            // Only respond to left-clicks (button === 0). Right-clicks
+            // (button === 2) open the context menu — we must NOT fire onPick
+            // here, otherwise the selection change re-renders the list and
+            // the context menu loses its anchor / closes immediately.
+            if (e.button !== 0) return;
+            onPick();
+          }}
+          onContextMenu={(e) => {
+            // Prevent the list-level ContextMenu from also firing when
+            // right-clicking an item row — only the item's own ContextMenu
+            // should open.
+            e.stopPropagation();
+          }}
           role="option"
           aria-selected={active || checked}
           // Always draggable — multi-select drag carries all selected IDs.

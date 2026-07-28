@@ -156,10 +156,17 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
   }, [measure]);
 
   // On activeKey change: measure + start the animation. Cancel any in-flight
-  // loop on cleanup.
+  // loop on cleanup. When transitioning from hidden (null activeKey) to visible,
+  // defer the measure by one rAF frame so the DOM has time to settle after
+  // whatever UI change (e.g. settings panel closing) caused the transition.
   React.useEffect(() => {
-    kick();
+    if (!activeKey) {
+      setVisible(false);
+      return;
+    }
+    const frame = requestAnimationFrame(() => kick());
     return () => {
+      cancelAnimationFrame(frame);
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
