@@ -17,24 +17,23 @@
  *   `containerRef` itself lives INSIDE the scrolling content. When the user
  *   scrolls, `containerRef` (and the highlight with it) scrolls naturally
  *   with the content, and the scroll area's `overflow` clips the highlight
- *   as soon as the active row leaves the visible viewport. No special
- *   visibility math is needed — the indicator simply disappears with the
- *   row, exactly like the item-list does. This is the property the
- *   vaults-sidebar now inherits by sharing this component.
+ *   as soon as the active row leaves the visible viewport.
  *
- * On `activeKey` change: measure + start the animation. If the element isn't
- * found in the DOM, `setVisible(false)` and bail. A MutationObserver re-
- * checks when the container DOM changes; a scroll listener + resize listener
- * re-measure so the highlight stays glued to the active row.
- *
- * Props:
- *   - containerRef: the relative-positioned ancestor where the highlight
- *     lives (e.g. the <ul> in item-list, the content wrapper in vaults).
- *   - activeKey:    the key to look up (item id, vault key, …). null/empty
- *     hides the highlight.
- *   - selectorAttr: the data-attribute used to find the active element
- *     (e.g. "data-item-id" or "data-vault-key").
- *   - className:    optional extra classes appended to the highlight element.
+ * Animation logic:
+ *   - `wasVisibleRef`: tracks whether the highlight was visible in the LAST
+ *     committed frame. When the highlight transitions from hidden→visible,
+ *     we SNAP (no animation) to the target so it doesn't slide in from (0,0).
+ *   - When the highlight is already visible and the target changes (e.g.
+ *     selecting a different item, or the list re-renders), we GLIDE from
+ *     the current animated position to the new target via the rAF spring.
+ *   - `wasVisibleRef` is updated SYNCHRONOUSLY inside `measure()` (not in a
+ *     separate useEffect) so there's no 1-frame window where the ref lags
+ *     the actual state — that lag caused snap-instead-of-glide and
+ *     off-by-a-few-pixels bugs.
+ *   - The rAF loop is NOT canceled on activeKey change. It's a persistent
+ *     loop that runs whenever there's a target to glide toward. This
+ *     prevents the "teleport" bug where canceling + re-scheduling caused
+ *     the spring to never start.
  */
 
 import * as React from "react";
@@ -57,11 +56,20 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
   // Current animated position — tracked in a ref so the per-frame step only
   // writes `transform` (NO getBoundingClientRect reads = no layout thrash).
   const posRef = React.useRef({ x: 0, y: 0 });
+  // Tracks whether the highlight was visible in the last committed frame.
+  // Updated SYNCHRONOUSLY inside measure() — NOT in a separate useEffect —
+  // so there's no 1-frame lag that caused snap-instead-of-glide bugs.
   const wasVisibleRef = React.useRef(false);
   const [visible, setVisible] = React.useState(false);
   // animateRef holds the latest step function so external listeners can
   // kick it without re-binding their own dependencies.
   const animateRef = React.useRef<(() => void) | null>(null);
+
+  // The activeKey is stored in a ref so the MutationObserver / scroll
+  // listeners (which don't re-bind on activeKey change) always read the
+  // latest value. Updated in an effect (not during render) per React rules.
+  const activeKeyRef = React.useRef(activeKey);
+  React.useEffect(() => { activeKeyRef.current = activeKey; }, [activeKey]);
 
   // Measure the active element's rect relative to the container. If not
   // found (or no active key), hide the highlight. Width/height are written
@@ -70,8 +78,10 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
   const measure = React.useCallback(() => {
     const container = containerRef.current;
     const hl = highlightRef.current;
-    if (!activeKey || !container) {
+    const key = activeKeyRef.current;
+    if (!key || !container) {
       targetRef.current = null;
+      wasVisibleRef.current = false;
       setVisible(false);
       return;
     }
@@ -80,12 +90,13 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
     // instance) set `containerRef` ON the element that carries the
     // `selectorAttr`. To support both shapes, we match the container first
     // and fall back to a descendant query.
-    const selector = `[${selectorAttr}="${CSS.escape(activeKey)}"]`;
+    const selector = `[${selectorAttr}="${CSS.escape(key)}"]`;
     const el = (container.matches(selector)
       ? container
       : container.querySelector<HTMLElement>(selector)) as HTMLElement | null;
     if (!el) {
       targetRef.current = null;
+      wasVisibleRef.current = false;
       setVisible(false);
       return;
     }
@@ -101,17 +112,22 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
       hl.style.width = `${next.w}px`;
       hl.style.height = `${next.h}px`;
       // First activation (or returning from invisible): snap transform to
-      // target too, so we don't slide in from (0, 0).
+      // target too, so we don't slide in from (0, 0). wasVisibleRef is
+      // updated SYNCHRONOUSLY here so subsequent measure() calls in the
+      // same frame see the correct state.
       if (!wasVisibleRef.current) {
         hl.style.transform = `translate(${next.x}px, ${next.y}px)`;
         posRef.current = { x: next.x, y: next.y };
+        wasVisibleRef.current = true;
       }
     }
     targetRef.current = next;
     setVisible(true);
-  }, [activeKey, containerRef, selectorAttr]);
+  }, [containerRef, selectorAttr]);
 
   // (Re)define the animation step. Per-frame we ONLY write `transform`.
+  // This effect runs ONCE (empty deps) — the step function reads from refs
+  // so it always has the latest target/position without re-binding.
   React.useEffect(() => {
     const step = () => {
       const hl = highlightRef.current;
@@ -142,11 +158,6 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
     };
   }, []);
 
-  // Track visibility transitions for the snap-on-first-show behaviour.
-  React.useEffect(() => {
-    wasVisibleRef.current = visible;
-  }, [visible]);
-
   // Re-measure + kick the animation if it isn't already running.
   const kick = React.useCallback(() => {
     measure();
@@ -155,22 +166,23 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
     }
   }, [measure]);
 
-  // On activeKey change: measure + start the animation. Cancel any in-flight
-  // loop on cleanup. When transitioning from hidden (null activeKey) to visible,
-  // defer the measure by one rAF frame so the DOM has time to settle after
-  // whatever UI change (e.g. settings panel closing) caused the transition.
+  // On activeKey change: measure + start the animation. The rAF loop is
+  // NOT canceled here — it's a persistent loop that settles naturally.
+  // We only cancel on unmount. A short rAF delay lets the DOM settle
+  // after UI transitions (e.g. settings panel closing, vault switch).
   React.useEffect(() => {
     if (!activeKey) {
+      // Hide: clear target, reset wasVisibleRef so the next show snaps.
+      targetRef.current = null;
+      wasVisibleRef.current = false;
       setVisible(false);
       return;
     }
+    // Defer measure by one rAF so the DOM has settled after the
+    // activeKey change (e.g. the new vault's items rendered).
     const frame = requestAnimationFrame(() => kick());
     return () => {
       cancelAnimationFrame(frame);
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
     };
   }, [activeKey, kick]);
 
@@ -199,8 +211,7 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
   }, [containerRef, kick, selectorAttr]);
 
   // Scroll + resize listeners — re-measure + re-animate so the highlight
-  // stays glued to the active row. We attach to the nearest scroll ancestor
-  // (radix scroll viewport OR the .lcked-scroll wrapper) plus the window.
+  // stays glued to the active row.
   React.useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -209,16 +220,32 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
       container.closest(".lcked-scroll") ??
       container.parentElement ??
       null;
-    const handler = () => kick();
+    let scrollPending = false;
+    const handler = () => {
+      if (scrollPending) return;
+      scrollPending = true;
+      requestAnimationFrame(() => {
+        scrollPending = false;
+        kick();
+      });
+    };
     scrollContainer?.addEventListener("scroll", handler, { passive: true });
-    window.addEventListener("scroll", handler, { passive: true });
     window.addEventListener("resize", handler, { passive: true });
     return () => {
       scrollContainer?.removeEventListener("scroll", handler);
-      window.removeEventListener("scroll", handler);
       window.removeEventListener("resize", handler);
     };
   }, [containerRef, kick]);
+
+  // Cancel any in-flight rAF on unmount.
+  React.useEffect(() => {
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, []);
 
   if (!visible) return null;
   return (
