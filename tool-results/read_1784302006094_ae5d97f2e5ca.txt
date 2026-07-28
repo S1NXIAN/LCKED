@@ -1,0 +1,682 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import {
+     5→  Star,
+     6→  Inbox,
+     7→  Trash2,
+     8→  RotateCcw,
+     9→  CheckSquare,
+    10→  Square,
+    11→  X,
+    12→  FolderInput,
+    13→  ChevronDown,
+    14→  ArrowUpDown,
+    15→  Copy,
+    16→  Pencil,
+    17→  Pin,
+    18→  Mail,
+    19→  User,
+    20→  KeyRound,
+    21→  Lock,
+    22→} from "lucide-react";
+    23→import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+    24→import { Button } from "@/components/ui/button";
+    25→import {
+    26→  Select,
+    27→  SelectContent,
+    28→  SelectItem,
+    29→  SelectTrigger,
+    30→  SelectValue,
+    31→} from "@/components/ui/select";
+    32→import {
+    33→  DropdownMenu,
+    34→  DropdownMenuTrigger,
+    35→  DropdownMenuContent,
+    36→  DropdownMenuItem,
+    37→  DropdownMenuSub,
+    38→  DropdownMenuSubTrigger,
+    39→  DropdownMenuSubContent,
+    40→  DropdownMenuSeparator,
+    41→} from "@/components/ui/dropdown-menu";
+    42→import {
+    43→  ContextMenu,
+    44→  ContextMenuTrigger,
+    45→  ContextMenuContent,
+    46→  ContextMenuItem,
+    47→  ContextMenuSub,
+    48→  ContextMenuSubTrigger,
+    49→  ContextMenuSubContent,
+    50→  ContextMenuSeparator,
+    51→} from "@/components/ui/context-menu";
+    52→import { cn, isEmail } from "@/lib/utils";
+    53→import { useVault, copyWithAutoClear } from "@/store/vault";
+    54→import { searchItems } from "@/lib/fuzzy-search";
+    55→import { toast } from "sonner";
+    56→import type { FilterType, ItemType, VaultItem } from "@/lib/types";
+    57→import { ItemTypeIcon, ITEM_TYPE_LABELS } from "./item-icons";
+    58→import { DiamondMark } from "./diamond-mark";
+    59→import { FaviconIcon } from "./favicon-icon";
+    60→
+    61→/* ------------------------------- helpers ------------------------------- */
+    62→
+    63→type SortKey = "newest" | "oldest" | "alphabetical";
+    64→
+    65→const TYPE_OPTIONS: { value: "all" | ItemType; label: string }[] = [
+    66→  { value: "all", label: "All" },
+    67→  { value: "login", label: "Logins" },
+    68→  { value: "note", label: "Notes" },
+    69→  { value: "card", label: "Cards" },
+    70→  { value: "identity", label: "Identities" },
+    71→];
+    72→
+    73→const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+    74→  { value: "newest", label: "Newest" },
+    75→  { value: "oldest", label: "Oldest" },
+    76→  { value: "alphabetical", label: "A–Z" },
+    77→];
+    78→
+    79→function subtitle(item: VaultItem): string {
+    80→  switch (item.type) {
+    81→    case "login":
+    82→      return item.details.username || item.details.urls[0] || "—";
+    83→    case "note":
+    84→      return item.details.content.slice(0, 60) || "Empty note";
+    85→    case "card":
+    86→      return (
+    87→        item.details.brand ||
+    88→        item.details.number.slice(-4).padStart(item.details.number.length, "•") ||
+    89→        "—"
+    90→      );
+    91→    case "identity":
+    92→      return [item.details.firstName, item.details.lastName].filter(Boolean).join(" ") || item.details.email || "—";
+    93→  }
+    94→}
+    95→
+    96→/* ------------------------------- ItemList ------------------------------ */
+    97→
+    98→export function ItemList({
+    99→  filter,
+   100→  setFilter,
+   101→  activeVault: activeVaultProp,
+   102→  onMobileBack,
+   103→}: {
+   104→  /** Type filter (All / Login / Note / Card / Identity). */
+   105→  filter: FilterType;
+   106→  setFilter: (f: FilterType) => void;
+   107→  /** Active vault filter from the store — passed explicitly so the list re-
+   108→   *  renders when the sidebar switches between All/Favorites/Trash/vault. */
+   109→  activeVault?: string;
+   110→  /** Mobile-only callback when the user taps Back from a Trash detail. */
+   111→  onMobileBack?: () => void;
+   112→}) {
+   113→  // Store hooks — we read activeVault directly here as well so the list
+   114→  // always re-renders even if a parent forgets to thread the prop through.
+   115→  const items = useVault((s) => s.items);
+   116→  const vaults = useVault((s) => s.vaults);
+   117→  const hiddenVaultIds = useVault((s) => s.hiddenVaultIds);
+   118→  const selectedId = useVault((s) => s.selectedId);
+   119→  const setSelected = useVault((s) => s.setSelected);
+   120→  const searchQuery = useVault((s) => s.searchQuery);
+   121→  const setEditorOpen = useVault((s) => s.setEditorOpen);
+   122→  const trashItem = useVault((s) => s.trashItem);
+   123→  const restoreItem = useVault((s) => s.restoreItem);
+   124→  const permanentlyDeleteItem = useVault((s) => s.permanentlyDeleteItem);
+   125→  const moveItemToVault = useVault((s) => s.moveItemToVault);
+   126→  const toggleFavorite = useVault((s) => s.toggleFavorite);
+   127→  const togglePinned = useVault((s) => s.togglePinned);
+   128→
+   129→  const activeVault = activeVaultProp ?? useVault.getState().activeVault;
+   130→  const isTrashView = activeVault === "trash";
+   131→  const sortFavoritesFirst = useVault((s) => s.settings.sortFavoritesFirst);
+   132→  const showFavicons = useVault((s) => s.settings.showFavicons);
+   133→
+   134→  const [sort, setSort] = React.useState<SortKey>("newest");
+   135→  const [multiSelect, setMultiSelect] = React.useState(false);
+   136→  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+   137→  // Reset multi-select whenever we leave multi-select mode.
+   138→  React.useEffect(() => {
+   139→    if (!multiSelect) setSelectedIds(new Set());
+   140→  }, [multiSelect]);
+   141→
+   142→  /* --------------------------- filtering + sorting --------------------------- */
+   143→  const filtered = React.useMemo(() => {
+   144→    let list = items;
+   145→    // Vault-level filter.
+   146→    if (activeVault === "trash") list = list.filter((i) => i.trashed);
+   147→    else if (activeVault === "favorites") list = list.filter((i) => !i.trashed && i.favorite);
+   148→    else if (activeVault && activeVault !== "all")
+   149→      list = list.filter((i) => !i.trashed && i.vaultId === activeVault);
+   150→    else list = list.filter((i) => !i.trashed);
+   151→    // Type filter (secondary, list-header dropdown).
+   152→    if (filter !== "all" && typeof filter === "string") {
+   153→      list = list.filter((i) => i.type === filter);
+   154→    }
+   155→    // Fuzzy search.
+   156→    list = searchItems(list, searchQuery);
+   157→    // Sort.
+   158→    const sorted = [...list];
+   159→    const useFavPin = sortFavoritesFirst && !isTrashView;
+   160→    sorted.sort((a, b) => {
+   161→      // Group 1: favorites first
+   162→      if (useFavPin && a.favorite !== b.favorite) return a.favorite ? -1 : 1;
+   163→      // Group 2: pinned first (within the same favorite group)
+   164→      if (useFavPin && a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+   165→      // Within each group, apply the user's chosen sort.
+   166→      if (sort === "newest") return b.updatedAt - a.updatedAt;
+   167→      if (sort === "oldest") return a.updatedAt - b.updatedAt;
+   168→      return a.name.localeCompare(b.name);
+   169→    });
+   170→    return sorted;
+   171→  }, [items, activeVault, filter, searchQuery, sort, sortFavoritesFirst, isTrashView]);
+   172→
+   173→  // Scroll-into-view when selection changes via keyboard.
+   174→  React.useEffect(() => {
+   175→    if (!selectedId) return;
+   176→    const el = document.querySelector(`[data-item-id="${selectedId}"]`);
+   177→    el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+   178→  }, [selectedId]);
+   179→
+   180→  /* --------------------------- multi-select actions --------------------------- */
+   181→  const toggleSelected = (id: string) => {
+   182→    setSelectedIds((prev) => {
+   183→      const next = new Set(prev);
+   184→      if (next.has(id)) next.delete(id);
+   185→      else next.add(id);
+   186→      return next;
+   187→    });
+   188→  };
+   189→  const handleMultiTrash = async () => {
+   190→    if (selectedIds.size === 0) return;
+   191→    const ids = Array.from(selectedIds);
+   192→    try {
+   193→      await Promise.all(ids.map((id) => trashItem(id)));
+   194→      toast.success(`Moved ${ids.length} to Trash`);
+   195→      setMultiSelect(false);
+   196→    } catch {
+   197→      toast.error("Could not move items");
+   198→    }
+   199→  };
+   200→  const handleMultiMove = async (vaultId: string | null) => {
+   201→    if (selectedIds.size === 0) return;
+   202→    const ids = Array.from(selectedIds);
+   203→    try {
+   204→      // If items are trashed, restore them first, then move.
+   205→      for (const id of ids) {
+   206→        const item = useVault.getState().items.find((i) => i.id === id);
+   207→        if (item?.trashed) {
+   208→          await restoreItem(id);
+   209→        }
+   210→        await moveItemToVault(id, vaultId);
+   211→      }
+   212→      const label =
+   213→        vaultId === null
+   214→          ? "All Items"
+   215→          : vaults.find((v) => v.id === vaultId)?.name ?? "vault";
+   216→      toast.success(`Moved ${ids.length} to ${label}`);
+   217→      setMultiSelect(false);
+   218→    } catch {
+   219→      toast.error("Could not move items");
+   220→    }
+   221→  };
+   222→
+   223→  const handleMultiRestore = async () => {
+   224→    if (selectedIds.size === 0) return;
+   225→    const ids = Array.from(selectedIds);
+   226→    try {
+   227→      await Promise.all(ids.map((id) => restoreItem(id)));
+   228→      toast.success(`Restored ${ids.length} item${ids.length === 1 ? "" : "s"}`);
+   229→      setMultiSelect(false);
+   230→    } catch {
+   231→      toast.error("Could not restore items");
+   232→    }
+   233→  };
+   234→
+   235→  const handleMultiDelete = async () => {
+   236→    if (selectedIds.size === 0) return;
+   237→    const ids = Array.from(selectedIds);
+   238→    if (!confirm(`Permanently delete ${ids.length} item${ids.length === 1 ? "" : "s"}? This cannot be undone.`)) return;
+   239→    try {
+   240→      await Promise.all(ids.map((id) => permanentlyDeleteItem(id)));
+   241→      toast.success(`Deleted ${ids.length} item${ids.length === 1 ? "" : "s"}`);
+   242→      setMultiSelect(false);
+   243→    } catch {
+   244→      toast.error("Could not delete items");
+   245→    }
+   246→  };
+   247→
+   248→  /* ------------------------------- rendering ------------------------------- */
+   249→  return (
+   250→    <div className="flex h-full flex-col">
+   251→      {/* Filter bar — type + sort + multi-select toggle */}
+   252→      <div className="border-b border-border bg-background px-3 py-2">
+   253→        <div className="flex items-center gap-2">
+   254→          <Select
+   255→            value={typeof filter === "string" ? filter : "all"}
+   256→            onValueChange={(v) => setFilter(v as FilterType)}
+   257→          >
+   258→            <SelectTrigger size="sm" className="h-8 w-[110px] shrink-0 border-border bg-secondary/20 dark:bg-secondary/20">
+   259→              <SelectValue placeholder="Type" />
+   260→            </SelectTrigger>
+   261→            <SelectContent>
+   262→              {TYPE_OPTIONS.map((opt) => (
+   263→                <SelectItem key={opt.value} value={opt.value}>
+   264→                  {opt.label}
+   265→                </SelectItem>
+   266→              ))}
+   267→            </SelectContent>
+   268→          </Select>
+   269→          {/* Sort dropdown with icon for clarity */}
+   270→          <DropdownMenu>
+   271→            <DropdownMenuTrigger asChild>
+   272→              <Button variant="secondary" size="sm" className="h-8 shrink-0 gap-1.5 px-2.5 hover:bg-secondary/60 dark:bg-secondary/20">
+   273→                <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+   274→                <span className="text-xs">{SORT_OPTIONS.find((o) => o.value === sort)?.label ?? "Sort"}</span>
+   275→                <ChevronDown className="h-3 w-3 opacity-50" />
+   276→              </Button>
+   277→            </DropdownMenuTrigger>
+   278→            <DropdownMenuContent align="start" className="w-40">
+   279→              {SORT_OPTIONS.map((opt) => (
+   280→                <DropdownMenuItem key={opt.value} onClick={() => setSort(opt.value)} className="text-xs">
+   281→                  {opt.label}
+   282→                </DropdownMenuItem>
+   283→              ))}
+   284→            </DropdownMenuContent>
+   285→          </DropdownMenu>
+   286→          <Button
+   287→            size="sm"
+   288→            variant={multiSelect ? "default" : "secondary"}
+   289→            className="ml-auto h-8 shrink-0 gap-1.5 px-2.5 hover:bg-secondary/60"
+   290→            onClick={() => setMultiSelect((m) => !m)}
+   291→            aria-pressed={multiSelect}
+   292→            title="Multi-select"
+   293→          >
+   294→            {multiSelect ? <CheckSquare className="h-3.5 w-3.5" /> : <Square className="h-3.5 w-3.5" />}
+   295→            <span className="hidden sm:inline">Select</span>
+   296→          </Button>
+   297→        </div>
+   298→      </div>
+   299→
+   300→      {/* Multi-select action bar */}
+   301→      <AnimatePresence>
+   302→        {multiSelect && (
+   303→          <motion.div
+   304→            initial={{ height: 0, opacity: 0 }}
+   305→            animate={{ height: "auto", opacity: 1 }}
+   306→            exit={{ height: 0, opacity: 0 }}
+   307→            className="overflow-hidden border-b border-border bg-muted/40"
+   308→          >
+   309→            <div className="flex items-center gap-1.5 px-2 py-2">
+   310→              <Button size="sm" variant="ghost" className="h-7 shrink-0 gap-1 px-2" onClick={() => setMultiSelect(false)}>
+   311→                <X className="h-3.5 w-3.5" />
+   312→                <span className="hidden sm:inline">Cancel</span>
+   313→              </Button>
+   314→              <span className="shrink-0 min-w-[20px] text-center text-xs tabular-nums text-muted-foreground">
+   315→                {selectedIds.size}
+   316→              </span>
+   317→              <Button
+   318→                size="sm"
+   319→                variant="ghost"
+   320→                className="h-7 shrink-0 gap-1 px-2 text-xs"
+   321→                onClick={() => {
+   322→                  if (selectedIds.size === filtered.length) {
+   323→                    setSelectedIds(new Set());
+   324→                  } else {
+   325→                    setSelectedIds(new Set(filtered.map((i) => i.id)));
+   326→                  }
+   327→                }}
+   328→              >
+   329→                {selectedIds.size === filtered.length && filtered.length > 0 ? "Deselect all" : "Select all"}
+   330→              </Button>
+   331→              <div className="ml-auto flex shrink-0 items-center gap-1">
+   332→                {/* Single Actions dropdown */}
+   333→                <DropdownMenu>
+   334→                  <DropdownMenuTrigger asChild>
+   335→                    <Button size="sm" variant="outline" className="h-7 shrink-0 gap-1 px-2" disabled={selectedIds.size === 0}>
+   336→                      <span className="text-xs">Actions</span>
+   337→                      <ChevronDown className="h-3 w-3 opacity-70" />
+   338→                    </Button>
+   339→                  </DropdownMenuTrigger>
+   340→                  <DropdownMenuContent align="end" className="w-48">
+   341→                    {/* Move submenu */}
+   342→                    <DropdownMenuSub>
+   343→                      <DropdownMenuSubTrigger>
+   344→                        <FolderInput className="mr-2 h-3.5 w-3.5" />
+   345→                        Move to vault
+   346→                      </DropdownMenuSubTrigger>
+   347→                      <DropdownMenuSubContent className="w-40">
+   348→                        <DropdownMenuItem onSelect={() => handleMultiMove(null)}>All Items</DropdownMenuItem>
+   349→                        {vaults.map((v) => (
+   350→                          <DropdownMenuItem key={v.id} onSelect={() => handleMultiMove(v.id)}>{v.name}</DropdownMenuItem>
+   351→                        ))}
+   352→                      </DropdownMenuSubContent>
+   353→                    </DropdownMenuSub>
+   354→                    {isTrashView ? (
+   355→                      <>
+   356→                        <DropdownMenuItem onSelect={handleMultiRestore}>
+   357→                          <RotateCcw className="mr-2 h-3.5 w-3.5" />
+   358→                          Restore all
+   359→                        </DropdownMenuItem>
+   360→                        <DropdownMenuSeparator />
+   361→                        <DropdownMenuItem variant="destructive" onSelect={handleMultiDelete}>
+   362→                          <Trash2 className="mr-2 h-3.5 w-3.5" />
+   363→                          Delete permanently
+   364→                        </DropdownMenuItem>
+   365→                      </>
+   366→                    ) : (
+   367→                      <>
+   368→                        <DropdownMenuSeparator />
+   369→                        <DropdownMenuItem variant="destructive" onSelect={handleMultiTrash}>
+   370→                          <Trash2 className="mr-2 h-3.5 w-3.5" />
+   371→                          Move to trash
+   372→                        </DropdownMenuItem>
+   373→                      </>
+   374→                    )}
+   375→                  </DropdownMenuContent>
+   376→                </DropdownMenu>
+   377→              </div>
+   378→            </div>
+   379→          </motion.div>
+   380→        )}
+   381→      </AnimatePresence>
+   382→
+   383→      {/* List */}
+   384→      <div className="lcked-scroll min-h-0 flex-1 overflow-y-auto">
+   385→        <div className="p-2">
+   386→          {filtered.length === 0 ? (
+   387→            <EmptyList
+   388→              hasItems={items.length > 0}
+   389→              isTrash={isTrashView}
+   390→              onCreate={() => setEditorOpen(true)}
+   391→            />
+   392→          ) : (
+   393→            <LayoutGroup>
+   394→              <ul className="space-y-0.5" role="listbox" aria-label="Vault items">
+   395→                <AnimatePresence initial={false} mode="sync">
+   396→                  {filtered.map((item, idx) => {
+   397→                    const active = item.id === selectedId && !multiSelect;
+   398→                    const checked = selectedIds.has(item.id);
+   399→                    return (
+   400→                      <motion.li
+   401→                        key={item.id}
+   402→                        layout
+   403→                        initial={{ opacity: 0, y: 6, scale: 0.98 }}
+   404→                        animate={{ opacity: 1, y: 0, scale: 1, transition: { duration: 0.16, delay: Math.min(idx * 0.012, 0.08), ease: [0.16, 1, 0.3, 1] } }}
+   405→                        exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.09 } }}
+   406→                        data-item-id={item.id}
+   407→                      >
+   408→                        <ContextMenu>
+   409→                          <ContextMenuTrigger asChild>
+   410→                        <div
+   411→                          onClick={() =>
+   412→                            multiSelect ? toggleSelected(item.id) : setSelected(item.id)
+   413→                          }
+   414→                          role="option"
+   415→                          aria-selected={active || checked}
+   416→                          draggable
+   417→                          onDragStart={(e) => {
+   418→                            // In multi-select mode, drag ALL selected items.
+   419→                            if (multiSelect && selectedIds.size > 0) {
+   420→                              e.dataTransfer.setData("text/lcked-items", JSON.stringify(Array.from(selectedIds)));
+   421→                              e.dataTransfer.effectAllowed = "move";
+   422→                              // Custom drag image showing the count.
+   423→                              const dragEl = document.createElement("div");
+   424→                              dragEl.textContent = `Move ${selectedIds.size} items`;
+   425→                              dragEl.style.cssText = "position:fixed;top:-100px;left:-100px;padding:6px 14px;border-radius:8px;background:var(--primary);color:var(--primary-foreground);font-size:13px;font-weight:600;font-family:var(--font-geist-sans,system-ui);box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:9999;";
+   426→                              document.body.appendChild(dragEl);
+   427→                              e.dataTransfer.setDragImage(dragEl, 30, 15);
+   428→                              setTimeout(() => document.body.removeChild(dragEl), 0);
+   429→                            } else {
+   430→                              e.dataTransfer.setData("text/lcked-item", item.id);
+   431→                              e.dataTransfer.effectAllowed = "move";
+   432→                            }
+   433→                          }}
+   434→                          className={cn(
+   435→                            "group relative flex w-full cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors",
+   436→                            active ? "text-accent-foreground" : "hover:bg-muted/60",
+   437→                            checked && "bg-accent/60",
+   438→                          )}
+   439→                        >
+   440→                          {/* Sliding selection highlight — the signature motion */}
+   441→                          {active && (
+   442→                            <motion.div
+   443→                              layoutId="active-row"
+   444→                              className="lcked-active-glow absolute inset-0 rounded-lg"
+   445→                              transition={{ type: "spring", stiffness: 600, damping: 42, mass: 0.7 }}
+   446→                            />
+   447→                          )}
+   448→
+   449→                          {/* Multi-select checkbox OR favicon/type-icon */}
+   450→                          {multiSelect ? (
+   451→                            <span className="relative flex h-8 w-8 shrink-0 items-center justify-center">
+   452→                              {checked ? (
+   453→                                <CheckSquare className="h-5 w-5 text-primary" />
+   454→                              ) : (
+   455→                                <Square className="h-5 w-5 text-muted-foreground" />
+   456→                              )}
+   457→                            </span>
+   458→                          ) : showFavicons && item.type === "login" && item.details.urls[0] ? (
+   459→                            <span className="relative flex h-8 w-8 shrink-0 items-center justify-center">
+   460→                              <FaviconIcon
+   461→                                url={item.details.urls[0]}
+   462→                                size={32}
+   463→                                className="relative"
+   464→                                fallback={<ItemTypeIcon type={item.type} size="sm" />}
+   465→                              />
+   466→                            </span>
+   467→                          ) : (
+   468→                            <span className="relative">
+   469→                              <ItemTypeIcon type={item.type} size="sm" />
+   470→                            </span>
+   471→                          )}
+   472→
+   473→                          <div className="relative min-w-0 flex-1">
+   474→                            <div className="flex items-center gap-1.5">
+   475→                              <span className={cn("truncate text-sm font-medium", item.trashed && "line-through opacity-60")}>
+   476→                                {item.name}
+   477→                              </span>
+   478→                              {item.favorite && !item.trashed && (
+   479→                                <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />
+   480→                              )}
+   481→                              {item.pinned && !item.trashed && (
+   482→                                <Pin className="h-3 w-3 shrink-0 fill-primary/40 text-primary" />
+   483→                              )}
+   484→                            </div>
+   485→                            <div className="truncate text-xs text-muted-foreground">
+   486→                              {subtitle(item)}
+   487→                            </div>
+   488→                          </div>
+   489→
+   490→                          {/* Type badge OR trash hover actions */}
+   491→                          {isTrashView ? (
+   492→                            <div className="relative flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+   493→                              <Button
+   494→                                size="icon"
+   495→                                variant="ghost"
+   496→                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+   497→                                onClick={(e) => {
+   498→                                  e.stopPropagation();
+   499→                                  restoreItem(item.id).then(() =>
+   500→                                    toast.success("Item restored"),
+   501→                                  );
+   502→                                }}
+   503→                                aria-label="Restore"
+   504→                                title="Restore"
+   505→                              >
+   506→                                <RotateCcw className="h-3.5 w-3.5" />
+   507→                              </Button>
+   508→                              <Button
+   509→                                size="icon"
+   510→                                variant="ghost"
+   511→                                className="h-7 w-7 text-muted-foreground hover:text-red-400"
+   512→                                onClick={(e) => {
+   513→                                  e.stopPropagation();
+   514→                                  permanentlyDeleteItem(item.id).then(() =>
+   515→                                    toast.success("Permanently deleted"),
+   516→                                  );
+   517→                                }}
+   518→                                aria-label="Delete permanently"
+   519→                                title="Delete permanently"
+   520→                              >
+   521→                                <Trash2 className="h-3.5 w-3.5" />
+   522→                              </Button>
+   523→                            </div>
+   524→                          ) : null}
+   525→                        </div>
+   526→                          </ContextMenuTrigger>
+   527→                          <ContextMenuContent className="w-52">
+   528→                            {/* Copy email / username (login only) — label adapts to content */}
+   529→                            {item.type === "login" && item.details.username && (() => {
+   530→                              const email = isEmail(item.details.username);
+   531→                              return (
+   532→                                <ContextMenuItem onClick={async () => {
+   533→                                  await copyWithAutoClear(item.details.username, email ? "email" : "username");
+   534→                                  toast.success(`${email ? "Email" : "Username"} copied`, { description: "Auto-clears in 30s" });
+   535→                                }}>
+   536→                                  {email
+   537→                                    ? <Mail className="mr-2 h-3.5 w-3.5" />
+   538→                                    : <User className="mr-2 h-3.5 w-3.5" />}
+   539→                                  Copy {email ? "email" : "username"}
+   540→                                </ContextMenuItem>
+   541→                              );
+   542→                            })()}
+   543→                            {/* Copy password (login only) */}
+   544→                            {item.type === "login" && item.details.password && (
+   545→                              <ContextMenuItem onClick={async () => {
+   546→                                await copyWithAutoClear(item.details.password, "password");
+   547→                                toast.success("Password copied", { description: "Auto-clears in 30s" });
+   548→                              }}>
+   549→                                <KeyRound className="mr-2 h-3.5 w-3.5" />
+   550→                                Copy password
+   551→                              </ContextMenuItem>
+   552→                            )}
+   553→                            {/* Copy TOTP (login with TOTP only) */}
+   554→                            {item.type === "login" && item.details.totp && (
+   555→                              <ContextMenuItem onClick={async () => {
+   556→                                await copyWithAutoClear(item.details.totp, "totp");
+   557→                                toast.success("2FA token copied", { description: "Auto-clears in 30s" });
+   558→                              }}>
+   559→                                <Lock className="mr-2 h-3.5 w-3.5" />
+   560→                                2FA token (TOTP)
+   561→                              </ContextMenuItem>
+   562→                            )}
+   563→                            {(item.type === "login" && (item.details.username || item.details.password || item.details.totp)) && (
+   564→                              <ContextMenuSeparator />
+   565→                            )}
+   566→                            <ContextMenuItem onClick={() => setEditorOpen(true, item.id)}>
+   567→                              <Pencil className="mr-2 h-3.5 w-3.5" />
+   568→                              Edit
+   569→                            </ContextMenuItem>
+   570→                            {/* Move to vault submenu */}
+   571→                            <ContextMenuSub>
+   572→                              <ContextMenuSubTrigger>
+   573→                                <FolderInput className="mr-2 h-3.5 w-3.5" />
+   574→                                Move to vault
+   575→                              </ContextMenuSubTrigger>
+   576→                              <ContextMenuSubContent className="w-48">
+   577→                                <ContextMenuItem onClick={() => moveItemToVault(item.id, null)}>
+   578→                                  All Items
+   579→                                </ContextMenuItem>
+   580→                                {vaults.filter(v => !hiddenVaultIds.includes(v.id)).map(v => (
+   581→                                  <ContextMenuItem key={v.id} onClick={() => moveItemToVault(item.id, v.id)}>
+   582→                                    {v.name}
+   583→                                  </ContextMenuItem>
+   584→                                ))}
+   585→                              </ContextMenuSubContent>
+   586→                            </ContextMenuSub>
+   587→                            <ContextMenuItem onClick={() => toggleFavorite(item.id)}>
+   588→                              <Star className="mr-2 h-3.5 w-3.5" />
+   589→                              {item.favorite ? "Remove favorite" : "Add to favorites"}
+   590→                            </ContextMenuItem>
+   591→                            <ContextMenuItem onClick={() => togglePinned(item.id)}>
+   592→                              <Pin className="mr-2 h-3.5 w-3.5" />
+   593→                              {item.pinned ? "Unpin" : "Pin to vault"}
+   594→                            </ContextMenuItem>
+   595→                            <ContextMenuSeparator />
+   596→                            <ContextMenuItem className="text-red-400" onClick={() => {
+   597→                              if (confirm(`Move "${item.name}" to trash?`)) trashItem(item.id);
+   598→                            }}>
+   599→                              <Trash2 className="mr-2 h-3.5 w-3.5" />
+   600→                              Delete
+   601→                            </ContextMenuItem>
+   602→                          </ContextMenuContent>
+   603→                        </ContextMenu>
+   604→                      </motion.li>
+   605→                    );
+   606→                  })}
+   607→                </AnimatePresence>
+   608→              </ul>
+   609→            </LayoutGroup>
+   610→          )}
+   611→        </div>
+   612→      </div>
+   613→
+   614→      {/* Mobile back hint (only in trash view, for screen-reader friendliness) */}
+   615→      {isTrashView && onMobileBack && (
+   616→        <button
+   617→          onClick={onMobileBack}
+   618→          className="sr-only focus:not-sr-only"
+   619→        >
+   620→          Back to All Items
+   621→        </button>
+   622→      )}
+   623→    </div>
+   624→  );
+   625→}
+   626→
+   627→/* ------------------------------ EmptyList ------------------------------ */
+   628→
+   629→function EmptyList({
+   630→  hasItems,
+   631→  isTrash,
+   632→  onCreate,
+   633→}: {
+   634→  hasItems: boolean;
+   635→  isTrash: boolean;
+   636→  onCreate: () => void;
+   637→}) {
+   638→  const setActiveVault = useVault((s) => s.setActiveVault);
+   639→  const setSettingsOpen = useVault((s) => s.setSettingsOpen);
+   640→  return (
+   641→    <div className="lcked-grid flex flex-col items-center justify-center px-6 py-20 text-center">
+   642→      <DiamondMark size={56} glow className="mb-4 text-primary" />
+   643→      <h3 className="text-sm font-semibold">
+   644→        {isTrash
+   645→          ? "Trash is empty"
+   646→          : hasItems
+   647→            ? "No matches"
+   648→            : "Your vault is empty"}
+   649→      </h3>
+   650→      <p className="mt-1.5 max-w-[16rem] text-xs leading-relaxed text-muted-foreground">
+   651→        {isTrash
+   652→          ? "Deleted items land here. They auto-purge after 30 days."
+   653→          : hasItems
+   654→            ? "Try a different search or filter."
+   655→            : "Your secrets, encrypted on this device. Nothing leaves. Ever."}
+   656→      </p>
+   657→      {!hasItems && !isTrash && (
+   658→        <div className="mt-5 flex flex-col gap-2">
+   659→          <Button size="sm" onClick={onCreate}>
+   660→            Add your first item
+   661→          </Button>
+   662→          <Button size="sm" variant="ghost" onClick={() => setSettingsOpen(true, "import")}>
+   663→            Import from Bitwarden / 1Password / Proton Pass
+   664→          </Button>
+   665→        </div>
+   666→      )}
+   667→      {isTrash && hasItems && (
+   668→        <Button
+   669→          size="sm"
+   670→          variant="ghost"
+   671→          className="mt-5"
+   672→          onClick={() => setActiveVault("all")}
+   673→        >
+   674→          Back to All Items
+   675→        </Button>
+   676→      )}
+   677→    </div>
+   678→  );
+   679→}
+   680→
+   681→// Re-export for the detail to read the context without a cycle.
+   682→

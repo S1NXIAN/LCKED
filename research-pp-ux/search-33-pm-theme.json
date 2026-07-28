@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://amdelamar.com/pm-theme",
+    "name": "Custom Themes for ProtonMail | pm-theme",
+    "snippet": "This is a collection of simple color themes for the ProtonMail web app. is a CSS variable, -theme is maintained by amdelamar.",
+    "host_name": "amdelamar.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/ProtonMail/comments/b7tc48/css_template_to_change_text_colour_to_contrast",
+    "name": "CSS 'template' to change text colour to contrast with custom background?",
+    "snippet": "I am tinkering with ProtonMail's CSS with the simple goal of adding my own background. ... Check this out: https://github.com/amdelamar/pm-theme. Themes not working : r/ProtonMail - Reddit Easy Themes for ProtonMail (Including a dark theme!) More results from www.reddit.com",
+    "host_name": "www.reddit.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://gist.github.com/kiyui/2e1b13259a0d2984d9c0b2a566f8f1d5",
+    "name": "Protonmail Theme - GitHub Gist",
+    "snippet": "Protonmail Theme. Custom Theme for ProtonMail v3.16.21 * http://amdelamar.com/pm-theme/ color: var(--theme3); } html.protonmail .text-gray { color: var(--theme ...",
+    "host_name": "gist.github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.home-assistant.io/t/finding-variable-names-for-themes/438612",
+    "name": "Finding variable names for themes - Home Assistant Community",
+    "snippet": "You want to find the CSS variable name used for the specific element you're trying to style. Open the element # primary-text-color: darkred Default Theme Full list of theme.yaml lines More results from community.home-assistant.io",
+    "host_name": "community.home-assistant.io",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/creating-and-using-theme-settings",
+    "name": "How to change themes and customize the look and feel of Proton web apps",
+    "snippet": "Click Settings → All settings → Appearance → Theme and select the theme you want. using your own CSS theme templates.",
+    "host_name": "proton.me",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://amdelamar.com/blog/custom-themes-for-protonmail",
+    "name": "Custom Themes for ProtonMail - Austin Delamar",
+    "snippet": "PM users can download/copy and override the default colors of their inbox. I built 3 main themes, Dark, Flat, and GM. CSS styling and default ...",
+    "host_name": "amdelamar.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/composer",
+    "name": "How to use the composer and email formatting tools - Proton",
+    "snippet": "Learn how to write an email and format text in Proton Mail's email composer. You can also set formatting defaults in your settings.",
+    "host_name": "proton.me",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=89jIlOIgyis",
+    "name": "How to enable dark mode on Proton Mail - YouTube",
+    "snippet": "Link for CSS Script - https://amdelamar.com/pm-theme/#customize Hi Everyone - This video about ... protonmail #darkmode #protonmailtheme.",
+    "host_name": "www.youtube.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://mantine.dev/styles/css-variables-list",
+    "name": "Default CSS variables list - Mantine",
+    "snippet": "This page contains a list of all Mantine CSS variables that are generated from default theme. CSS variables not depending on color scheme. --mantine-z-index-app ...",
+    "host_name": "mantine.dev",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://bulma.io/documentation/features/color-palettes",
+    "name": "Color Palettes in Bulma",
+    "snippet": "Bulma will automatically generate a collection of CSS variables for each of those colors. These sets of variables act as a color palette you can use to play ...",
+    "host_name": "bulma.io",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/forms/_toggle.scss",
+    "name": "toggle.scss - ProtonMail/WebClients - GitHub",
+    "snippet": "Monorepo hosting the proton web clients. Contribute to ProtonMail/WebClients development by creating an account on GitHub. Missing: protonpass css-",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/ProtonMail/WebClients/blob/main/applications/mail/src/app/styles/_layout.scss",
+    "name": "WebClients/applications/mail/src/app  - GitHub",
+    "snippet": "Monorepo hosting the proton web clients. Contribute to ProtonMail/WebClients development by creating an account on GitHub. Missing: protonpass | Show results with: protonpass",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/amdelamar/pm-theme",
+    "name": "amdelamar/pm-theme: Easy Themes for ProtonMail (v3.16.x) - GitHub",
+    "snippet": "This is a collection of simple color themes for the ProtonMail v3.16.x web app. Dark Theme Copy the CSS directly and edit the colors. Missing: protonpass styles interaction- norm",
+    "host_name": "github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/ProtonMail/WebClients",
+    "name": "ProtonMail/WebClients: Monorepo hosting the proton web clients",
+    "snippet": "This project is a monorepo hosting the Proton web clients. It includes the web applications, their dependencies & shared modules as well as all tooling Missing: styles variable norm background-",
+    "host_name": "github.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/jeremiecook/protonmail-theme",
+    "name": "jeremiecook/protonmail-theme - GitHub",
+    "snippet": "You can tweak your theme with somes options in the protonmail.scss file. Easily change the color of this theme as you like with CSS vars. Missing: protonpass styles variable interaction- norm background-",
+    "host_name": "github.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/protonpass/proton-pass-common",
+    "name": "protonpass/proton-pass-common - GitHub",
+    "snippet": "This repository contains the source code for the common library that's used across all clients (for now, Android, iOS and web). Missing: ProtonMail variable interaction- norm background-",
+    "host_name": "github.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/csalmeida/protonmail-themes",
+    "name": "csalmeida/protonmail-themes - GitHub",
+    "snippet": "Since v1.16, the encrypted mail service allows the use of themes with Cascading Style Sheets. You can pick a theme from the Themes folder or ... Missing: protonpass interaction- norm background-",
+    "host_name": "github.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/protonpass",
+    "name": "Proton Pass - GitHub",
+    "snippet": "Proton Pass. Free and fully encrypted password manager to keep your login credentials safe. Verified. Missing: ProtonMail styles css- variable interaction- norm background-",
+    "host_name": "github.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/marketplace/actions/load-secrets-from-proton-pass",
+    "name": "Load Secrets from Proton Pass · Actions · GitHub Marketplace",
+    "snippet": "Load secrets from Proton Pass vaults into GitHub Actions workflows using pass:// URIs. Missing: ProtonMail styles css- interaction- norm background-",
+    "host_name": "github.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://piuparts.debian.org/bullseye/sources.txt",
+    "name": "sources.txt - piuparts",
+    "snippet": "... styles: pass citeproc-py: pass civetweb: pass civicrm: pass cjet: pass cjk ... github-v3: pass cl-graph: pass cl-hyperobject: pass cl-ieee-floats: pass ...",
+    "host_name": "piuparts.debian.org",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

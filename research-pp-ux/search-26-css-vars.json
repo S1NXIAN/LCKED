@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://github.com/ProtonMail/WebClients/issues/484",
+    "name": "Proton Mail - dark mode UI bug fix · Issue #484 · ProtonMail/WebClients",
+    "snippet": "CSS variables from the theme don't just pass through automatically. Adding --background-norm to that list, along with changing the hardcoded ... Missing: shared primary-",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/amdelamar/pm-theme",
+    "name": "amdelamar/pm-theme: Easy Themes for ProtonMail (v3.16.x) - GitHub",
+    "snippet": "This is a collection of simple color themes for the ProtonMail v3.16.x web app. Dark Theme Copy the CSS directly and edit the colors. Missing: primary- norm",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/lettergram/ProtonMail-Theme",
+    "name": "CSS Theme For ProtonMail - GitHub",
+    "snippet": "I recently switched to ProtonMail, one nice aspect of ProtonMail is that you can set your own theme. Within the css/ folder you will find my theme.",
+    "host_name": "github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/csalmeida/protonmail-themes",
+    "name": "csalmeida/protonmail-themes - GitHub",
+    "snippet": "Themes can be created by duplicating and renaming the example theme folder and its .scss file to the theme name. Then edit that file by changing ... Missing: shared norm background",
+    "host_name": "github.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/jeremyperkin/protonmail_themes",
+    "name": "jeremyperkin/protonmail_themes: Themes for Protonmail.com - GitHub",
+    "snippet": "All the code is available to view. All that is needed is to copy and paste it into your Settings>Appearance>Custom Theme section.",
+    "host_name": "github.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/jeremiecook/protonmail-theme",
+    "name": "jeremiecook/protonmail-theme - GitHub",
+    "snippet": "You can tweak your theme with somes options in the protonmail.scss file. Easily change the color of this theme as you like with CSS vars. Missing: variables primary- norm background",
+    "host_name": "github.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/ProtonMail/comments/byz63g/custom_theme_errant",
+    "name": "Custom Theme - Errant : r/ProtonMail - Reddit",
+    "snippet": "The theme will work with just about any background image as well if you're not a fan of the one provided, just replace the --image url variable ... Missing: shared norm",
+    "host_name": "www.reddit.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://austingwalters.com/protonmail-css-theme",
+    "name": "ProtonMail CSS Theme - Austin G. Walters",
+    "snippet": "ProtonMail is that you access the CSS to setup your own theme. provide this guide as an introduciton. My github repo will be kept up-to-date. ... Missing: shared variables primary- norm",
+    "host_name": "austingwalters.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/PaulHMason/themie",
+    "name": "PaulHMason/themie: A CSS variable theming library - GitHub",
+    "snippet": "Themie is a CSS variable theming library that can be used to easily create Material Design themes for web applications. Missing: Proton shared norm",
+    "host_name": "github.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/creating-and-using-theme-settings",
+    "name": "How to change themes and customize the look and feel of Proton web apps",
+    "snippet": "You can change themes and customize Proton web apps to suit your preferences and accessibility needs. Learn how.",
+    "host_name": "proton.me",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

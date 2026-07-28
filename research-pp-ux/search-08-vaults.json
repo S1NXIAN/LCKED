@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://proton.me/support/proton-pass-for-business-user-guide",
+    "name": "How to use Proton Pass for Business",
+    "snippet": "Creating a vault in Proton Pass. From there, pick a name, color code, and icon for the vault, and click Create vault. Creating a new Pass vault. Sharing vaults. Missing: drag drop move",
+    "host_name": "proton.me",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://protonmail.uservoice.com/forums/953584-proton-pass-authenticator/suggestions/47634227-drag-and-drop-between-vaults",
+    "name": "Drag and drop between vaults - The Voice of the Proton Community",
+    "snippet": "I want to drag and drop items from the vault list to another vault. It appears like the feature is almost there, but when I drop the item I am ... Labeled Vault icons and custom icons Vault Resizing More results from protonmail.uservoice.com Missing: color icon\nI want to drag and drop items from the vault list to another vault. It appears like the feature is almost there, but when I drop the item I ... Labeled Vault icons and custom icons - The Voice of the Proton Community Allowing Grouping capabilities within a Vault More results from protonmail.uservoice.com Missing: color icon",
+    "host_name": "protonmail.uservoice.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/pass-vault",
+    "name": "What is a vault in Proton Pass?",
+    "snippet": "2. Choose a Title, color, and icon for your new vault. Click Create vault ... Missing: drag drop move",
+    "host_name": "proton.me",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/ProtonPass/comments/1n99chr/organising_items",
+    "name": "Organising Items : r/ProtonPass - Reddit",
+    "snippet": "Vaults = Folders. You can set a different color and icon for each vault. It works. I like it. It also simplifies sharing. You can share a whole ... Move entries to other vault : r/ProtonPass - Reddit Proton Pass really needs to add functionality so that I can drag and ... More results from www.reddit.com Missing: drag drop",
+    "host_name": "www.reddit.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/pass-bulk-select-items",
+    "name": "How to bulk select items - Proton Pass",
+    "snippet": "To move items to another vault, you can either drag and drop them directly or select Move. To delete items, select Trash. Missing: color icon",
+    "host_name": "proton.me",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=bdgqNZkCGpE",
+    "name": "How to Manage Proton Pass Vaults Full Guide 2026 - YouTube",
+    "snippet": "Learn how to manage Proton Pass vaults with this complete 2026 guide. This step-by-step tutorial explains how to create, organize, edit, ...\nThis step-by-step tutorial explains how to create, organize, edit, and manage vaults in Proton Pass for better password and data ...",
+    "host_name": "www.youtube.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/ProtonMail/WebClients/issues/475",
+    "name": "Feature Request: Allow custom icon images for Proton Pass items #475",
+    "snippet": "Allow users to upload or assign custom icon images to items in Proton Pass, rather than being limited to the automatically generated or default ...\nUsers can optionally set a custom icon image (e.g., PNG, SVG, JPEG) on any Pass item (login, note, credit card, identity). The custom icon ...",
+    "host_name": "github.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/blog/pass-roadmap-spring-2025",
+    "name": "Proton Pass roadmap for spring 2025",
+    "snippet": "This past winter, we simplified sharing single items and made it easier to organize your vaults with drag-and-drop functionality between vaults ...\nThis past winter, we simplified sharing single items and made it easier to organize your vaults with drag-and-drop functionality between vaults ... Missing: color | Show results with: color",
+    "host_name": "proton.me",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/create-custom-item",
+    "name": "How to create a custom item - Proton Pass",
+    "snippet": "When you add an item, you have the option to use one of several templates or create an entirely custom item with your own fields. The templates available ...",
+    "host_name": "proton.me",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/ProtonPass/comments/1d9101h/label_vault_icons",
+    "name": "Label Vault icons : r/ProtonPass - Reddit",
+    "snippet": "I have difficulties to understand what all Vault icons stand for so I would like to request to label them. Have this been discussed before? How to add custom item in Vaults has items exited : r/ProtonPass - Reddit Does anybody know if Proton Pass plans to add features like nested ... More results from www.reddit.com Missing: color drag drop",
+    "host_name": "www.reddit.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

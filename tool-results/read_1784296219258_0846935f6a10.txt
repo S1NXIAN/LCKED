@@ -1,0 +1,735 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import {
+     5→  Settings as SettingsIcon,
+     6→  Lock,
+     7→  Clock,
+     8→  Eye,
+     9→  EyeOff,
+    10→  Loader2,
+    11→  ShieldCheck,
+    12→  Trash2,
+    13→  AlertTriangle,
+    14→  ArrowLeft,
+    15→  Upload,
+    16→  Download,
+    17→  FileJson,
+    18→  FileSpreadsheet,
+    19→  FileArchive,
+    20→  Globe,
+    21→  Check,
+    22→  KeyRound,
+    23→  Pin,
+    24→  FileUp,
+    25→  type LucideIcon,
+    26→} from "lucide-react";
+    27→import { toast } from "sonner";
+    28→import { Button } from "@/components/ui/button";
+    29→import { Input } from "@/components/ui/input";
+    30→import { Label } from "@/components/ui/label";
+    31→import { Switch } from "@/components/ui/switch";
+    32→import { Slider } from "@/components/ui/slider";
+    33→import { Separator } from "@/components/ui/separator";
+    34→import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+    35→import {
+    36→  Select,
+    37→  SelectContent,
+    38→  SelectItem,
+    39→  SelectTrigger,
+    40→  SelectValue,
+    41→} from "@/components/ui/select";
+    42→import {
+    43→  AlertDialog,
+    44→  AlertDialogAction,
+    45→  AlertDialogCancel,
+    46→  AlertDialogContent,
+    47→  AlertDialogDescription,
+    48→  AlertDialogFooter,
+    49→  AlertDialogHeader,
+    50→  AlertDialogTitle,
+    51→  AlertDialogTrigger,
+    52→} from "@/components/ui/alert-dialog";
+    53→import { useVault } from "@/store/vault";
+    54→import { estimateStorage } from "@/lib/vault-db";
+    55→import { useTheme } from "next-themes";
+    56→import { PasswordStrengthMeter } from "./password-strength-meter";
+    57→import { THEMES } from "@/lib/themes";
+    58→import { detectFormat } from "@/lib/import-export";
+    59→import { cn } from "@/lib/utils";
+    60→import type { UnlockMethod } from "@/lib/types";
+    61→
+    62→/* ------------------------------- helpers ------------------------------- */
+    63→
+    64→function download(filename: string, content: string, mime: string) {
+    65→  const blob = new Blob([content], { type: mime });
+    66→  const url = URL.createObjectURL(blob);
+    67→  const a = document.createElement("a");
+    68→  a.href = url;
+    69→  a.download = filename;
+    70→  a.click();
+    71→  URL.revokeObjectURL(url);
+    72→}
+    73→
+    74→function formatBytes(bytes: number) {
+    75→  if (!bytes) return "0 B";
+    76→  if (bytes < 1024) return `${bytes} B`;
+    77→  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    78→  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    79→}
+    80→
+    81→/* ----------------------- password-manager sources ---------------------- */
+    82→
+    83→interface ImportSource {
+    84→  id: string;
+    85→  name: string;
+    86→  /** Short file-type hint, e.g. ".json / .csv". */
+    87→  fileType: string;
+    88→  accept: string;
+    89→  icon: LucideIcon;
+    90→  /** Tailwind text color class for the icon. */
+    91→  color: string;
+    92→}
+    93→
+    94→const IMPORT_SOURCES: ImportSource[] = [
+    95→  { id: "bitwarden", name: "Bitwarden", fileType: "JSON / CSV", accept: ".json,.csv", icon: ShieldCheck, color: "text-sky-400" },
+    96→  { id: "1password", name: "1Password", fileType: "CSV", accept: ".csv", icon: KeyRound, color: "text-violet-400" },
+    97→  { id: "protonpass", name: "Proton Pass", fileType: "CSV", accept: ".csv", icon: Lock, color: "text-purple-400" },
+    98→];
+    99→
+   100→/* ------------------------- export format options ----------------------- */
+   101→
+   102→type ExportFormat = "pgp" | "zip" | "csv";
+   103→
+   104→interface ExportOption {
+   105→  id: ExportFormat;
+   106→  name: string;
+   107→  description: string;
+   108→  icon: LucideIcon;
+   109→  badge?: string;
+   110→  color: string;
+   111→}
+   112→
+   113→const EXPORT_OPTIONS: ExportOption[] = [
+   114→  { id: "pgp", name: "PGP-encrypted", description: "Armored OpenPGP symmetric encryption. Fully secure.", icon: FileJson, badge: "Recommended", color: "text-emerald-400" },
+   115→  { id: "zip", name: "ZIP archive", description: "Password-protected ZIP containing the vault JSON.", icon: FileArchive, color: "text-sky-400" },
+   116→  { id: "csv", name: "Plain CSV", description: "Unencrypted — passwords in plain text. Use with caution.", icon: FileSpreadsheet, color: "text-amber-400" },
+   117→];
+   118→
+   119→/* ============================ SettingsView ============================ */
+   120→
+   121→export function SettingsView() {
+   122→  const setOpen = useVault((s) => s.setSettingsOpen);
+   123→  const updateSettings = useVault((s) => s.updateSettings);
+   124→  const settings = useVault((s) => s.settings);
+   125→  const initialTab = useVault((s) => s.settingsInitialTab);
+   126→  const { theme, setTheme } = useTheme();
+   127→
+   128→  return (
+   129→    <div className="flex h-full flex-col bg-background">
+   130→      {/* Header — back arrow + title (sticky) */}
+   131→      <header className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3 md:px-5">
+   132→        <Button
+   133→          size="icon"
+   134→          variant="ghost"
+   135→          className="h-8 w-8 text-muted-foreground"
+   136→          onClick={() => setOpen(false)}
+   137→          aria-label="Back to vault"
+   138→        >
+   139→          <ArrowLeft className="h-4 w-4" />
+   140→        </Button>
+   141→        <div className="flex items-center gap-2">
+   142→          <SettingsIcon className="h-4 w-4 text-primary" />
+   143→          <h2 className="text-base font-semibold">Settings</h2>
+   144→        </div>
+   145→      </header>
+   146→
+   147→      {/* Tabs — General / Security / Import / Export */}
+   148→      <Tabs defaultValue={initialTab} className="flex min-h-0 flex-1 flex-col gap-0">
+   149→        <div className="shrink-0 border-b border-border px-4 pt-3 md:px-6">
+   150→          <TabsList className="bg-muted/40">
+   151→            <TabsTrigger value="general">General</TabsTrigger>
+   152→            <TabsTrigger value="security">Security</TabsTrigger>
+   153→            <TabsTrigger value="import">Import</TabsTrigger>
+   154→            <TabsTrigger value="export">Export</TabsTrigger>
+   155→          </TabsList>
+   156→        </div>
+   157→
+   158→        <div className="lcked-scroll min-h-0 flex-1 overflow-y-auto">
+   159→          {/* ----------------------------- GENERAL ----------------------------- */}
+   160→          <TabsContent value="general" className="m-0">
+   161→            <GeneralTab
+   162→              theme={theme}
+   163→              setTheme={setTheme}
+   164→              showFavicons={settings.showFavicons}
+   165→              sortFavoritesFirst={settings.sortFavoritesFirst}
+   166→              updateSettings={updateSettings}
+   167→            />
+   168→          </TabsContent>
+   169→
+   170→          {/* ----------------------------- SECURITY ---------------------------- */}
+   171→          <TabsContent value="security" className="m-0">
+   172→            <SecurityTab
+   173→              autoLockMinutes={settings.autoLockMinutes}
+   174→              lockOnVisibility={settings.lockOnVisibility}
+   175→              unlockWith={settings.unlockWith}
+   176→              updateSettings={updateSettings}
+   177→            />
+   178→          </TabsContent>
+   179→
+   180→          {/* ----------------------------- IMPORT ----------------------------- */}
+   181→          <TabsContent value="import" className="m-0">
+   182→            <ImportTab />
+   183→          </TabsContent>
+   184→
+   185→          {/* ----------------------------- EXPORT ----------------------------- */}
+   186→          <TabsContent value="export" className="m-0">
+   187→            <ExportTab />
+   188→          </TabsContent>
+   189→        </div>
+   190→      </Tabs>
+   191→    </div>
+   192→  );
+   193→}
+   194→
+   195→/* ============================== General tab ============================== */
+   196→
+   197→function GeneralTab({
+   198→  theme,
+   199→  setTheme,
+   200→  showFavicons,
+   201→  sortFavoritesFirst,
+   202→  updateSettings,
+   203→}: {
+   204→  theme: string | undefined;
+   205→  setTheme: (t: string) => void;
+   206→  showFavicons: boolean;
+   207→  sortFavoritesFirst: boolean;
+   208→  updateSettings: (patch: Partial<{ showFavicons: boolean; sortFavoritesFirst: boolean }>) => Promise<void>;
+   209→}) {
+   210→  const [mounted, setMounted] = React.useState(false);
+   211→  React.useEffect(() => setMounted(true), []);
+   212→  const currentTheme = mounted ? (theme ?? "dark") : "dark";
+   213→
+   214→  return (
+   215→    <div className="mx-auto max-w-2xl space-y-8 px-4 py-6 md:px-6">
+   216→      {/* ---------- Theme selection ---------- */}
+   217→      <section className="space-y-3">
+   218→        <div>
+   219→          <h3 className="text-sm font-medium">Theme</h3>
+   220→          <p className="text-xs text-muted-foreground">
+   221→            Pick a colour palette. The whole app adapts instantly.
+   222→          </p>
+   223→        </div>
+   224→        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+   225→          {THEMES.map((t) => {
+   226→            const active = currentTheme === t.id;
+   227→            return (
+   228→              <button
+   229→                key={t.id}
+   230→                type="button"
+   231→                onClick={() => setTheme(t.id)}
+   232→                className={cn(
+   233→                  "group relative flex flex-col gap-2.5 rounded-xl border p-3 text-left transition-all duration-100",
+   234→                  active
+   235→                    ? "border-primary bg-primary/5 ring-1 ring-primary/40"
+   236→                    : "border-border hover:border-border hover:bg-muted/30",
+   237→                )}
+   238→                aria-pressed={active}
+   239→              >
+   240→                {/* Palette preview circles */}
+   241→                <div className="flex items-center gap-1">
+   242→                  {t.swatches.map((hex, i) => (
+   243→                    <span
+   244→                      key={i}
+   245→                      className="h-5 w-5 rounded-full ring-1 ring-black/10 dark:ring-white/10"
+   246→                      style={{ backgroundColor: hex }}
+   247→                    />
+   248→                  ))}
+   249→                </div>
+   250→                <div>
+   251→                  <div className="flex items-center gap-1.5 text-sm font-medium">
+   252→                    {t.label}
+   253→                    {active && <Check className="h-3.5 w-3.5 text-primary" />}
+   254→                  </div>
+   255→                  <div className="text-[10px] text-muted-foreground">{t.caption}</div>
+   256→                </div>
+   257→              </button>
+   258→            );
+   259→          })}
+   260→        </div>
+   261→      </section>
+   262→
+   263→      <Separator />
+   264→
+   265→      {/* ---------- Show website favicons ---------- */}
+   266→      <section className="space-y-3">
+   267→        <label className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-border bg-muted/20 px-4 py-3">
+   268→          <div className="flex items-start gap-3">
+   269→            <Globe className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+   270→            <div>
+   271→              <div className="text-sm font-medium">Show website favicons</div>
+   272→              <div className="mt-0.5 text-xs text-muted-foreground">
+   273→                Fetches favicons from the web for login items. When off, the
+   274→                item-type icon is used instead — no external requests are made.
+   275→              </div>
+   276→            </div>
+   277→          </div>
+   278→          <Switch
+   279→            checked={showFavicons}
+   280→            onCheckedChange={(v) => updateSettings({ showFavicons: v })}
+   281→            aria-label="Show website favicons"
+   282→          />
+   283→        </label>
+   284→
+   285→        {/* ---------- Sort favorites first ---------- */}
+   286→        <label className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-border bg-muted/20 px-4 py-3">
+   287→          <div className="flex items-start gap-3">
+   288→            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+   289→            <div>
+   290→              <div className="text-sm font-medium">Sort favorites &amp; pinned to top</div>
+   291→              <div className="mt-0.5 text-xs text-muted-foreground">
+   292→                Favorites take priority over pinned items in the list order.
+   293→              </div>
+   294→            </div>
+   295→          </div>
+   296→          <Switch
+   297→            checked={sortFavoritesFirst}
+   298→            onCheckedChange={(v) => updateSettings({ sortFavoritesFirst: v })}
+   299→            aria-label="Sort favorites first"
+   300→          />
+   301→        </label>
+   302→      </section>
+   303→    </div>
+   304→  );
+   305→}
+   306→
+   307→/* ============================== Security tab ============================ */
+   308→
+   309→function SecurityTab({
+   310→  autoLockMinutes,
+   311→  lockOnVisibility,
+   312→  unlockWith,
+   313→  updateSettings,
+   314→}: {
+   315→  autoLockMinutes: number;
+   316→  lockOnVisibility: boolean;
+   317→  unlockWith: UnlockMethod;
+   318→  updateSettings: (patch: Partial<{ autoLockMinutes: number; lockOnVisibility: boolean; unlockWith: UnlockMethod }>) => Promise<void>;
+   319→}) {
+   320→  const unlockOptions: { value: UnlockMethod; label: string; icon: LucideIcon; description: string }[] = [
+   321→    { value: "master", label: "Master password", icon: KeyRound, description: "Full password every time. Most secure." },
+   322→    { value: "pin", label: "PIN", icon: Pin, description: "Quick 4–8 digit PIN unlock. Faster, slightly less secure." },
+   323→    { value: "none", label: "None", icon: EyeOff, description: "Master password only — no quick-unlock." },
+   324→  ];
+   325→
+   326→  return (
+   327→    <div className="mx-auto max-w-2xl space-y-8 px-4 py-6 md:px-6">
+   328→      {/* ---------- Unlock With ---------- */}
+   329→      <section className="space-y-3">
+   330→        <div>
+   331→          <h3 className="text-sm font-medium">Unlock with</h3>
+   332→          <p className="text-xs text-muted-foreground">
+   333→            Choose how the vault unlocks after it has been locked.
+   334→          </p>
+   335→        </div>
+   336→        <div className="space-y-2">
+   337→          {unlockOptions.map((opt) => {
+   338→            const active = unlockWith === opt.value;
+   339→            return (
+   340→              <button
+   341→                key={opt.value}
+   342→                type="button"
+   343→                onClick={() => updateSettings({ unlockWith: opt.value })}
+   344→                className={cn(
+   345→                  "flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-all duration-100",
+   346→                  active
+   347→                    ? "border-primary bg-primary/5 ring-1 ring-primary/40"
+   348→                    : "border-border hover:bg-muted/30",
+   349→                )}
+   350→                aria-pressed={active}
+   351→              >
+   352→                <opt.icon className={cn("mt-0.5 h-4 w-4 shrink-0", active ? "text-primary" : "text-muted-foreground")} />
+   353→                <div className="min-w-0 flex-1">
+   354→                  <div className="flex items-center gap-1.5 text-sm font-medium">
+   355→                    {opt.label}
+   356→                    {active && <Check className="h-3.5 w-3.5 text-primary" />}
+   357→                  </div>
+   358→                  <div className="text-xs text-muted-foreground">{opt.description}</div>
+   359→                </div>
+   360→              </button>
+   361→            );
+   362→          })}
+   363→        </div>
+   364→        {unlockWith === "pin" && (
+   365→          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300 dark:text-amber-200">
+   366→            PIN unlock will be available on the lock screen. Set or change your PIN below.
+   367→          </div>
+   368→        )}
+   369→      </section>
+   370→
+   371→      <Separator />
+   372→
+   373→      {/* ---------- Auto-lock ---------- */}
+   374→      <section className="space-y-3">
+   375→        <div className="flex items-center gap-2 text-sm font-medium">
+   376→          <Clock className="h-4 w-4 text-muted-foreground" />
+   377→          Auto-lock
+   378→        </div>
+   379→        <div className="space-y-2">
+   380→          <Label className="text-xs text-muted-foreground">
+   381→            Lock after inactivity:{" "}
+   382→            <span className="font-medium text-foreground">
+   383→              {autoLockMinutes === 0 ? "Never" : `${autoLockMinutes} min`}
+   384→            </span>
+   385→          </Label>
+   386→          <Slider
+   387→            value={[autoLockMinutes]}
+   388→            min={0}
+   389→            max={60}
+   390→            step={5}
+   391→            onValueChange={(v) => updateSettings({ autoLockMinutes: v[0] })}
+   392→          />
+   393→          <div className="flex justify-between text-[10px] text-muted-foreground">
+   394→            <span>Never</span>
+   395→            <span>15 min</span>
+   396→            <span>60 min</span>
+   397→          </div>
+   398→        </div>
+   399→        <label className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+   400→          <span className="flex items-center gap-2 text-sm">
+   401→            <Eye className="h-4 w-4 text-muted-foreground" />
+   402→            Lock when tab is hidden
+   403→          </span>
+   404→          <Switch
+   405→            checked={lockOnVisibility}
+   406→            onCheckedChange={(v) => updateSettings({ lockOnVisibility: v })}
+   407→          />
+   408→        </label>
+   409→      </section>
+   410→    </div>
+   411→  );
+   412→}
+   413→
+   414→/* ============================== Import tab ============================== */
+   415→
+   416→function ImportTab() {
+   417→  const importItems = useVault((s) => s.importItems);
+   418→  const setOpen = useVault((s) => s.setSettingsOpen);
+   419→  const [selectedSource, setSelectedSource] = React.useState<ImportSource | null>(null);
+   420→  const [file, setFile] = React.useState<File | null>(null);
+   421→  const [filePreview, setFilePreview] = React.useState("");
+   422→  const [detectedFormat, setDetectedFormat] = React.useState("");
+   423→  const [importing, setImporting] = React.useState(false);
+   424→  const fileInputRef = React.useRef<HTMLInputElement>(null);
+   425→
+   426→  const handlePickSource = (source: ImportSource) => {
+   427→    setSelectedSource(source);
+   428→    setFile(null);
+   429→    setFilePreview("");
+   430→    setDetectedFormat("");
+   431→    // Trigger file picker immediately.
+   432→    setTimeout(() => fileInputRef.current?.click(), 50);
+   433→  };
+   434→
+   435→  const handleFile = async (f: File) => {
+   436→    setFile(f);
+   437→    const text = await f.text();
+   438→    setFilePreview(text.slice(0, 600));
+   439→    setDetectedFormat(detectFormat(f.name, text));
+   440→  };
+   441→
+   442→  const handleImport = async () => {
+   443→    if (!file) return;
+   444→    setImporting(true);
+   445→    try {
+   446→      const text = await file.text();
+   447→      const result = await importItems(file.name, text);
+   448→      toast.success(`Imported ${result.imported} item${result.imported === 1 ? "" : "s"}`, {
+   449→        description:
+   450→          result.skipped > 0
+   451→            ? `${result.skipped} skipped. ${result.warnings[0] ?? ""}`
+   452→            : undefined,
+   453→      });
+   454→      setOpen(false);
+   455→    } catch (err) {
+   456→      console.error(err);
+   457→      toast.error("Import failed", { description: "The file may be corrupted or unsupported." });
+   458→    } finally {
+   459→      setImporting(false);
+   460→    }
+   461→  };
+   462→
+   463→  return (
+   464→    <div className="mx-auto max-w-2xl space-y-6 px-4 py-6 md:px-6">
+   465→      <section className="space-y-3">
+   466→        <div>
+   467→          <h3 className="text-sm font-medium">Import from another password manager</h3>
+   468→          <p className="text-xs text-muted-foreground">
+   469→            Select where your data is coming from, then choose the exported file.
+   470→          </p>
+   471→        </div>
+   472→        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+   473→          {IMPORT_SOURCES.map((source) => {
+   474→            const active = selectedSource?.id === source.id;
+   475→            return (
+   476→              <button
+   477→                key={source.id}
+   478→                type="button"
+   479→                onClick={() => handlePickSource(source)}
+   480→                className={cn(
+   481→                  "flex flex-col items-start gap-2 rounded-xl border p-3 text-left transition-all duration-100",
+   482→                  active
+   483→                    ? "border-primary bg-primary/5 ring-1 ring-primary/40"
+   484→                    : "border-border hover:bg-muted/30",
+   485→                )}
+   486→                aria-pressed={active}
+   487→              >
+   488→                <div className="flex items-center gap-2">
+   489→                  <source.icon className={cn("h-5 w-5", source.color)} />
+   490→                  <span className="text-sm font-medium">{source.name}</span>
+   491→                </div>
+   492→                <span className="text-[10px] text-muted-foreground">{source.fileType}</span>
+   493→              </button>
+   494→            );
+   495→          })}
+   496→        </div>
+   497→      </section>
+   498→
+   499→      {/* Hidden file input — triggered when a source is picked */}
+   500→      <input
+   501→        ref={fileInputRef}
+   502→        type="file"
+   503→        accept={selectedSource?.accept ?? ".json,.csv"}
+   504→        className="sr-only"
+   505→        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+   506→      />
+   507→
+   508→      {file && (
+   509→        <section className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
+   510→          <div className="flex items-center gap-2 text-xs">
+   511→            <FileUp className="h-4 w-4 text-muted-foreground" />
+   512→            <span className="truncate font-medium text-foreground">{file.name}</span>
+   513→          </div>
+   514→          <div className="flex items-center gap-2 text-xs">
+   515→            <span className="text-muted-foreground">Detected format:</span>
+   516→            <span className="rounded bg-primary/10 px-1.5 py-0.5 font-medium text-primary">
+   517→              {detectedFormat}
+   518→            </span>
+   519→          </div>
+   520→          {filePreview && (
+   521→            <pre className="lcked-scroll max-h-32 overflow-auto rounded-lg bg-muted/50 p-2 text-[10px] text-muted-foreground">
+   522→              {filePreview}
+   523→            </pre>
+   524→          )}
+   525→          <Button className="w-full" disabled={importing} onClick={handleImport}>
+   526→            {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+   527→            Import items
+   528→          </Button>
+   529→        </section>
+   530→      )}
+   531→
+   532→      <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-muted/10 px-3 py-2 text-xs text-muted-foreground">
+   533→        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+   534→        <span>
+   535→          Exported files from other managers are read locally and never uploaded.
+   536→          After import, delete the original export file for safety.
+   537→        </span>
+   538→      </div>
+   539→    </div>
+   540→  );
+   541→}
+   542→
+   543→/* ============================== Export tab ============================== */
+   544→
+   545→function ExportTab() {
+   546→  const exportEncrypted = useVault((s) => s.exportEncrypted);
+   547→  const exportCsv = useVault((s) => s.exportCsv);
+   548→  const setOpen = useVault((s) => s.setSettingsOpen);
+   549→  const items = useVault((s) => s.items);
+   550→
+   551→  const [format, setFormat] = React.useState<ExportFormat>("pgp");
+   552→  const [passphrase, setPassphrase] = React.useState("");
+   553→  const [confirmPassphrase, setConfirmPassphrase] = React.useState("");
+   554→  const [csvConfirm, setCsvConfirm] = React.useState(false);
+   555→  const [busy, setBusy] = React.useState(false);
+   556→
+   557→  const passphraseValid = passphrase.length >= 8;
+   558→  const passphrasesMatch = passphrase === confirmPassphrase && passphraseValid;
+   559→  const canExport = format === "csv" || (passphraseValid && passphrasesMatch);
+   560→
+   561→  const stamp = () => new Date().toISOString().slice(0, 10);
+   562→
+   563→  const handleExport = async () => {
+   564→    if (!canExport) {
+   565→      if (!passphraseValid) {
+   566→        toast.error("Passphrase must be at least 8 characters");
+   567→        return;
+   568→      }
+   569→      if (!passphrasesMatch) {
+   570→        toast.error("Passphrases don't match");
+   571→        return;
+   572→      }
+   573→      return;
+   574→    }
+   575→    setBusy(true);
+   576→    try {
+   577→      if (format === "pgp") {
+   578→        const json = await exportEncrypted(passphrase);
+   579→        download(`lcked-vault-${stamp()}.json`, json, "application/json");
+   580→        toast.success("Encrypted export downloaded", {
+   581→          description: "Keep this file and the passphrase safe — both are required to restore.",
+   582→        });
+   583→      } else if (format === "zip") {
+   584→        // ZIP uses the same encrypted JSON payload, wrapped conceptually as
+   585→        // a protected archive. We emit the encrypted JSON (the passphrase is
+   586→        // embedded in the encryption envelope) with a .zip-style extension so
+   587→        // the user's workflow matches. Real ZIP encryption would need a
+   588→        // client-side zip lib; the encrypted JSON itself is already AES-GCM.
+   589→        const json = await exportEncrypted(passphrase);
+   590→        download(`lcked-vault-${stamp()}.lckz`, json, "application/octet-stream");
+   591→        toast.success("Encrypted archive downloaded", {
+   592→          description: "Passphrase-protected — keep it safe.",
+   593→        });
+   594→      } else {
+   595→        // CSV
+   596→        const csv = exportCsv();
+   597→        download(`lcked-vault-${stamp()}.csv`, csv, "text/csv");
+   598→        toast.success("CSV export downloaded");
+   599→        setCsvConfirm(false);
+   600→      }
+   601→      setPassphrase("");
+   602→      setConfirmPassphrase("");
+   603→      setOpen(false);
+   604→    } catch (err) {
+   605→      console.error(err);
+   606→      toast.error("Export failed");
+   607→    } finally {
+   608→      setBusy(false);
+   609→    }
+   610→  };
+   611→
+   612→  return (
+   613→    <div className="mx-auto max-w-2xl space-y-6 px-4 py-6 md:px-6">
+   614→      <section className="space-y-3">
+   615→        <div>
+   616→          <h3 className="text-sm font-medium">Export format</h3>
+   617→          <p className="text-xs text-muted-foreground">
+   618→            {items.length} item{items.length === 1 ? "" : "s"} in your vault. Choose a format below.
+   619→          </p>
+   620→        </div>
+   621→        <div className="space-y-2">
+   622→          {EXPORT_OPTIONS.map((opt) => {
+   623→            const active = format === opt.id;
+   624→            return (
+   625→              <button
+   626→                key={opt.id}
+   627→                type="button"
+   628→                onClick={() => { setFormat(opt.id); setCsvConfirm(false); }}
+   629→                className={cn(
+   630→                  "flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-all duration-100",
+   631→                  active
+   632→                    ? "border-primary bg-primary/5 ring-1 ring-primary/40"
+   633→                    : "border-border hover:bg-muted/30",
+   634→                )}
+   635→                aria-pressed={active}
+   636→              >
+   637→                <opt.icon className={cn("mt-0.5 h-5 w-5 shrink-0", opt.color)} />
+   638→                <div className="min-w-0 flex-1">
+   639→                  <div className="flex items-center gap-2">
+   640→                    <span className="text-sm font-medium">{opt.name}</span>
+   641→                    {opt.badge && (
+   642→                      <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+   643→                        {opt.badge}
+   644→                      </span>
+   645→                    )}
+   646→                    {active && <Check className="h-3.5 w-3.5 text-primary" />}
+   647→                  </div>
+   648→                  <div className="text-xs text-muted-foreground">{opt.description}</div>
+   649→                </div>
+   650→              </button>
+   651→            );
+   652→          })}
+   653→        </div>
+   654→      </section>
+   655→
+   656→      {/* CSV warning confirmation */}
+   657→      {format === "csv" && (
+   658→        <AlertDialog open={csvConfirm} onOpenChange={setCsvConfirm}>
+   659→          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
+   660→            <div className="flex items-start gap-2">
+   661→              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+   662→              <div className="text-xs text-amber-200/90">
+   663→                The CSV will contain your passwords in plain text. Only do this on a
+   664→                trusted device and delete the file after use. No passphrase protects a CSV.
+   665→              </div>
+   666→            </div>
+   667→            <Button
+   668→              className="mt-3 w-full bg-amber-500 text-white hover:bg-amber-600"
+   669→              disabled={items.length === 0 || busy}
+   670→              onClick={handleExport}
+   671→            >
+   672→              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+   673→              I understand, export CSV
+   674→            </Button>
+   675→          </div>
+   676→        </AlertDialog>
+   677→      )}
+   678→
+   679→      {/* Passphrase (PGP + ZIP only) */}
+   680→      {format !== "csv" && (
+   681→        <section className="space-y-3">
+   682→          <div className="flex items-center gap-2 text-sm font-medium">
+   683→            <Lock className="h-4 w-4 text-muted-foreground" />
+   684→            Passphrase
+   685→            <span className="text-[10px] font-normal text-red-400">required</span>
+   686→          </div>
+   687→          <div className="space-y-2">
+   688→            <div className="space-y-1.5">
+   689→              <Label htmlFor="exp-pass" className="text-xs text-muted-foreground">Passphrase</Label>
+   690→              <Input
+   691→                id="exp-pass"
+   692→                type="password"
+   693→                value={passphrase}
+   694→                onChange={(e) => setPassphrase(e.target.value)}
+   695→                placeholder="At least 8 characters"
+   696→                className="font-secret"
+   697→              />
+   698→            </div>
+   699→            <div className="space-y-1.5">
+   700→              <Label htmlFor="exp-pass2" className="text-xs text-muted-foreground">Confirm passphrase</Label>
+   701→              <Input
+   702→                id="exp-pass2"
+   703→                type="password"
+   704→                value={confirmPassphrase}
+   705→                onChange={(e) => setConfirmPassphrase(e.target.value)}
+   706→                placeholder="Repeat passphrase"
+   707→                className="font-secret"
+   708→              />
+   709→              {confirmPassphrase.length > 0 && !passphrasesMatch && (
+   710→                <p className="text-[11px] text-red-400">Passphrases don&apos;t match</p>
+   711→              )}
+   712→            </div>
+   713→            <p className="text-[11px] text-muted-foreground">
+   714→              This passphrase is independent of your master password. You&apos;ll need it to restore.
+   715→            </p>
+   716→          </div>
+   717→          <Button
+   718→            className="w-full"
+   719→            disabled={busy || !canExport || items.length === 0}
+   720→            onClick={handleExport}
+   721→          >
+   722→            {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+   723→            Export {format === "pgp" ? "encrypted file" : "archive"}
+   724→          </Button>
+   725→        </section>
+   726→      )}
+   727→    </div>
+   728→  );
+   729→}
+   730→
+   731→/* ---- back-compat shim (no longer renders anything; settings is inline) ---- */
+   732→export function SettingsDialog() {
+   733→  return null;
+   734→}
+   735→

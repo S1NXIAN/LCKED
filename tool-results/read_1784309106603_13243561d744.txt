@@ -1,0 +1,800 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import {
+     5→  Settings as SettingsIcon,
+     6→  Lock,
+     7→  Clock,
+     8→  Eye,
+     9→  EyeOff,
+    10→  Loader2,
+    11→  ShieldCheck,
+    12→  Trash2,
+    13→  AlertTriangle,
+    14→  ArrowLeft,
+    15→  Upload,
+    16→  Download,
+    17→  FileJson,
+    18→  FileSpreadsheet,
+    19→  FileArchive,
+    20→  Globe,
+    21→  Check,
+    22→  Palette,
+    23→  KeyRound,
+    24→  Pin,
+    25→  FileUp,
+    26→  type LucideIcon,
+    27→} from "lucide-react";
+    28→import { motion, AnimatePresence } from "framer-motion";
+    29→import { toast } from "sonner";
+    30→import { Button } from "@/components/ui/button";
+    31→import { Input } from "@/components/ui/input";
+    32→import { Label } from "@/components/ui/label";
+    33→import { Switch } from "@/components/ui/switch";
+    34→import { Slider } from "@/components/ui/slider";
+    35→import { Separator } from "@/components/ui/separator";
+    36→import { Tabs, TabsContent } from "@/components/ui/tabs";
+    37→import {
+    38→  Select,
+    39→  SelectContent,
+    40→  SelectItem,
+    41→  SelectTrigger,
+    42→  SelectValue,
+    43→} from "@/components/ui/select";
+    44→import {
+    45→  AlertDialog,
+    46→  AlertDialogAction,
+    47→  AlertDialogCancel,
+    48→  AlertDialogContent,
+    49→  AlertDialogDescription,
+    50→  AlertDialogFooter,
+    51→  AlertDialogHeader,
+    52→  AlertDialogTitle,
+    53→  AlertDialogTrigger,
+    54→} from "@/components/ui/alert-dialog";
+    55→import { useVault } from "@/store/vault";
+    56→import { useTheme } from "next-themes";
+    57→import { PasswordStrengthMeter } from "./password-strength-meter";
+    58→import { THEMES } from "@/lib/themes";
+    59→import { detectFormat } from "@/lib/import-export";
+    60→import { cn } from "@/lib/utils";
+    61→import type { UnlockMethod } from "@/lib/types";
+    62→
+    63→/* ------------------------------- helpers ------------------------------- */
+    64→
+    65→function download(filename: string, content: string, mime: string) {
+    66→  const blob = new Blob([content], { type: mime });
+    67→  const url = URL.createObjectURL(blob);
+    68→  const a = document.createElement("a");
+    69→  a.href = url;
+    70→  a.download = filename;
+    71→  a.click();
+    72→  URL.revokeObjectURL(url);
+    73→}
+    74→
+    75→/* ----------------------- password-manager sources ---------------------- */
+    76→
+    77→interface ImportSource {
+    78→  id: string;
+    79→  name: string;
+    80→  fileType: string;
+    81→  accept: string;
+    82→  /** Path to the brand icon SVG in /public. */
+    83→  icon: string;
+    84→}
+    85→
+    86→const IMPORT_SOURCES: ImportSource[] = [
+    87→  { id: "bitwarden", name: "Bitwarden", fileType: "JSON / CSV", accept: ".json,.csv", icon: "/icons/pm/bitwarden.svg" },
+    88→  { id: "1password", name: "1Password", fileType: "CSV", accept: ".csv", icon: "/icons/pm/1password.svg" },
+    89→  { id: "chrome", name: "Google Chrome", fileType: "CSV", accept: ".csv", icon: "/icons/pm/chrome.svg" },
+    90→  { id: "firefox", name: "Firefox", fileType: "CSV", accept: ".csv", icon: "/icons/pm/firefox.svg" },
+    91→  { id: "protonpass", name: "Proton Pass", fileType: "CSV", accept: ".csv", icon: "/icons/pm/proton-pass.svg" },
+    92→  { id: "safari", name: "Safari", fileType: "CSV", accept: ".csv", icon: "/icons/pm/safari.svg" },
+    93→  { id: "edge", name: "Microsoft Edge", fileType: "CSV", accept: ".csv", icon: "/icons/pm/microsoft-edge.svg" },
+    94→  { id: "lastpass", name: "LastPass", fileType: "CSV", accept: ".csv", icon: "/icons/pm/lastpass.svg" },
+    95→  { id: "keeper", name: "Keeper", fileType: "JSON", accept: ".json", icon: "/icons/pm/keeper-security.svg" },
+    96→];
+    97→
+    98→/* ------------------------- export format options ----------------------- */
+    99→
+   100→type ExportFormat = "pgp" | "zip" | "csv";
+   101→
+   102→interface ExportOption {
+   103→  id: ExportFormat;
+   104→  name: string;
+   105→  description: string;
+   106→  icon: LucideIcon;
+   107→  badge?: string;
+   108→  color: string;
+   109→}
+   110→
+   111→const EXPORT_OPTIONS: ExportOption[] = [
+   112→  { id: "pgp", name: "PGP-encrypted", description: "Armored OpenPGP symmetric encryption. Fully secure.", icon: FileJson, badge: "Recommended", color: "text-emerald-400" },
+   113→  { id: "zip", name: "ZIP archive", description: "Password-protected ZIP containing the vault JSON.", icon: FileArchive, color: "text-sky-400" },
+   114→  { id: "csv", name: "Plain CSV", description: "Unencrypted — passwords in plain text. Use with caution.", icon: FileSpreadsheet, color: "text-amber-400" },
+   115→];
+   116→
+   117→/* --------------------------- tab definitions --------------------------- */
+   118→
+   119→interface TabDef {
+   120→  value: string;
+   121→  label: string;
+   122→  icon: LucideIcon;
+   123→}
+   124→
+   125→const TABS: TabDef[] = [
+   126→  { value: "general", label: "General", icon: Palette },
+   127→  { value: "security", label: "Security", icon: ShieldCheck },
+   128→  { value: "import", label: "Import", icon: Upload },
+   129→  { value: "export", label: "Export", icon: Download },
+   130→];
+   131→
+   132→/* ============================ SettingsView ============================ */
+   133→
+   134→export function SettingsView() {
+   135→  const setOpen = useVault((s) => s.setSettingsOpen);
+   136→  const updateSettings = useVault((s) => s.updateSettings);
+   137→  const settings = useVault((s) => s.settings);
+   138→  const initialTab = useVault((s) => s.settingsInitialTab);
+   139→  const { theme, setTheme } = useTheme();
+   140→  const [tab, setTab] = React.useState(initialTab);
+   141→
+   142→  return (
+   143→    <div className="flex h-full flex-col bg-background">
+   144→      {/* Header — back arrow + title (sticky) */}
+   145→      <header className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3 md:px-5">
+   146→        <Button
+   147→          size="icon"
+   148→          variant="ghost"
+   149→          className="h-8 w-8 text-muted-foreground"
+   150→          onClick={() => setOpen(false)}
+   151→          aria-label="Back to vault"
+   152→        >
+   153→          <ArrowLeft className="h-4 w-4" />
+   154→        </Button>
+   155→        <div className="flex items-center gap-2">
+   156→          <SettingsIcon className="h-4 w-4 text-primary" />
+   157→          <h2 className="text-base font-semibold">Settings</h2>
+   158→        </div>
+   159→      </header>
+   160→
+   161→      {/* Tab navigation — segmented control with sliding indicator */}
+   162→      <div className="relative shrink-0 border-b border-border px-4 pt-3 pb-2 md:px-6">
+   163→        <div className="relative flex gap-1">
+   164→          {TABS.map((t) => {
+   165→            const active = tab === t.value;
+   166→            return (
+   167→              <button
+   168→                key={t.value}
+   169→                type="button"
+   170→                onClick={() => setTab(t.value)}
+   171→                className={cn(
+   172→                  "relative flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-100",
+   173→                  active
+   174→                    ? "text-primary"
+   175→                    : "text-muted-foreground hover:text-foreground",
+   176→                )}
+   177→                aria-selected={active}
+   178→                role="tab"
+   179→              >
+   180→                {active && (
+   181→                  <motion.div
+   182→                    layoutId="settings-tab-indicator"
+   183→                    className="absolute inset-0 rounded-lg bg-primary/10 ring-1 ring-primary/30"
+   184→                    transition={{ type: "spring", stiffness: 500, damping: 38, mass: 0.6 }}
+   185→                  />
+   186→                )}
+   187→                <t.icon className="relative h-4 w-4" />
+   188→                <span className="relative hidden sm:inline">{t.label}</span>
+   189→              </button>
+   190→            );
+   191→          })}
+   192→        </div>
+   193→      </div>
+   194→
+   195→      {/* Tab content — animated, no layout shift */}
+   196→      <div className="lcked-scroll min-h-0 flex-1 overflow-y-auto">
+   197→        <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
+   198→          <TabsContent value="general" className="m-0 focus-visible:outline-none">
+   199→            <GeneralTab
+   200→              theme={theme}
+   201→              setTheme={setTheme}
+   202→              showFavicons={settings.showFavicons}
+   203→              sortFavoritesFirst={settings.sortFavoritesFirst}
+   204→              updateSettings={updateSettings}
+   205→            />
+   206→          </TabsContent>
+   207→          <TabsContent value="security" className="m-0 focus-visible:outline-none">
+   208→            <SecurityTab
+   209→              autoLockMinutes={settings.autoLockMinutes}
+   210→              lockOnVisibility={settings.lockOnVisibility}
+   211→              unlockWith={settings.unlockWith}
+   212→              updateSettings={updateSettings}
+   213→            />
+   214→          </TabsContent>
+   215→          <TabsContent value="import" className="m-0 focus-visible:outline-none">
+   216→            <ImportTab />
+   217→          </TabsContent>
+   218→          <TabsContent value="export" className="m-0 focus-visible:outline-none">
+   219→            <ExportTab />
+   220→          </TabsContent>
+   221→        </Tabs>
+   222→      </div>
+   223→    </div>
+   224→  );
+   225→}
+   226→
+   227→/* ============================== General tab ============================== */
+   228→
+   229→function GeneralTab({
+   230→  theme,
+   231→  setTheme,
+   232→  showFavicons,
+   233→  sortFavoritesFirst,
+   234→  updateSettings,
+   235→}: {
+   236→  theme: string | undefined;
+   237→  setTheme: (t: string) => void;
+   238→  showFavicons: boolean;
+   239→  sortFavoritesFirst: boolean;
+   240→  updateSettings: (patch: Partial<{ showFavicons: boolean; sortFavoritesFirst: boolean }>) => Promise<void>;
+   241→}) {
+   242→  const [mounted, setMounted] = React.useState(false);
+   243→  React.useEffect(() => setMounted(true), []);
+   244→  const currentTheme = mounted ? (theme ?? "dark") : "dark";
+   245→
+   246→  return (
+   247→    <div className="mx-auto max-w-2xl space-y-8 px-4 py-6 md:px-6">
+   248→      {/* ---------- Theme selection ---------- */}
+   249→      <section className="space-y-3">
+   250→        <div>
+   251→          <h3 className="text-sm font-medium">Theme</h3>
+   252→          <p className="text-xs text-muted-foreground">
+   253→            Pick a colour palette. The whole app adapts instantly.
+   254→          </p>
+   255→        </div>
+   256→        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+   257→          {THEMES.map((t) => {
+   258→            const active = currentTheme === t.id;
+   259→            return (
+   260→              <button
+   261→                key={t.id}
+   262→                type="button"
+   263→                onClick={() => setTheme(t.id)}
+   264→                className={cn(
+   265→                  "group relative flex flex-col gap-2.5 rounded-xl border p-3 text-left transition-colors duration-100",
+   266→                  active
+   267→                    ? "border-primary bg-primary/5 ring-1 ring-primary/40"
+   268→                    : "border-border hover:bg-muted/30",
+   269→                )}
+   270→                aria-pressed={active}
+   271→              >
+   272→                <div className="flex items-center gap-1">
+   273→                  {t.swatches.map((hex, i) => (
+   274→                    <span
+   275→                      key={i}
+   276→                      className="h-5 w-5 rounded-full ring-1 ring-black/10 dark:ring-white/10"
+   277→                      style={{ backgroundColor: hex }}
+   278→                    />
+   279→                  ))}
+   280→                </div>
+   281→                <div>
+   282→                  <div className="flex items-center gap-1.5 text-sm font-medium">
+   283→                    {t.label}
+   284→                    {active && <Check className="h-3.5 w-3.5 text-primary" />}
+   285→                  </div>
+   286→                  <div className="text-[10px] text-muted-foreground">{t.caption}</div>
+   287→                </div>
+   288→              </button>
+   289→            );
+   290→          })}
+   291→        </div>
+   292→      </section>
+   293→
+   294→      <Separator />
+   295→
+   296→      {/* ---------- Show website favicons ---------- */}
+   297→      <section className="space-y-3">
+   298→        <label className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-border bg-muted/20 px-4 py-3">
+   299→          <div className="flex items-start gap-3">
+   300→            <Globe className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+   301→            <div>
+   302→              <div className="text-sm font-medium">Show website favicons</div>
+   303→              <div className="mt-0.5 text-xs text-muted-foreground">
+   304→                Fetches favicons from the web for login items. When off, the
+   305→                item-type icon is used instead — no external requests are made.
+   306→              </div>
+   307→            </div>
+   308→          </div>
+   309→          <Switch
+   310→            checked={showFavicons}
+   311→            onCheckedChange={(v) => updateSettings({ showFavicons: v })}
+   312→            aria-label="Show website favicons"
+   313→          />
+   314→        </label>
+   315→
+   316→        <label className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-border bg-muted/20 px-4 py-3">
+   317→          <div className="flex items-start gap-3">
+   318→            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+   319→            <div>
+   320→              <div className="text-sm font-medium">Sort favorites &amp; pinned to top</div>
+   321→              <div className="mt-0.5 text-xs text-muted-foreground">
+   322→                Favorites take priority over pinned items in the list order.
+   323→              </div>
+   324→            </div>
+   325→          </div>
+   326→          <Switch
+   327→            checked={sortFavoritesFirst}
+   328→            onCheckedChange={(v) => updateSettings({ sortFavoritesFirst: v })}
+   329→            aria-label="Sort favorites first"
+   330→          />
+   331→        </label>
+   332→      </section>
+   333→    </div>
+   334→  );
+   335→}
+   336→
+   337→/* ============================== Security tab ============================ */
+   338→
+   339→function SecurityTab({
+   340→  autoLockMinutes,
+   341→  lockOnVisibility,
+   342→  unlockWith,
+   343→  updateSettings,
+   344→}: {
+   345→  autoLockMinutes: number;
+   346→  lockOnVisibility: boolean;
+   347→  unlockWith: UnlockMethod;
+   348→  updateSettings: (patch: Partial<{ autoLockMinutes: number; lockOnVisibility: boolean; unlockWith: UnlockMethod }>) => Promise<void>;
+   349→}) {
+   350→  const unlockOptions: { value: UnlockMethod; label: string; icon: LucideIcon; description: string }[] = [
+   351→    { value: "master", label: "Master password", icon: KeyRound, description: "Full password every time. Most secure." },
+   352→    { value: "pin", label: "PIN", icon: Pin, description: "Quick 4–8 digit PIN unlock. Faster, slightly less secure." },
+   353→    { value: "none", label: "None", icon: EyeOff, description: "Master password only — no quick-unlock." },
+   354→  ];
+   355→
+   356→  return (
+   357→    <div className="mx-auto max-w-2xl space-y-8 px-4 py-6 md:px-6">
+   358→      {/* ---------- Unlock With ---------- */}
+   359→      <section className="space-y-3">
+   360→        <div>
+   361→          <h3 className="text-sm font-medium">Unlock with</h3>
+   362→          <p className="text-xs text-muted-foreground">
+   363→            Choose how the vault unlocks after it has been locked.
+   364→          </p>
+   365→        </div>
+   366→        <div className="space-y-2">
+   367→          {unlockOptions.map((opt) => {
+   368→            const active = unlockWith === opt.value;
+   369→            return (
+   370→              <button
+   371→                key={opt.value}
+   372→                type="button"
+   373→                onClick={() => updateSettings({ unlockWith: opt.value })}
+   374→                className={cn(
+   375→                  "flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors duration-100",
+   376→                  active
+   377→                    ? "border-primary bg-primary/5 ring-1 ring-primary/40"
+   378→                    : "border-border hover:bg-muted/30",
+   379→                )}
+   380→                aria-pressed={active}
+   381→              >
+   382→                <opt.icon className={cn("mt-0.5 h-4 w-4 shrink-0", active ? "text-primary" : "text-muted-foreground")} />
+   383→                <div className="min-w-0 flex-1">
+   384→                  <div className="flex items-center gap-1.5 text-sm font-medium">
+   385→                    {opt.label}
+   386→                    {active && <Check className="h-3.5 w-3.5 text-primary" />}
+   387→                  </div>
+   388→                  <div className="text-xs text-muted-foreground">{opt.description}</div>
+   389→                </div>
+   390→              </button>
+   391→            );
+   392→          })}
+   393→        </div>
+   394→        {/* Animated info banner — no layout shift */}
+   395→        <AnimatePresence initial={false}>
+   396→          {unlockWith === "pin" && (
+   397→            <motion.div
+   398→              initial={{ height: 0, opacity: 0 }}
+   399→              animate={{ height: "auto", opacity: 1 }}
+   400→              exit={{ height: 0, opacity: 0 }}
+   401→              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+   402→              className="overflow-hidden"
+   403→            >
+   404→              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300 dark:text-amber-200">
+   405→                PIN unlock will be available on the lock screen. Set or change your PIN below.
+   406→              </div>
+   407→            </motion.div>
+   408→          )}
+   409→        </AnimatePresence>
+   410→      </section>
+   411→
+   412→      <Separator />
+   413→
+   414→      {/* ---------- Auto-lock ---------- */}
+   415→      <section className="space-y-3">
+   416→        <div className="flex items-center gap-2 text-sm font-medium">
+   417→          <Clock className="h-4 w-4 text-muted-foreground" />
+   418→          Auto-lock
+   419→        </div>
+   420→        <div className="space-y-2">
+   421→          <Label className="text-xs text-muted-foreground">
+   422→            Lock after inactivity:{" "}
+   423→            <span className="font-medium text-foreground">
+   424→              {autoLockMinutes === 0 ? "Never" : `${autoLockMinutes} min`}
+   425→            </span>
+   426→          </Label>
+   427→          <Slider
+   428→            value={[autoLockMinutes]}
+   429→            min={0}
+   430→            max={60}
+   431→            step={5}
+   432→            onValueChange={(v) => updateSettings({ autoLockMinutes: v[0] })}
+   433→          />
+   434→          <div className="flex justify-between text-[10px] text-muted-foreground">
+   435→            <span>Never</span>
+   436→            <span>15 min</span>
+   437→            <span>60 min</span>
+   438→          </div>
+   439→        </div>
+   440→        <label className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+   441→          <span className="flex items-center gap-2 text-sm">
+   442→            <Eye className="h-4 w-4 text-muted-foreground" />
+   443→            Lock when tab is hidden
+   444→          </span>
+   445→          <Switch
+   446→            checked={lockOnVisibility}
+   447→            onCheckedChange={(v) => updateSettings({ lockOnVisibility: v })}
+   448→          />
+   449→        </label>
+   450→      </section>
+   451→    </div>
+   452→  );
+   453→}
+   454→
+   455→/* ============================== Import tab ============================== */
+   456→
+   457→function ImportTab() {
+   458→  const importItems = useVault((s) => s.importItems);
+   459→  const setOpen = useVault((s) => s.setSettingsOpen);
+   460→  const [selectedSource, setSelectedSource] = React.useState<ImportSource | null>(null);
+   461→  const [file, setFile] = React.useState<File | null>(null);
+   462→  const [filePreview, setFilePreview] = React.useState("");
+   463→  const [detectedFormat, setDetectedFormat] = React.useState("");
+   464→  const [importing, setImporting] = React.useState(false);
+   465→  const fileInputRef = React.useRef<HTMLInputElement>(null);
+   466→
+   467→  const handlePickSource = (source: ImportSource) => {
+   468→    setSelectedSource(source);
+   469→    setFile(null);
+   470→    setFilePreview("");
+   471→    setDetectedFormat("");
+   472→    setTimeout(() => fileInputRef.current?.click(), 50);
+   473→  };
+   474→
+   475→  const handleFile = async (f: File) => {
+   476→    setFile(f);
+   477→    const text = await f.text();
+   478→    setFilePreview(text.slice(0, 600));
+   479→    setDetectedFormat(detectFormat(f.name, text));
+   480→  };
+   481→
+   482→  const handleImport = async () => {
+   483→    if (!file) return;
+   484→    setImporting(true);
+   485→    try {
+   486→      const text = await file.text();
+   487→      const result = await importItems(file.name, text);
+   488→      toast.success(`Imported ${result.imported} item${result.imported === 1 ? "" : "s"}`, {
+   489→        description:
+   490→          result.skipped > 0
+   491→            ? `${result.skipped} skipped. ${result.warnings[0] ?? ""}`
+   492→            : undefined,
+   493→      });
+   494→      setOpen(false);
+   495→    } catch (err) {
+   496→      console.error(err);
+   497→      toast.error("Import failed", { description: "The file may be corrupted or unsupported." });
+   498→    } finally {
+   499→      setImporting(false);
+   500→    }
+   501→  };
+   502→
+   503→  return (
+   504→    <div className="mx-auto max-w-2xl space-y-6 px-4 py-6 md:px-6">
+   505→      <section className="space-y-3">
+   506→        <div>
+   507→          <h3 className="text-sm font-medium">Import from another password manager</h3>
+   508→          <p className="text-xs text-muted-foreground">
+   509→            Select where your data is coming from, then choose the exported file.
+   510→          </p>
+   511→        </div>
+   512→        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+   513→          {IMPORT_SOURCES.map((source) => {
+   514→            const active = selectedSource?.id === source.id;
+   515→            return (
+   516→              <button
+   517→                key={source.id}
+   518→                type="button"
+   519→                onClick={() => handlePickSource(source)}
+   520→                className={cn(
+   521→                  "flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors duration-100",
+   522→                  active
+   523→                    ? "border-primary bg-primary/5 ring-1 ring-primary/40"
+   524→                    : "border-border hover:bg-muted/30",
+   525→                )}
+   526→                aria-pressed={active}
+   527→              >
+   528→                <img
+   529→                  src={source.icon}
+   530→                  alt=""
+   531→                  className="h-7 w-7"
+   532→                  width={28}
+   533→                  height={28}
+   534→                />
+   535→                <div>
+   536→                  <div className="text-xs font-medium">{source.name}</div>
+   537→                  <div className="text-[10px] text-muted-foreground">{source.fileType}</div>
+   538→                </div>
+   539→              </button>
+   540→            );
+   541→          })}
+   542→        </div>
+   543→      </section>
+   544→
+   545→      {/* Hidden file input */}
+   546→      <input
+   547→        ref={fileInputRef}
+   548→        type="file"
+   549→        accept={selectedSource?.accept ?? ".json,.csv"}
+   550→        className="sr-only"
+   551→        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+   552→      />
+   553→
+   554→      {/* File preview — animated, no layout shift */}
+   555→      <AnimatePresence initial={false}>
+   556→        {file && (
+   557→          <motion.section
+   558→            initial={{ height: 0, opacity: 0 }}
+   559→            animate={{ height: "auto", opacity: 1 }}
+   560→            exit={{ height: 0, opacity: 0 }}
+   561→            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+   562→            className="overflow-hidden"
+   563→          >
+   564→            <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
+   565→              <div className="flex items-center gap-2 text-xs">
+   566→                <FileUp className="h-4 w-4 text-muted-foreground" />
+   567→                <span className="truncate font-medium text-foreground">{file.name}</span>
+   568→              </div>
+   569→              <div className="flex items-center gap-2 text-xs">
+   570→                <span className="text-muted-foreground">Detected format:</span>
+   571→                <span className="rounded bg-primary/10 px-1.5 py-0.5 font-medium text-primary">
+   572→                  {detectedFormat}
+   573→                </span>
+   574→              </div>
+   575→              {filePreview && (
+   576→                <pre className="lcked-scroll max-h-32 overflow-auto rounded-lg bg-muted/50 p-2 text-[10px] text-muted-foreground">
+   577→                  {filePreview}
+   578→                </pre>
+   579→              )}
+   580→              <Button className="w-full" disabled={importing} onClick={handleImport}>
+   581→                {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+   582→                Import items
+   583→              </Button>
+   584→            </div>
+   585→          </motion.section>
+   586→        )}
+   587→      </AnimatePresence>
+   588→
+   589→      <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-muted/10 px-3 py-2 text-xs text-muted-foreground">
+   590→        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+   591→        <span>
+   592→          Exported files from other managers are read locally and never uploaded.
+   593→          After import, delete the original export file for safety.
+   594→        </span>
+   595→      </div>
+   596→    </div>
+   597→  );
+   598→}
+   599→
+   600→/* ============================== Export tab ============================== */
+   601→
+   602→function ExportTab() {
+   603→  const exportEncrypted = useVault((s) => s.exportEncrypted);
+   604→  const exportCsv = useVault((s) => s.exportCsv);
+   605→  const setOpen = useVault((s) => s.setSettingsOpen);
+   606→  const items = useVault((s) => s.items);
+   607→
+   608→  const [format, setFormat] = React.useState<ExportFormat>("pgp");
+   609→  const [passphrase, setPassphrase] = React.useState("");
+   610→  const [confirmPassphrase, setConfirmPassphrase] = React.useState("");
+   611→  const [busy, setBusy] = React.useState(false);
+   612→
+   613→  const passphraseValid = passphrase.length >= 8;
+   614→  const passphrasesMatch = passphrase === confirmPassphrase && passphraseValid;
+   615→  const canExport = format === "csv" || (passphraseValid && passphrasesMatch);
+   616→  const isCsv = format === "csv";
+   617→
+   618→  const stamp = () => new Date().toISOString().slice(0, 10);
+   619→
+   620→  const handleExport = async () => {
+   621→    if (!canExport) {
+   622→      if (!passphraseValid) {
+   623→        toast.error("Passphrase must be at least 8 characters");
+   624→        return;
+   625→      }
+   626→      if (!passphrasesMatch) {
+   627→        toast.error("Passphrases don't match");
+   628→        return;
+   629→      }
+   630→      return;
+   631→    }
+   632→    setBusy(true);
+   633→    try {
+   634→      if (format === "pgp") {
+   635→        const json = await exportEncrypted(passphrase);
+   636→        download(`lcked-vault-${stamp()}.json`, json, "application/json");
+   637→        toast.success("Encrypted export downloaded", {
+   638→          description: "Keep this file and the passphrase safe — both are required to restore.",
+   639→        });
+   640→      } else if (format === "zip") {
+   641→        const json = await exportEncrypted(passphrase);
+   642→        download(`lcked-vault-${stamp()}.lckz`, json, "application/octet-stream");
+   643→        toast.success("Encrypted archive downloaded", {
+   644→          description: "Passphrase-protected — keep it safe.",
+   645→        });
+   646→      } else {
+   647→        const csv = exportCsv();
+   648→        download(`lcked-vault-${stamp()}.csv`, csv, "text/csv");
+   649→        toast.success("CSV export downloaded");
+   650→      }
+   651→      setPassphrase("");
+   652→      setConfirmPassphrase("");
+   653→      setOpen(false);
+   654→    } catch (err) {
+   655→      console.error(err);
+   656→      toast.error("Export failed");
+   657→    } finally {
+   658→      setBusy(false);
+   659→    }
+   660→  };
+   661→
+   662→  return (
+   663→    <div className="mx-auto max-w-2xl space-y-6 px-4 py-6 md:px-6">
+   664→      <section className="space-y-3">
+   665→        <div>
+   666→          <h3 className="text-sm font-medium">Export format</h3>
+   667→          <p className="text-xs text-muted-foreground">
+   668→            {items.length} item{items.length === 1 ? "" : "s"} in your vault. Choose a format below.
+   669→          </p>
+   670→        </div>
+   671→        <div className="space-y-2">
+   672→          {EXPORT_OPTIONS.map((opt) => {
+   673→            const active = format === opt.id;
+   674→            return (
+   675→              <button
+   676→                key={opt.id}
+   677→                type="button"
+   678→                onClick={() => { setFormat(opt.id); setPassphrase(""); setConfirmPassphrase(""); }}
+   679→                className={cn(
+   680→                  "flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors duration-100",
+   681→                  active
+   682→                    ? "border-primary bg-primary/5 ring-1 ring-primary/40"
+   683→                    : "border-border hover:bg-muted/30",
+   684→                )}
+   685→                aria-pressed={active}
+   686→              >
+   687→                <opt.icon className={cn("mt-0.5 h-5 w-5 shrink-0", opt.color)} />
+   688→                <div className="min-w-0 flex-1">
+   689→                  <div className="flex items-center gap-2">
+   690→                    <span className="text-sm font-medium">{opt.name}</span>
+   691→                    {opt.badge && (
+   692→                      <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+   693→                        {opt.badge}
+   694→                      </span>
+   695→                    )}
+   696→                    {active && <Check className="h-3.5 w-3.5 text-primary" />}
+   697→                  </div>
+   698→                  <div className="text-xs text-muted-foreground">{opt.description}</div>
+   699→                </div>
+   700→              </button>
+   701→            );
+   702→          })}
+   703→        </div>
+   704→      </section>
+   705→
+   706→      {/* Animated swap between passphrase (PGP/ZIP) and CSV warning — no layout shift */}
+   707→      <AnimatePresence mode="wait" initial={false}>
+   708→        {isCsv ? (
+   709→          <motion.div
+   710→            key="csv-warning"
+   711→            initial={{ opacity: 0, height: 0 }}
+   712→            animate={{ opacity: 1, height: "auto" }}
+   713→            exit={{ opacity: 0, height: 0 }}
+   714→            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+   715→            className="overflow-hidden"
+   716→          >
+   717→            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
+   718→              <div className="flex items-start gap-2">
+   719→                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+   720→                <div className="text-xs text-amber-200/90">
+   721→                  The CSV will contain your passwords in plain text. Only do this on a
+   722→                  trusted device and delete the file after use. No passphrase protects a CSV.
+   723→                </div>
+   724→              </div>
+   725→              <Button
+   726→                className="mt-3 w-full bg-amber-500 text-white hover:bg-amber-600"
+   727→                disabled={items.length === 0 || busy}
+   728→                onClick={handleExport}
+   729→              >
+   730→                {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+   731→                I understand, export CSV
+   732→              </Button>
+   733→            </div>
+   734→          </motion.div>
+   735→        ) : (
+   736→          <motion.section
+   737→            key="passphrase"
+   738→            initial={{ opacity: 0, height: 0 }}
+   739→            animate={{ opacity: 1, height: "auto" }}
+   740→            exit={{ opacity: 0, height: 0 }}
+   741→            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+   742→            className="overflow-hidden"
+   743→          >
+   744→            <div className="space-y-3">
+   745→              <div className="flex items-center gap-2 text-sm font-medium">
+   746→                <Lock className="h-4 w-4 text-muted-foreground" />
+   747→                Passphrase
+   748→                <span className="text-[10px] font-normal text-red-400">required</span>
+   749→              </div>
+   750→              <div className="space-y-2">
+   751→                <div className="space-y-1.5">
+   752→                  <Label htmlFor="exp-pass" className="text-xs text-muted-foreground">Passphrase</Label>
+   753→                  <Input
+   754→                    id="exp-pass"
+   755→                    type="password"
+   756→                    value={passphrase}
+   757→                    onChange={(e) => setPassphrase(e.target.value)}
+   758→                    placeholder="At least 8 characters"
+   759→                    className="font-secret"
+   760→                  />
+   761→                </div>
+   762→                <div className="space-y-1.5">
+   763→                  <Label htmlFor="exp-pass2" className="text-xs text-muted-foreground">Confirm passphrase</Label>
+   764→                  <Input
+   765→                    id="exp-pass2"
+   766→                    type="password"
+   767→                    value={confirmPassphrase}
+   768→                    onChange={(e) => setConfirmPassphrase(e.target.value)}
+   769→                    placeholder="Repeat passphrase"
+   770→                    className="font-secret"
+   771→                  />
+   772→                  {confirmPassphrase.length > 0 && !passphrasesMatch && (
+   773→                    <p className="text-[11px] text-red-400">Passphrases don&apos;t match</p>
+   774→                  )}
+   775→                </div>
+   776→                <p className="text-[11px] text-muted-foreground">
+   777→                  This passphrase is independent of your master password. You&apos;ll need it to restore.
+   778→                </p>
+   779→              </div>
+   780→              <Button
+   781→                className="w-full"
+   782→                disabled={busy || !canExport || items.length === 0}
+   783→                onClick={handleExport}
+   784→              >
+   785→                {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+   786→                Export {format === "pgp" ? "encrypted file" : "archive"}
+   787→              </Button>
+   788→            </div>
+   789→          </motion.section>
+   790→        )}
+   791→      </AnimatePresence>
+   792→    </div>
+   793→  );
+   794→}
+   795→
+   796→/* ---- back-compat shim (no longer renders anything; settings is inline) ---- */
+   797→export function SettingsDialog() {
+   798→  return null;
+   799→}
+   800→

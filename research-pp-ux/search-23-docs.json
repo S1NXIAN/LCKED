@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://proton.me/support/pass-family-user-guide",
+    "name": "Pass Family user guide | Proton",
+    "snippet": "Using Proton Pass Pass Family allows you to securely save, share, and autofill your passwords easily, as well as create shared vaults with your family. Missing: documentation | Show results with: documentation",
+    "host_name": "proton.me",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/proton-pass-for-business-user-guide",
+    "name": "How to use Proton Pass for Business",
+    "snippet": "In this guide, we go over how to get started with Proton Pass for Business. Note that we have a separate guide for administrators that goes over how to set ... Missing: documentation | Show results with: documentation",
+    "host_name": "proton.me",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/pass",
+    "name": "Proton Pass: Free password manager with identity protection",
+    "snippet": "Free · Security Proton Pass is a real password manager that does much more: you can organize your logins and passwords into vaults and share passwords with secure links.",
+    "host_name": "proton.me",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=bdgqNZkCGpE",
+    "name": "How to Manage Proton Pass Vaults Full Guide 2026 - YouTube",
+    "snippet": "Learn how to manage Proton Pass vaults with this complete 2026 guide. This step-by-step tutorial explains how to create, organize, edit, ... Missing: documentation | Show results with: documentation",
+    "host_name": "www.youtube.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/pass/using-proton-pass",
+    "name": "Using Proton Pass",
+    "snippet": "In this support article, we show you how to add custom Text, 2FA secret (TOTP), or Hidden fields to Login items on Proton Pass.",
+    "host_name": "proton.me",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=Klnm4sKxE44",
+    "name": "How to Use Proton Pass (Free Password Manager Tutorial)",
+    "snippet": "... Proton Pass, a free password manager that goes beyond just storing passwords to help protect your privacy online. You'll see how to: • Set up ... Missing: documentation | Show results with: documentation",
+    "host_name": "www.youtube.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/pass-vault",
+    "name": "What is a vault in Proton Pass?",
+    "snippet": "A vault in Proton Pass is an encrypted digital container that contains your items. An item can be a login, an alias, a secured note. Missing: documentation | Show results with: documentation",
+    "host_name": "proton.me",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://protonpass.github.io/pass-cli/?ref=pme_lp_b2c_pass_submenu",
+    "name": "Overview - Proton Pass CLI documentation",
+    "snippet": "The Proton Pass CLI is a command-line interface for managing your Proton Pass vaults, items, and secrets. create, list, view, and delete vaults and items ...",
+    "host_name": "protonpass.github.io",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/blog/pass-access-tokens",
+    "name": "Proton Pass: A password manager for AI agents",
+    "snippet": "Proton Pass vaults are encrypted digital containers for your items, such as logins, aliases, and credit card details. You can assign items to ... Missing: documentation | Show results with: documentation",
+    "host_name": "proton.me",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/business/blog/password-manager-adoption",
+    "name": "Improving password manager adoption for teams - Proton",
+    "snippet": "Learn how to improve password manager adoption with rollout steps, onboarding tips, and policies your team can actually follow.",
+    "host_name": "proton.me",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

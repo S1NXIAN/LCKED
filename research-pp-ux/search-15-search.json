@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://www.reddit.com/r/ProtonPass/comments/1ia34bk/sorting_proton_pass_entries_az",
+    "name": "Sorting Proton Pass entries A-Z : r/ProtonPass - Reddit",
+    "snippet": "Proton Pass has the sort by default as \"Recent\", just click on it and change to any of the other options (in your case, AZ would be \"Alphabetical\"). Organise items by type? Organising Items More results from www.reddit.com Missing: favorites | Show results with: favorites",
+    "host_name": "www.reddit.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://protonmail.uservoice.com/forums/953584-proton-pass-authenticator/suggestions/49879779-persistent-separate-sorting-options-for-each-vaul",
+    "name": "Persistent, separate sorting options for each vault",
+    "snippet": "A great improvement would be allowing each vault to keep its own sorting preference, saved separately and persistently. Categories - The Voice of the Proton Community - UserVoice Tags to organize entries - The Voice of the Proton Community - UserVoice More results from protonmail.uservoice.com",
+    "host_name": "protonmail.uservoice.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/mail/using-mail/search-organize-emails",
+    "name": "Search and organize emails - Proton",
+    "snippet": "With Proton Mail, you can use custom filters to automate recurring actions and organize your inbox. This article teaches you how. Missing: favorites items",
+    "host_name": "proton.me",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/use-pass-web",
+    "name": "How to use the Proton Pass web app",
+    "snippet": "In the web app, you need to click the Create item button next to the search bar and then select the type of item you want to create. You create items by filling ... Missing: filter favorites",
+    "host_name": "proton.me",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=SlUQMJzwYLo",
+    "name": "How to Organize Passwords in Proton Pass Full Guide 2026 - YouTube",
+    "snippet": "... Proton Pass. Learn how to use vaults, labels, folders, search tools, and sorting features to keep your accounts organized and easy to access ...",
+    "host_name": "www.youtube.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/how-to-use-proton-pass-desktop-app",
+    "name": "How to use the Proton Pass desktop app",
+    "snippet": "To add new items, click + next to the search bar and select the type of item you want to create. You create items by filling out the information in the ...",
+    "host_name": "proton.me",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/sieve-advanced-custom-filters",
+    "name": "Sieve filter (advanced custom filters) - Proton",
+    "snippet": "Proton Mail offers the ability to automatically filter emails by assigning tags or sorting them into folders using the Sieve programming language.",
+    "host_name": "proton.me",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/using-folders-labels",
+    "name": "Folders and labels | Proton",
+    "snippet": "Search and organize emails ... Folders are where your messages get stored, and labels are a way of tagging your messages to make them easier to search and filter. Missing: favorites | Show results with: favorites",
+    "host_name": "proton.me",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/email-inbox-filters",
+    "name": "How to use email filters - Proton",
+    "snippet": "You can change the order of your filters by clicking on the hamburger icon (4 bars) on the left and dragging them. Spam filters. While Proton Mail offers smart ... Missing: favorites | Show results with: favorites",
+    "host_name": "proton.me",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.facebook.com/Proton/posts/in-addition-to-self-destructing-emails-httpsprotonmesupportexpiration-there-are-/711437037854842",
+    "name": "In addition to self-destructing emails (https://proton.me/support/expiration",
+    "snippet": "Hi! You can manage message expiration with sieve filters. You can find out more about this at: https://proton. me/support/sieve- ...",
+    "host_name": "www.facebook.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

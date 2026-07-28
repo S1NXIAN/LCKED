@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://www.reddit.com/r/ProtonPass/comments/1u33lh0/hiding_the_password_when_entering",
+    "name": "Hiding the password when entering?? : r/ProtonPass - Reddit",
+    "snippet": "classic little eye button next to the password field … keeps the password as dots while I enter it and then allows me to copy the hidden text ... Password item in Pass (storing just passwords without login) - Reddit Important information stuck in ProtonPass's Hidden Field More results from www.reddit.com",
+    "host_name": "www.reddit.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/pass-custom-field",
+    "name": "How to create custom fields on Proton Pass",
+    "snippet": "In this support article, we show you how to add custom Text, 2FA secret (TOTP), or Hidden fields to Login items on Proton Pass. Missing: panel reveal copy dots\n1. Open the Proton Pass app on your Android device and either create a new Login item or edit an existing one. 2. Scroll down to the bottom, and tap + Add field ... Missing: panel reveal copy",
+    "host_name": "proton.me",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/pass/using-proton-pass",
+    "name": "Using Proton Pass",
+    "snippet": "In this support article, we show you how to add custom Text, 2FA secret (TOTP), or Hidden fields to Login items on Proton Pass. Missing: panel copy dots\nProton Pass doesn't allow you to share a password without revealing it, but there are other ways to grant controlled access to your logins. Support. Proton Pass. Missing: panel copy",
+    "host_name": "proton.me",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.bitwarden.com/t/password-all-dots/32604",
+    "name": "Password all dots - Bitwarden Community Forums",
+    "snippet": "When I copy the password, it is all dots. Not hidden, but the actual password is all dots. I tested this multiple times. This hasn't happened ...",
+    "host_name": "community.bitwarden.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/use-pass-web",
+    "name": "How to use the Proton Pass web app",
+    "snippet": "The pane on the right shows you the details of a selected item. You can also add hidden or custom fields to every entry. Missing: panel reveal",
+    "host_name": "proton.me",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/how-to-use-pass-monitor",
+    "name": "How to use Pass Monitor - Proton",
+    "snippet": "Pass Monitor(new window) is a security feature in Proton Pass that scans the dark web for credential leaks, checks on the health of your passwords,",
+    "host_name": "proton.me",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/shorts/D7Uo7pzzVy8",
+    "name": "Proton Pass iOS Hidden Features - Part 1 - YouTube",
+    "snippet": "Part 1: Proton Pass iOS Hidden Features Follow for part 2! #youtubetech #privacy #password Proton is #privacy you can trust.",
+    "host_name": "www.youtube.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://protonmail.uservoice.com/forums/953584-proton-pass-authenticator/suggestions/50739062-option-to-hide-some-elements",
+    "name": "Option to hide some elements - The Voice of the Proton Community",
+    "snippet": "I would like to have an option to prevent elements (logins, aliases etc.) to be visible in the central \"recent\" panel.",
+    "host_name": "protonmail.uservoice.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/use-pass-android",
+    "name": "How to use Proton Pass on Android",
+    "snippet": "Open the Proton Pass app, select the correct login item, and tap the Username or email address field. The username will be copied to your clipboard. Copy your ... Missing: panel reveal dots",
+    "host_name": "proton.me",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/shorts/Yz2bZ9j-giM",
+    "name": "How to View Hidden Password Behind Asterix or Dots - YouTube",
+    "snippet": "This video shows you how to reveal the hidden password behind asterisks by using the inspect element in the developer control panel. Missing: Proton Pass field",
+    "host_name": "www.youtube.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://proton.me/support/pass-email-alias",
+    "name": "Hide-my-email aliases - Proton",
+    "snippet": "Tap the + button at the bottom right of the screen. · Tap the Username field, then select Hide my email ...",
+    "host_name": "proton.me",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/ProtonPass/comments/1g5xrdl/syncing_aliases_between_proton_pass_and",
+    "name": "Syncing aliases between Proton Pass and Simplelogin is now available!",
+    "snippet": "Soon, you'll be able to manage custom domains and additional mailboxes, as well as send emails from Proton Pass hide-my-email aliases. Let us ... Simple login vs baked in hide-my-email : r/ProtonMail - Reddit Creating aliases directly in Proton Pass vs. SimpleLogin - Reddit More results from www.reddit.com Missing: passkey | Show results with: passkey",
+    "host_name": "www.reddit.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/blog/pass-plus-simplelogin-premium-feature",
+    "name": "Proton Pass Plus now includes SimpleLogin premium features",
+    "snippet": "Make sure you use the same email address that you log into your SimpleLogin account with, so the aliases sync automatically out of the box. You ... Missing: passkey | Show results with: passkey",
+    "host_name": "proton.me",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/pass/aliases",
+    "name": "Hide-my-email aliases help protect your identity - Proton",
+    "snippet": "Hide-my-email aliases protect your email address from being leaked in data breaches and exposed to scammers. Available on all devices with Proton Pass.",
+    "host_name": "proton.me",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/aliases-mail",
+    "name": "Create Hide-my-email aliases in Proton Mail",
+    "snippet": "Hide-my-email aliases let you receive emails from websites without them knowing your primary email address. This makes it easier to protect your online ... Missing: integration | Show results with: integration",
+    "host_name": "proton.me",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://discuss.privacyguides.net/t/proton-pass-and-simplelogin-are-separate-services/30706",
+    "name": "Proton Pass and SimpleLogin are separate services - Off Topic",
+    "snippet": "Transferring Proton Pass aliases to a new Proton Pass account is only possible via SimpleLogin, which is an impractical workaround.",
+    "host_name": "discuss.privacyguides.net",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/create-simplelogin-account-proton-account",
+    "name": "How to create a SimpleLogin account using a Proton Account",
+    "snippet": "If you accept, we'll redirect you to the SimpleLogin dashboard, where you can start creating new hide-my-email aliases, adding catch-all subdomains, and more. Missing: passkey | Show results with: passkey",
+    "host_name": "proton.me",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://discuss.techlore.tech/t/protect-your-identity-with-hide-my-email-aliases-in-proton-mail/7588",
+    "name": "Protect your identity with hide-my-email aliases in Proton Mail",
+    "snippet": "With hide-my-email aliases, you can keep your email address private, avoid data breaches and prevent phishing or spam emails.",
+    "host_name": "discuss.techlore.tech",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://protonmail.uservoice.com/forums/284483-proton-mail-calendar/suggestions/46553482-simplelogin-seamless-integration-for-email-alias-r",
+    "name": "SimpleLogin seamless integration for email alias reverse-alias usage",
+    "snippet": "Just look at Apple's “Hide my email” feature for how integration should really work instead of Proton's kludgy style. IMHO, Proton has provided ...",
+    "host_name": "protonmail.uservoice.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/link-simplelogin-account-proton-account",
+    "name": "How to connect an existing SimpleLogin account to a Proton",
+    "snippet": "If you accept, we'll redirect you to the SimpleLogin dashboard, where you can start creating new hide-my-email aliases, adding catch-all subdomains, and more.",
+    "host_name": "proton.me",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

@@ -1,0 +1,34 @@
+[
+  {
+    "name": "pass-breakpoints.scss",
+    "path": "packages/styles/scss/pass/pass-breakpoints.scss",
+    "sha": "9d4fdf6eaedd02c829faf7f029e568455c38b9aa",
+    "size": 187,
+    "url": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/pass/pass-breakpoints.scss?ref=main",
+    "html_url": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/pass/pass-breakpoints.scss",
+    "git_url": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/9d4fdf6eaedd02c829faf7f029e568455c38b9aa",
+    "download_url": "https://raw.githubusercontent.com/ProtonMail/WebClients/main/packages/styles/scss/pass/pass-breakpoints.scss",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/pass/pass-breakpoints.scss?ref=main",
+      "git": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/9d4fdf6eaedd02c829faf7f029e568455c38b9aa",
+      "html": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/pass/pass-breakpoints.scss"
+    }
+  },
+  {
+    "name": "pass-lib.scss",
+    "path": "packages/styles/scss/pass/pass-lib.scss",
+    "sha": "07ff16d677c5b0ff3628af175f20139fa0c52832",
+    "size": 259,
+    "url": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/pass/pass-lib.scss?ref=main",
+    "html_url": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/pass/pass-lib.scss",
+    "git_url": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/07ff16d677c5b0ff3628af175f20139fa0c52832",
+    "download_url": "https://raw.githubusercontent.com/ProtonMail/WebClients/main/packages/styles/scss/pass/pass-lib.scss",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/pass/pass-lib.scss?ref=main",
+      "git": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/07ff16d677c5b0ff3628af175f20139fa0c52832",
+      "html": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/pass/pass-lib.scss"
+    }
+  }
+]

@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://www.reddit.com/r/ProtonPass/comments/1ia34bk/sorting_proton_pass_entries_az",
+    "name": "Sorting Proton Pass entries A-Z : r/ProtonPass - Reddit",
+    "snippet": "Proton Pass has the sort by default as \"Recent\", just click on it and change to any of the other options (in your case, AZ would be \"Alphabetical\"). Sidebar on iPad, tags, and broader alias provider support : r/ProtonPass Is it possible to show the items (login, alias, card) in the sidebar? - Reddit More results from www.reddit.com Missing: layout panel",
+    "host_name": "www.reddit.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/use-pass-web",
+    "name": "How to use the Proton Pass web app",
+    "snippet": "The web app has three panes that let you control different aspects. On the left side, you can access your different vaults. In the middle section, you can find ... Missing: column | Show results with: column\nThe web app has three panes that let you control different aspects. On the left side, you can access your different vaults. In the middle section, you can find ... Missing: layout sidebar panel",
+    "host_name": "proton.me",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/pass/using-proton-pass",
+    "name": "Using Proton Pass",
+    "snippet": "In this support article, we show you how to add custom Text, 2FA secret (TOTP), or Hidden fields to Login items on Proton Pass. Missing: sidebar panel three column\nIn this support article, we show you how to add custom Text, 2FA secret (TOTP), or Hidden fields to Login items on Proton Pass. Missing: sidebar | Show results with: sidebar",
+    "host_name": "proton.me",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://protonmail.uservoice.com/forums/953584-proton-pass-authenticator/suggestions/50787752--recovery-codes-item-type",
+    "name": "“Recovery Codes” Item Type - The Voice of the Proton Community",
+    "snippet": "A dedicated item would let the codes be displayed side-by-side in multiple columns, which fits them much better since they're short and usually ... Missing: panel three",
+    "host_name": "protonmail.uservoice.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=bdgqNZkCGpE",
+    "name": "How to Manage Proton Pass Vaults Full Guide 2026 - YouTube",
+    "snippet": "Learn how to manage Proton Pass vaults with this complete 2026 guide. This step-by-step tutorial explains how to create, organize, edit, ... Missing: layout sidebar panel column",
+    "host_name": "www.youtube.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/pass-vault",
+    "name": "What is a vault in Proton Pass?",
+    "snippet": "A vault in Proton Pass is an encrypted digital container that contains your items. An item can be a login, an alias, a secured note. Missing: sidebar panel column\nA vault in Proton Pass is an encrypted digital container that contains your items. An item can be a login, an alias, a secured note. Missing: sidebar | Show results with: sidebar",
+    "host_name": "proton.me",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/pass-family-user-guide",
+    "name": "Pass Family user guide | Proton",
+    "snippet": "Pass Family allows you to securely save, share, and autofill your passwords easily, as well as create shared vaults with your family. Missing: sidebar panel column",
+    "host_name": "proton.me",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/pass-share-vault",
+    "name": "How to share a vault - Proton",
+    "snippet": "Open the Proton Pass app, select the desired vault → click on the three vertical dots (⋮) next to the vault you'd like to share → Share. Missing: sidebar panel column",
+    "host_name": "proton.me",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proton.me/support/pass-custom-field",
+    "name": "How to create custom fields on Proton Pass",
+    "snippet": "2. Scroll down to the bottom, click + Add more, and ...",
+    "host_name": "proton.me",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=SlUQMJzwYLo",
+    "name": "How to Organize Passwords in Proton Pass Full Guide 2026 - YouTube",
+    "snippet": "... Proton Pass. Learn how to use vaults, labels, folders, search tools, and sorting features to keep your accounts organized and easy to access.",
+    "host_name": "www.youtube.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

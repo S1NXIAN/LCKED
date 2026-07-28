@@ -1,0 +1,226 @@
+[
+  {
+    "name": "_active-breakpoint.scss",
+    "path": "packages/styles/scss/base/_active-breakpoint.scss",
+    "sha": "0afa5370b17056155c8aced7d7a0476b8158dce3",
+    "size": 429,
+    "url": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_active-breakpoint.scss?ref=main",
+    "html_url": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_active-breakpoint.scss",
+    "git_url": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/0afa5370b17056155c8aced7d7a0476b8158dce3",
+    "download_url": "https://raw.githubusercontent.com/ProtonMail/WebClients/main/packages/styles/scss/base/_active-breakpoint.scss",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_active-breakpoint.scss?ref=main",
+      "git": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/0afa5370b17056155c8aced7d7a0476b8158dce3",
+      "html": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_active-breakpoint.scss"
+    }
+  },
+  {
+    "name": "_fonts.scss",
+    "path": "packages/styles/scss/base/_fonts.scss",
+    "sha": "05caed750ae786b384b6cf2305e1b68fc21f5fbe",
+    "size": 4476,
+    "url": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_fonts.scss?ref=main",
+    "html_url": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_fonts.scss",
+    "git_url": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/05caed750ae786b384b6cf2305e1b68fc21f5fbe",
+    "download_url": "https://raw.githubusercontent.com/ProtonMail/WebClients/main/packages/styles/scss/base/_fonts.scss",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_fonts.scss?ref=main",
+      "git": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/05caed750ae786b384b6cf2305e1b68fc21f5fbe",
+      "html": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_fonts.scss"
+    }
+  },
+  {
+    "name": "_index.scss",
+    "path": "packages/styles/scss/base/_index.scss",
+    "sha": "af90a303d897ae94f201d4d1a1cf15d47323cc73",
+    "size": 313,
+    "url": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_index.scss?ref=main",
+    "html_url": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_index.scss",
+    "git_url": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/af90a303d897ae94f201d4d1a1cf15d47323cc73",
+    "download_url": "https://raw.githubusercontent.com/ProtonMail/WebClients/main/packages/styles/scss/base/_index.scss",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_index.scss?ref=main",
+      "git": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/af90a303d897ae94f201d4d1a1cf15d47323cc73",
+      "html": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_index.scss"
+    }
+  },
+  {
+    "name": "_init.scss",
+    "path": "packages/styles/scss/base/_init.scss",
+    "sha": "eae44cb10ab9b7be1a9a3f5b6250d78eb37a8b08",
+    "size": 3614,
+    "url": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_init.scss?ref=main",
+    "html_url": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_init.scss",
+    "git_url": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/eae44cb10ab9b7be1a9a3f5b6250d78eb37a8b08",
+    "download_url": "https://raw.githubusercontent.com/ProtonMail/WebClients/main/packages/styles/scss/base/_init.scss",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_init.scss?ref=main",
+      "git": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/eae44cb10ab9b7be1a9a3f5b6250d78eb37a8b08",
+      "html": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_init.scss"
+    }
+  },
+  {
+    "name": "_interactive.scss",
+    "path": "packages/styles/scss/base/_interactive.scss",
+    "sha": "9e133c5b5c17f5a2e09ea27758496a45a76ab48c",
+    "size": 3887,
+    "url": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_interactive.scss?ref=main",
+    "html_url": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_interactive.scss",
+    "git_url": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/9e133c5b5c17f5a2e09ea27758496a45a76ab48c",
+    "download_url": "https://raw.githubusercontent.com/ProtonMail/WebClients/main/packages/styles/scss/base/_interactive.scss",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_interactive.scss?ref=main",
+      "git": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/9e133c5b5c17f5a2e09ea27758496a45a76ab48c",
+      "html": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_interactive.scss"
+    }
+  },
+  {
+    "name": "_media.scss",
+    "path": "packages/styles/scss/base/_media.scss",
+    "sha": "154b7926bee06e74cb8341e0fa4b74a9788f5c3c",
+    "size": 1387,
+    "url": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_media.scss?ref=main",
+    "html_url": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_media.scss",
+    "git_url": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/154b7926bee06e74cb8341e0fa4b74a9788f5c3c",
+    "download_url": "https://raw.githubusercontent.com/ProtonMail/WebClients/main/packages/styles/scss/base/_media.scss",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_media.scss?ref=main",
+      "git": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/154b7926bee06e74cb8341e0fa4b74a9788f5c3c",
+      "html": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_media.scss"
+    }
+  },
+  {
+    "name": "_reset.scss",
+    "path": "packages/styles/scss/base/_reset.scss",
+    "sha": "d1afbfe0eff3a5b376937b6fc8bee50093657b95",
+    "size": 3954,
+    "url": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_reset.scss?ref=main",
+    "html_url": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_reset.scss",
+    "git_url": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/d1afbfe0eff3a5b376937b6fc8bee50093657b95",
+    "download_url": "https://raw.githubusercontent.com/ProtonMail/WebClients/main/packages/styles/scss/base/_reset.scss",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_reset.scss?ref=main",
+      "git": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/d1afbfe0eff3a5b376937b6fc8bee50093657b95",
+      "html": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_reset.scss"
+    }
+  },
+  {
+    "name": "_safari16-font-fix.scss",
+    "path": "packages/styles/scss/base/_safari16-font-fix.scss",
+    "sha": "f2d1ce30f5e0564bb8b6d64fc5cb511eb0f91dad",
+    "size": 52,
+    "url": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_safari16-font-fix.scss?ref=main",
+    "html_url": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_safari16-font-fix.scss",
+    "git_url": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/f2d1ce30f5e0564bb8b6d64fc5cb511eb0f91dad",
+    "download_url": "https://raw.githubusercontent.com/ProtonMail/WebClients/main/packages/styles/scss/base/_safari16-font-fix.scss",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_safari16-font-fix.scss?ref=main",
+      "git": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/f2d1ce30f5e0564bb8b6d64fc5cb511eb0f91dad",
+      "html": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_safari16-font-fix.scss"
+    }
+  },
+  {
+    "name": "_scrollbar.scss",
+    "path": "packages/styles/scss/base/_scrollbar.scss",
+    "sha": "3322d4fb35255099ed8b4b2e729c884b9fa4640f",
+    "size": 1259,
+    "url": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_scrollbar.scss?ref=main",
+    "html_url": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_scrollbar.scss",
+    "git_url": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/3322d4fb35255099ed8b4b2e729c884b9fa4640f",
+    "download_url": "https://raw.githubusercontent.com/ProtonMail/WebClients/main/packages/styles/scss/base/_scrollbar.scss",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_scrollbar.scss?ref=main",
+      "git": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/3322d4fb35255099ed8b4b2e729c884b9fa4640f",
+      "html": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_scrollbar.scss"
+    }
+  },
+  {
+    "name": "_typo.scss",
+    "path": "packages/styles/scss/base/_typo.scss",
+    "sha": "a9183c63e9e8b5f81241d7f1472eb5ef93d4047d",
+    "size": 1040,
+    "url": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_typo.scss?ref=main",
+    "html_url": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_typo.scss",
+    "git_url": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/a9183c63e9e8b5f81241d7f1472eb5ef93d4047d",
+    "download_url": "https://raw.githubusercontent.com/ProtonMail/WebClients/main/packages/styles/scss/base/_typo.scss",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_typo.scss?ref=main",
+      "git": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/a9183c63e9e8b5f81241d7f1472eb5ef93d4047d",
+      "html": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_typo.scss"
+    }
+  },
+  {
+    "name": "_ui-regions.scss",
+    "path": "packages/styles/scss/base/_ui-regions.scss",
+    "sha": "59e4315df044d4ac5db75a1b6d7d218a53479647",
+    "size": 320,
+    "url": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_ui-regions.scss?ref=main",
+    "html_url": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_ui-regions.scss",
+    "git_url": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/59e4315df044d4ac5db75a1b6d7d218a53479647",
+    "download_url": "https://raw.githubusercontent.com/ProtonMail/WebClients/main/packages/styles/scss/base/_ui-regions.scss",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_ui-regions.scss?ref=main",
+      "git": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/59e4315df044d4ac5db75a1b6d7d218a53479647",
+      "html": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_ui-regions.scss"
+    }
+  },
+  {
+    "name": "_viewport.scss",
+    "path": "packages/styles/scss/base/_viewport.scss",
+    "sha": "79b69d05f180980a7ac47a2b316b5544f5e66f21",
+    "size": 898,
+    "url": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_viewport.scss?ref=main",
+    "html_url": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_viewport.scss",
+    "git_url": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/79b69d05f180980a7ac47a2b316b5544f5e66f21",
+    "download_url": "https://raw.githubusercontent.com/ProtonMail/WebClients/main/packages/styles/scss/base/_viewport.scss",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/_viewport.scss?ref=main",
+      "git": "https://api.github.com/repos/ProtonMail/WebClients/git/blobs/79b69d05f180980a7ac47a2b316b5544f5e66f21",
+      "html": "https://github.com/ProtonMail/WebClients/blob/main/packages/styles/scss/base/_viewport.scss"
+    }
+  },
+  {
+    "name": "custom-properties",
+    "path": "packages/styles/scss/base/custom-properties",
+    "sha": "d5b334ac625606c7b273a3bfdc1948c5b94dba62",
+    "size": 0,
+    "url": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/custom-properties?ref=main",
+    "html_url": "https://github.com/ProtonMail/WebClients/tree/main/packages/styles/scss/base/custom-properties",
+    "git_url": "https://api.github.com/repos/ProtonMail/WebClients/git/trees/d5b334ac625606c7b273a3bfdc1948c5b94dba62",
+    "download_url": null,
+    "type": "dir",
+    "_links": {
+      "self": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/custom-properties?ref=main",
+      "git": "https://api.github.com/repos/ProtonMail/WebClients/git/trees/d5b334ac625606c7b273a3bfdc1948c5b94dba62",
+      "html": "https://github.com/ProtonMail/WebClients/tree/main/packages/styles/scss/base/custom-properties"
+    }
+  },
+  {
+    "name": "forms",
+    "path": "packages/styles/scss/base/forms",
+    "sha": "d7d3d46175cc2a33be08065497ebebfe2e3b13fc",
+    "size": 0,
+    "url": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/forms?ref=main",
+    "html_url": "https://github.com/ProtonMail/WebClients/tree/main/packages/styles/scss/base/forms",
+    "git_url": "https://api.github.com/repos/ProtonMail/WebClients/git/trees/d7d3d46175cc2a33be08065497ebebfe2e3b13fc",
+    "download_url": null,
+    "type": "dir",
+    "_links": {
+      "self": "https://api.github.com/repos/ProtonMail/WebClients/contents/packages/styles/scss/base/forms?ref=main",
+      "git": "https://api.github.com/repos/ProtonMail/WebClients/git/trees/d7d3d46175cc2a33be08065497ebebfe2e3b13fc",
+      "html": "https://github.com/ProtonMail/WebClients/tree/main/packages/styles/scss/base/forms"
+    }
+  }
+]
