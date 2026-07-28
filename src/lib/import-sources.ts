@@ -31,13 +31,8 @@ export interface ImportSource {
 
 export const IMPORT_SOURCES: ImportSource[] = [
   { id: "bitwarden", label: "Bitwarden", icon: "/icons/pm/bitwarden.png", hint: "JSON / CSV" },
-  { id: "1password", label: "1Password", icon: "/icons/pm/1password.png", hint: "CSV" },
   { id: "chrome", label: "Chrome", icon: "/icons/pm/chrome.png", hint: "CSV" },
   { id: "firefox", label: "Firefox", icon: "/icons/pm/firefox.png", hint: "CSV" },
   { id: "proton-pass", label: "Proton Pass", icon: "/icons/pm/proton-pass.png", hint: "CSV" },
-  { id: "safari", label: "Safari", icon: "/icons/pm/safari.png", hint: "CSV" },
-  { id: "microsoft-edge", label: "Microsoft Edge", icon: "/icons/pm/microsoft-edge.png", hint: "CSV" },
-  { id: "lastpass", label: "LastPass", icon: "/icons/pm/lastpass.png", hint: "CSV" },
-  { id: "keeper-security", label: "Keeper", icon: "/icons/pm/keeper-security.png", hint: "CSV" },
   { id: "keepassxc", label: "KeePassXC", icon: "/icons/pm/keepassxc.png", hint: "XML" },
 ];

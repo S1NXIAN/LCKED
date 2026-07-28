@@ -855,7 +855,7 @@ function ImportTab() {
         </h2>
         <p className="text-xs text-muted-foreground">
           Click your previous provider to choose an export file. Supported formats:
-          Bitwarden <span className="text-foreground/80">JSON / CSV</span>, 1Password / Chrome / Firefox / Safari / Edge / LastPass / Keeper / Proton Pass <span className="text-foreground/80">CSV</span>, KeePassXC <span className="text-foreground/80">XML</span>. LCKED auto-detects the format.
+          Bitwarden <span className="text-foreground/80">JSON / CSV</span>, Chrome / Firefox / Proton Pass <span className="text-foreground/80">CSV</span>, KeePassXC <span className="text-foreground/80">XML</span>. LCKED auto-detects the format.
         </p>
       </header>
 

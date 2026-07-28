@@ -156,7 +156,7 @@ export function ImportExportDialog() {
                   {file ? file.name : "Choose a file to import"}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Bitwarden (JSON/CSV), 1Password (CSV), Proton Pass (CSV)
+                  Bitwarden (JSON/CSV), Chrome (CSV), Firefox (CSV), Proton Pass (CSV), KeePassXC (XML)
                 </div>
               </div>
               <input
