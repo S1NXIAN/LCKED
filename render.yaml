@@ -6,7 +6,7 @@
 #   1. Push this repo to GitHub
 #   2. In Render: New → Blueprint → select this repo
 #   3. Render reads render.yaml and creates the service
-#   4. Set environment variables in Render dashboard (see .env.example)
+#   4. (Optional) Set environment variables in Render dashboard
 #
 # The app is a local-first password manager — all encryption happens in
 # the browser (Web Crypto API). The server only serves static files +
@@ -17,28 +17,29 @@ services:
     name: lcked
     runtime: node
     plan: free
-    # Build command: install deps + build the Next.js standalone output
+    # Node.js version — must be 20+ for Next.js 16
+    nodeVersion: "20.0.0"
+    # Build: install deps + build the Next.js standalone output
     buildCommand: npm install && npm run build
-    # Start command: run the standalone Node.js server (no bun needed)
-    startCommand: node .next/standalone/server.js
-    # Health check (Render pings this to confirm the app is up)
+    # Start: run the standalone Node.js server.
+    # HOSTNAME=0.0.0.0 is REQUIRED so Render's proxy can reach the server
+    # (otherwise Node listens on localhost and Render gets 502).
+    # PORT is set automatically by Render.
+    startCommand: HOSTNAME=0.0.0.0 node .next/standalone/server.js
+    # Health check — Render pings / to confirm the app is up
     healthCheckPath: /
+    healthCheckGracePeriod: 60
     # Auto-deploy on push to main
     autoDeploy: true
-    # Environment variables — set these in the Render dashboard
+    # Environment variables
     envVars:
-      # The app runs fully client-side; no server DB needed.
-      # Firebase is OPTIONAL — only needed for cloud sync.
       - key: NODE_ENV
         value: production
+      - key: HOSTNAME
+        value: 0.0.0.0
+      # Optional: Google OAuth (cloud sync)
       - key: NEXT_PUBLIC_GOOGLE_CLIENT_ID
         sync: false
-        # Required only if you want Google OAuth cloud sync.
-        # Set in Render dashboard → Environment.
+      # Optional: Firebase service account (cloud sync)
       - key: FIREBASE_SERVICE_ACCOUNT
         sync: false
-        # Required only if you want cloud sync.
-        # Paste the full JSON service account key as a single line.
-        # Set in Render dashboard → Environment.
-    # Render sets PORT automatically. The standalone server.js
-    # listens on process.env.PORT || 3000, so no config needed.
