@@ -9,6 +9,7 @@ import {
   Square,
   X,
   FolderInput,
+  FolderMinus,
   ChevronDown,
   ArrowUpDown,
   LayoutGrid,
@@ -70,6 +71,7 @@ import type { FilterType, ItemType, VaultItem } from "@/lib/types";
 import { ItemTypeIcon, ITEM_TYPE_LABELS, ITEM_TYPE_ICONS, ITEM_TYPE_COLORS } from "./item-icons";
 import { DiamondMark } from "./diamond-mark";
 import { FaviconIcon } from "./favicon-icon";
+import { VaultIcon } from "./vaults-sidebar";
 import { stashNewItemType } from "./new-item-stash";
 
 /* ------------------------------- helpers ------------------------------- */
@@ -178,6 +180,8 @@ export function ItemList({
   const restoreItem = useVault((s) => s.restoreItem);
   const permanentlyDeleteItem = useVault((s) => s.permanentlyDeleteItem);
   const moveItemToVault = useVault((s) => s.moveItemToVault);
+  const addItemToVault = useVault((s) => s.addItemToVault);
+  const removeItemFromVault = useVault((s) => s.removeItemFromVault);
   const toggleFavorite = useVault((s) => s.toggleFavorite);
   const togglePin = useVault((s) => s.togglePin);
   const sortFavoritesFirst = useVault((s) => s.settings.sortFavoritesFirst);
@@ -627,6 +631,8 @@ export function ItemList({
                               isTrashView={isTrashView}
                               hoverItemActions={hoverItemActions}
                               blurEmailMode={blurEmailMode}
+                              activeVaultId={activeVault}
+                              vaults={vaults}
                               // In multi-select mode, dragging a SELECTED row
                               // carries ALL selected IDs. Dragging an unselected
                               // row carries just its own id (single-item drag).
@@ -656,6 +662,16 @@ export function ItemList({
                               onTrash={() =>
                                 trashItem(item.id).then(() =>
                                   toast.success("Moved to Trash"),
+                                )
+                              }
+                              onRemoveFromVault={(vaultId) =>
+                                removeItemFromVault(item.id, vaultId).then(() =>
+                                  toast.success(`Removed from ${vaults.find((v) => v.id === vaultId)?.name ?? "vault"}`),
+                                )
+                              }
+                              onAddToVault={(vaultId) =>
+                                addItemToVault(item.id, vaultId).then(() =>
+                                  toast.success(`Added to ${vaults.find((v) => v.id === vaultId)?.name ?? "vault"}`),
                                 )
                               }
                             />
@@ -716,6 +732,8 @@ function ItemRow({
   isTrashView,
   hoverItemActions,
   blurEmailMode,
+  activeVaultId,
+  vaults,
   dragIds,
   onPick,
   onToggleSelected,
@@ -726,6 +744,8 @@ function ItemRow({
   onTogglePin,
   onEdit,
   onTrash,
+  onRemoveFromVault,
+  onAddToVault,
 }: {
   item: VaultItem;
   active: boolean;
@@ -734,6 +754,11 @@ function ItemRow({
   isTrashView: boolean;
   hoverItemActions: boolean;
   blurEmailMode: "off" | "hover" | "full";
+  /** The current vault filter id ("all" | "favorites" | "trash" | vaultId).
+   *  Used to decide whether to show "Remove from this vault". */
+  activeVaultId: string;
+  /** All user-defined vaults — for the "Add to vault" submenu. */
+  vaults: { id: string; name: string; icon: string; color: string }[];
   /** IDs to move when this row is dragged. In multi-select mode, if this row
    *  is selected, ALL selected IDs are moved. If not selected, just this one
    *  (and it's added to the selection first). Single-select: just this id. */
@@ -747,6 +772,11 @@ function ItemRow({
   onTogglePin: () => void;
   onEdit: () => void;
   onTrash: () => void;
+  /** Remove the item from the currently-viewed vault (multi-vault: keeps it
+   *  in any other vaults it belongs to). NOT a delete. */
+  onRemoveFromVault: (vaultId: string) => void;
+  /** Add the item to another vault (multi-vault membership). */
+  onAddToVault: (vaultId: string) => void;
 }) {
   // Per-item context menu — wraps the button so left-click still picks the
   // item, and right-click opens the context menu with copy/edit/etc.
@@ -919,6 +949,62 @@ function ItemRow({
           <Pencil className="h-3.5 w-3.5" />
           Edit
         </ContextMenuItem>
+        {/* Multi-vault actions — only show when not in trash/all/favorites.
+            "Add to vault" lets you add the item to MORE vaults (it stays in
+            its current ones). "Remove from this vault" takes it out of the
+            currently-viewed vault only — the item is NOT deleted; it stays in
+            any other vaults it belongs to (or All Items if none remain). */}
+        {!isTrashView && activeVaultId !== "all" && activeVaultId !== "favorites" && vaults.length > 0 && (
+          <>
+            <ContextMenuSeparator />
+            {/* Add to vault — shows vaults the item is NOT yet a member of. */}
+            {vaults.filter((v) => !item.vaultIds.includes(v.id)).length > 0 && (
+              <ContextMenuSub>
+                <ContextMenuSubTrigger>
+                  <Plus className="h-3.5 w-3.5" />
+                  Add to vault
+                </ContextMenuSubTrigger>
+                <ContextMenuSubContent className="w-48">
+                  {vaults.filter((v) => !item.vaultIds.includes(v.id)).map((v) => (
+                    <ContextMenuItem key={v.id} onSelect={() => onAddToVault(v.id)}>
+                      <VaultIcon icon={v.icon} color={v.color} size={16} />
+                      <span className="truncate">{v.name}</span>
+                    </ContextMenuItem>
+                  ))}
+                </ContextMenuSubContent>
+              </ContextMenuSub>
+            )}
+            {/* Remove from this vault — only when the item IS in this vault. */}
+            {item.vaultIds.includes(activeVaultId) && (
+              <ContextMenuItem onSelect={() => onRemoveFromVault(activeVaultId)}>
+                <FolderMinus className="h-3.5 w-3.5" />
+                Remove from this vault
+              </ContextMenuItem>
+            )}
+          </>
+        )}
+        {/* Also show "Add to vault" in All Items / Favorites views (without
+            the "Remove from this vault" option, since there's no specific
+            vault to remove from). */}
+        {!isTrashView && (activeVaultId === "all" || activeVaultId === "favorites") && vaults.length > 0 && vaults.filter((v) => !item.vaultIds.includes(v.id)).length > 0 && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuSub>
+              <ContextMenuSubTrigger>
+                <Plus className="h-3.5 w-3.5" />
+                Add to vault
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-48">
+                {vaults.filter((v) => !item.vaultIds.includes(v.id)).map((v) => (
+                  <ContextMenuItem key={v.id} onSelect={() => onAddToVault(v.id)}>
+                    <VaultIcon icon={v.icon} color={v.color} size={16} />
+                    <span className="truncate">{v.name}</span>
+                  </ContextMenuItem>
+                ))}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+          </>
+        )}
         {!isTrashView && (
           <>
             <ContextMenuSeparator />
