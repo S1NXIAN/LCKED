@@ -11,14 +11,15 @@
 # The app is a local-first password manager — all encryption happens in
 # the browser (Web Crypto API). The server only serves static files +
 # the API routes used for optional Firebase cloud sync.
+#
+# NOTE: Node.js version is pinned via .nvmrc (Node 20) — Render reads
+# it automatically. No nodeVersion field needed here.
 
 services:
   - type: web
     name: lcked
     runtime: node
     plan: free
-    # Node.js version — must be 20+ for Next.js 16
-    nodeVersion: "20.0.0"
     # Build: install deps + build the Next.js standalone output
     buildCommand: npm install && npm run build
     # Start: run the standalone Node.js server.
@@ -28,7 +29,6 @@ services:
     startCommand: HOSTNAME=0.0.0.0 node .next/standalone/server.js
     # Health check — Render pings / to confirm the app is up
     healthCheckPath: /
-    healthCheckGracePeriod: 60
     # Auto-deploy on push to main
     autoDeploy: true
     # Environment variables
