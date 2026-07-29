@@ -136,7 +136,7 @@ interface VaultState {
   oauthEmail: string | null;
   cloudLastSync: number | null;
   cloudSyncing: boolean;
-  connectOAuth: (idToken: string, email: string) => Promise<{ exists: boolean; updatedAt: number | null }>;
+  connectOAuth: (idToken: string, email: string) => Promise<{ exists: boolean; updatedAt: number | null; cloudStatus: "none" | "same" | "different" }>;
   disconnectOAuth: (deleteCloud: boolean) => Promise<void>;
   checkPendingDeletion: () => Promise<void>;
 }
@@ -1003,17 +1003,36 @@ export const useVault = create<VaultState>()(
       /* --------------------------- cloud sync --------------------------- */
 
       connectOAuth: async (idToken, email) => {
-        const { setStoredToken, hashEmailClient, checkCloudExists } = await import("@/lib/cloud-sync");
+        const { setStoredToken, hashEmailClient, checkCloudExists, downloadCloudData } = await import("@/lib/cloud-sync");
         setStoredToken(idToken, email);
         const emailHash = await hashEmailClient(email);
         if (typeof window !== "undefined") {
           sessionStorage.setItem("lcked-oauth-email-hash", emailHash);
         }
-        const result = await checkCloudExists(idToken);
+        const existsResult = await checkCloudExists(idToken);
         set({ oauthConnected: true, oauthEmail: email });
+
+        // If cloud data exists, try to decrypt it with the current master
+        // password to determine if it belongs to THIS vault or a different one.
+        let cloudStatus: "none" | "same" | "different" = "none";
+        if (existsResult.exists && _masterPassword) {
+          try {
+            const { data } = await downloadCloudData(idToken);
+            if (data) {
+              const decrypted = await decryptLckedExport(data, _masterPassword);
+              cloudStatus = decrypted ? "same" : "different";
+            }
+          } catch {
+            cloudStatus = "different"; // Decryption failed → different vault
+          }
+        }
+
         // Start the smart sync engine now that OAuth is connected.
+        // If cloud is "same" → pull will merge. If "different" → pull fails
+        // silently, and the first mutation will overwrite the stale data.
         await startAutoSync(get, set);
-        return result;
+
+        return { exists: existsResult.exists, updatedAt: existsResult.updatedAt, cloudStatus };
       },
 
       disconnectOAuth: async (deleteCloud) => {

@@ -737,9 +737,20 @@ function AccountTab() {
             if (!exchangeRes.ok) throw new Error("Token exchange failed");
             const { idToken, email } = await exchangeRes.json();
             const result = await connectOAuth(idToken, email);
-            if (result.exists) {
+            if (result.cloudStatus === "same") {
               toast.success("Connected to Google", {
-                description: "Cloud data found. Use 'Restore from cloud' to download it.",
+                description: "Cloud backup found for this vault. Auto-sync is active.",
+              });
+            } else if (result.cloudStatus === "different") {
+              // Cloud data exists but belongs to a different vault.
+              // This happens when: user reset a vault on another device
+              // (offline), or connected a second vault to the same account.
+              toast.warning("Cloud data belongs to a different vault", {
+                description: "Your current vault will overwrite the cloud backup on the next change. This is expected if you reset a previous vault.",
+              });
+            } else if (result.exists) {
+              toast.success("Connected to Google", {
+                description: "Cloud data found. Auto-sync will merge it.",
               });
             } else {
               toast.success("Connected to Google", {
