@@ -1,0 +1,903 @@
+     1→"use client";
+     2→
+     3→/**
+     4→ * LCKED — ItemEditor (right sidebar)
+     5→ * ---------------------------------------------------------------------------
+     6→ * Slides in from the right as a Sheet (matching the password-generator and
+     7→ * create-vault sidebars). Handles both "New item" and "Edit item" modes,
+     8→ * driven by `editorOpen` + `editorItemId` in the vault store.
+     9→ *
+    10→ * Layout (mirrors create-vault-dialog aesthetic):
+    11→ *   • Header: live ItemTypeIcon + "New item"/"Edit item" title (left),
+    12→ *     vault selector dropdown + Save/Create button (right). NO close X — the
+    13→ *     radix Sheet's built-in Close (last child of SheetContent) is hidden via
+    14→ *     `[&>button:last-child]:hidden`.
+    15→ *   • Body: scrollable form. The Name field uses the flat borderless input
+    16→ *     pattern from create-vault-dialog; the remaining fields use labelled
+    17→ *     Inputs grouped into FieldCluster cards (matching item-detail's
+    18→ *     FieldRow presentation). All type-specific fields (login/note/card/
+    19→ *     identity), URLs, TOTP, notes, custom fields are preserved.
+    20→ *   • Footer: a single Cancel button (left). Save/Create lives in the header.
+    21→ *
+    22→ * All existing functionality is preserved: blankItem(), itemToInput(),
+    23→ * saveItem(), custom-field add/update/remove, login URL list helpers,
+    24→ * favourite toggle, folder, and card-brand detection.
+    25→ */
+    26→
+    27→import * as React from "react";
+    28→import { Plus, Trash2, Star, Loader2, Link2, Check, ChevronsUpDown } from "lucide-react";
+    29→import { toast } from "sonner";
+    30→import {
+    31→  Sheet,
+    32→  SheetContent,
+    33→  SheetHeader,
+    34→  SheetTitle,
+    35→  SheetDescription,
+    36→} from "@/components/ui/sheet";
+    37→import {
+    38→  AlertDialog,
+    39→  AlertDialogAction,
+    40→  AlertDialogCancel,
+    41→  AlertDialogContent,
+    42→  AlertDialogDescription,
+    43→  AlertDialogFooter,
+    44→  AlertDialogHeader,
+    45→  AlertDialogTitle,
+    46→} from "@/components/ui/alert-dialog";
+    47→import { Input } from "@/components/ui/input";
+    48→import { Textarea } from "@/components/ui/textarea";
+    49→import { Button } from "@/components/ui/button";
+    50→
+    51→import {
+    52→  Select,
+    53→  SelectContent,
+    54→  SelectItem,
+    55→  SelectTrigger,
+    56→  SelectValue,
+    57→} from "@/components/ui/select";
+    58→import {
+    59→  DropdownMenu,
+    60→  DropdownMenuTrigger,
+    61→  DropdownMenuContent,
+    62→  DropdownMenuItem,
+    63→} from "@/components/ui/dropdown-menu";
+    64→import { useVault } from "@/store/vault";
+    65→import {
+    66→  type CustomField,
+    67→  type ItemType,
+    68→  type NewItemInput,
+    69→  type VaultItem,
+    70→} from "@/lib/types";
+    71→import { detectCardBrand } from "@/lib/import-export";
+    72→import { PasswordField } from "./password-field";
+    73→import { ItemTypeIcon, ITEM_TYPE_LABELS } from "./item-icons";
+    74→import { consumeNewItemType } from "./new-item-stash";
+    75→import { VaultIcon } from "./vaults-sidebar";
+    76→import { cn, isEmail } from "@/lib/utils";
+    77→
+    78→function blankItem(type: ItemType): NewItemInput {
+    79→  const base = {
+    80→    name: "",
+    81→    favorite: false,
+    82→    pinned: false,
+    83→    folder: "",
+    84→    customFields: [],
+    85→    createdAt: Date.now(),
+    86→    updatedAt: Date.now(),
+    87→    vaultId: null as string | null,
+    88→    trashed: false,
+    89→    trashedAt: null as number | null,
+    90→  };
+    91→  if (type === "login") {
+    92→    return { ...base, type, details: { username: "", password: "", urls: [""], totp: "", notes: "" } };
+    93→  }
+    94→  if (type === "note") {
+    95→    return { ...base, type, details: { content: "" } };
+    96→  }
+    97→  if (type === "card") {
+    98→    return {
+    99→      ...base,
+   100→      type,
+   101→      details: { cardholder: "", number: "", brand: "", cvv: "", expiry: "", pin: "", notes: "" },
+   102→    };
+   103→  }
+   104→  return {
+   105→    ...base,
+   106→    type,
+   107→    details: {
+   108→      firstName: "", lastName: "", email: "", phone: "", company: "",
+   109→      address1: "", address2: "", city: "", state: "", zip: "", country: "", notes: "",
+   110→    },
+   111→  };
+   112→}
+   113→
+   114→function itemToInput(item: VaultItem): NewItemInput {
+   115→  const { id: _id, createdAt: _c, updatedAt: _u, ...rest } = item;
+   116→  return rest as NewItemInput;
+   117→}
+   118→
+   119→/* -------------------- Field cluster (matches item-detail) -------------------- */
+   120→
+   121→/** Bordered card grouping related editable rows, divided by 1px lines. */
+   122→function FieldCluster({ children }: { children: React.ReactNode }) {
+   123→  return (
+   124→    <div className="overflow-hidden rounded-xl border border-border bg-secondary/10 dark:bg-secondary/10">
+   125→      {children}
+   126→    </div>
+   127→  );
+   128→}
+   129→
+   130→/**
+   131→ * FieldCluster with a small section header above the card. Used for SECONDARY
+   132→ * clusters (TOTP / Websites / Notes / Custom fields) to break up the visual
+   133→ * monotony of a stack of identical cards — the primary credentials cluster
+   134→ * stays bare for a cleaner look.
+   135→ *
+   136→ * The header is OUTSIDE the card (per spec), and may carry an optional
+   137→ * `action` node on its right (e.g. the "Add" button for custom fields).
+   138→ */
+   139→function FieldClusterWithLabel({
+   140→  label,
+   141→  action,
+   142→  children,
+   143→}: {
+   144→  label: string;
+   145→  action?: React.ReactNode;
+   146→  children: React.ReactNode;
+   147→}) {
+   148→  return (
+   149→    <div>
+   150→      <div className="mb-1.5 flex items-center justify-between px-1">
+   151→        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
+   152→          {label}
+   153→        </span>
+   154→        {action}
+   155→      </div>
+   156→      <FieldCluster>{children}</FieldCluster>
+   157→    </div>
+   158→  );
+   159→}
+   160→
+   161→/** A labelled field row inside a FieldCluster. Flat borderless input.
+   162→ *  `label` is optional — when omitted (e.g. inside a FieldClusterWithLabel
+   163→ *  whose header already names the section), the row renders without the
+   164→ *  small uppercase label so the section isn't visually redundant. */
+   165→function FieldRowInput({
+   166→  label,
+   167→  first,
+   168→  children,
+   169→}: {
+   170→  label?: string;
+   171→  first?: boolean;
+   172→  children: React.ReactNode;
+   173→}) {
+   174→  return (
+   175→    <div className={cn("px-3.5 py-2", !first && "border-t border-border/50")}>
+   176→      {label && (
+   177→        <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+   178→          {label}
+   179→        </div>
+   180→      )}
+   181→      {children}
+   182→    </div>
+   183→  );
+   184→}
+   185→
+   186→/** Flat borderless input used inside FieldCluster rows. */
+   187→const flatInputCls =
+   188→  "w-full border-0 bg-transparent dark:bg-transparent px-0 py-0.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:outline-none";
+   189→
+   190→/** Flat borderless variant for PasswordField — keeps right padding for action buttons. */
+   191→const flatPasswordInputCls =
+   192→  "w-full border-0 bg-transparent dark:bg-transparent pl-0 py-0.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:outline-none";
+   193→
+   194→/** Flat borderless textarea used inside FieldCluster rows. */
+   195→const flatTextareaCls =
+   196→  "w-full border-0 bg-transparent dark:bg-transparent px-0 py-0.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:outline-none resize-none";
+   197→
+   198→export function ItemEditor() {
+   199→  const open = useVault((s) => s.editorOpen);
+   200→  const editorItemId = useVault((s) => s.editorItemId);
+   201→  const vaults = useVault((s) => s.vaults);
+   202→  const settings = useVault((s) => s.settings);
+   203→  const setEditorOpen = useVault((s) => s.setEditorOpen);
+   204→  const saveItem = useVault((s) => s.saveItem);
+   205→
+   206→  const [form, setForm] = React.useState<NewItemInput | null>(null);
+   207→  const [busy, setBusy] = React.useState(false);
+   208→  // Stable React keys for URL + custom-field rows (IE-2). Index-based keys
+   209→  // cause focus/selection to jump to the wrong field when a middle row is
+   210→  // removed. These arrays stay in lockstep with urls / customFields.
+   211→  const [urlKeys, setUrlKeys] = React.useState<string[]>([]);
+   212→  const [cfKeys, setCfKeys] = React.useState<string[]>([]);
+   213→  const keyCounter = React.useRef(0);
+   214→  const nextKey = React.useCallback(() => `k${++keyCounter.current}`, []);
+   215→  // Track the initial form snapshot for dirty-checking (IE-4).
+   216→  const [initialForm, setInitialForm] = React.useState<string>("");
+   217→  const [confirmDiscardOpen, setConfirmDiscardOpen] = React.useState(false);
+   218→
+   219→  // Initialise form when the sheet opens. Depends ONLY on [open, editorItemId]
+   220→  // (IE-1) — the `items` array changes on every unrelated mutation (auto-purge,
+   221→  // duplicate, drag-drop), which would overwrite the user's unsaved edits.
+   222→  React.useEffect(() => {
+   223→    if (!open) {
+   224→      setForm(null);
+   225→      setUrlKeys([]);
+   226→      setCfKeys([]);
+   227→      setInitialForm("");
+   228→      return;
+   229→    }
+   230→    if (editorItemId) {
+   231→      // Read via getState() so we don't depend on the items array.
+   232→      const existing = useVault.getState().items.find((i) => i.id === editorItemId);
+   233→      if (existing) {
+   234→        const input = itemToInput(existing);
+   235→        setForm(input);
+   236→        setUrlKeys((existing.details as { urls?: string[] }).urls?.map(() => nextKey()) ?? []);
+   237→        setCfKeys(existing.customFields.map(() => nextKey()));
+   238→        setInitialForm(JSON.stringify(input));
+   239→        return;
+   240→      }
+   241→    }
+   242→    // Honour a type pre-selected via ⌘K / icon rail, then clear the stash.
+   243→    const initialType = consumeNewItemType() ?? "login";
+   244→    const blank = blankItem(initialType);
+   245→    setForm(blank);
+   246→    setUrlKeys([""].map(() => nextKey()));
+   247→    setCfKeys([]);
+   248→    setInitialForm(JSON.stringify(blank));
+   249→  }, [open, editorItemId, nextKey]);
+   250→
+   251→  const isEditing = Boolean(editorItemId);
+   252→
+   253→  if (!open || !form) return null;
+   254→
+   255→  const isDirty = JSON.stringify(form) !== initialForm;
+   256→
+   257→  const update = (patch: Partial<NewItemInput>) => setForm((f) => (f ? { ...f, ...patch } : f));
+   258→  const updateDetails = (patch: Record<string, unknown>) =>
+   259→    setForm((f) => (f ? { ...f, details: { ...(f.details as object), ...patch } } : f));
+   260→
+   261→  const handleSave = async () => {
+   262→    if (!form) return;
+   263→    const trimmedName = form.name.trim();
+   264→    if (!trimmedName) {
+   265→      toast.error("Please give the item a name");
+   266→      return;
+   267→    }
+   268→    // Trim the name before saving so "  GitHub  " doesn't break fuzzy-search.
+   269→    const toSave = { ...form, name: trimmedName };
+   270→    setBusy(true);
+   271→    try {
+   272→      await saveItem(toSave, editorItemId ?? undefined);
+   273→      toast.success(isEditing ? "Item updated" : "Item created");
+   274→      setEditorOpen(false);
+   275→    } catch (err) {
+   276→      console.error(err);
+   277→      toast.error("Could not save item");
+   278→    } finally {
+   279→      setBusy(false);
+   280→    }
+   281→  };
+   282→
+   283→  // Intercept Sheet close: if there are unsaved edits, ask first (IE-4).
+   284→  const handleOpenChange = (o: boolean) => {
+   285→    if (!o && isDirty && !busy) {
+   286→      setConfirmDiscardOpen(true);
+   287→      return;
+   288→    }
+   289→    setEditorOpen(o);
+   290→  };
+   291→
+   292→  const addCustomField = () => {
+   293→    update({ customFields: [...form.customFields, { name: "", value: "", type: "text" }] });
+   294→    setCfKeys((k) => [...k, nextKey()]);
+   295→  };
+   296→  const updateCustomField = (idx: number, patch: Partial<CustomField>) =>
+   297→    update({
+   298→      customFields: form.customFields.map((cf, i) => (i === idx ? { ...cf, ...patch } : cf)),
+   299→    });
+   300→  const removeCustomField = (idx: number) => {
+   301→    update({ customFields: form.customFields.filter((_, i) => i !== idx) });
+   302→    setCfKeys((k) => k.filter((_, i) => i !== idx));
+   303→  };
+   304→
+   305→  // Login URL list helpers.
+   306→  const urls = form.type === "login" ? form.details.urls : [];
+   307→  const setUrl = (idx: number, val: string) => {
+   308→    const next = urls.map((u, i) => (i === idx ? val : u));
+   309→    updateDetails({ urls: next });
+   310→  };
+   311→  const addUrl = () => {
+   312→    updateDetails({ urls: [...urls, ""] });
+   313→    setUrlKeys((k) => [...k, nextKey()]);
+   314→  };
+   315→  const removeUrl = (idx: number) => {
+   316→    updateDetails({ urls: urls.filter((_, i) => i !== idx) });
+   317→    setUrlKeys((k) => k.filter((_, i) => i !== idx));
+   318→  };
+   319→
+   320→  // Switch item type while preserving overlapping fields (IE-3).
+   321→  const switchType = (t: ItemType) => {
+   322→    setForm((f) => {
+   323→      if (!f) return f;
+   324→      const blank = blankItem(t);
+   325→      return { ...blank, name: f.name, favorite: f.favorite, pinned: f.pinned, folder: f.folder, customFields: f.customFields, vaultId: f.vaultId };
+   326→    });
+   327→  };
+   328→
+   329→  // Selected vault (for the header dropdown).
+   330→  const selectedVault = form.vaultId ? vaults.find((v) => v.id === form.vaultId) ?? null : null;
+   331→
+   332→  return (
+   333→    <Sheet open={open} onOpenChange={handleOpenChange}>
+   334→      <SheetContent
+   335→        side="right"
+   336→        className="w-full gap-0 overflow-hidden border-l border-border bg-background p-0 sm:max-w-[480px] [&>button:last-child]:hidden"
+   337→      >
+   338→        {/* Header — type icon + title (left); vault selector + Save (right) */}
+   339→        <SheetHeader className="flex-row items-center justify-between gap-2 border-b border-border px-4 py-3">
+   340→          <SheetTitle className="flex min-w-0 items-center gap-2.5 text-base font-semibold">
+   341→            <ItemTypeIcon type={form.type} size="sm" />
+   342→            <span className="truncate">{isEditing ? "Edit item" : "New item"}</span>
+   343→          </SheetTitle>
+   344→          <div className="flex shrink-0 items-center gap-1.5">
+   345→            {/* Vault selector dropdown */}
+   346→            <DropdownMenu>
+   347→              <DropdownMenuTrigger asChild>
+   348→                <button
+   349→                  type="button"
+   350→                  className="flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-2 text-xs text-foreground transition-colors hover:bg-muted/60"
+   351→                  aria-label="Select vault"
+   352→                  title={selectedVault ? selectedVault.name : "No vault"}
+   353→                >
+   354→                  {selectedVault ? (
+   355→                    <VaultIcon icon={selectedVault.icon} color={selectedVault.color} size={18} />
+   356→                  ) : (
+   357→                    <span className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-md bg-muted text-[10px] text-muted-foreground">
+   358→                      —
+   359→                    </span>
+   360→                  )}
+   361→                  <span className="max-w-[80px] truncate">{selectedVault ? selectedVault.name : "No vault"}</span>
+   362→                  <ChevronsUpDown className="h-3 w-3 text-muted-foreground" />
+   363→                </button>
+   364→              </DropdownMenuTrigger>
+   365→              <DropdownMenuContent align="end" className="min-w-[180px]">
+   366→                <DropdownMenuItem
+   367→                  onSelect={() => update({ vaultId: null })}
+   368→                  className={cn("gap-2", !selectedVault && "bg-muted/60")}
+   369→                >
+   370→                  <span className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-md bg-muted text-[10px] text-muted-foreground">
+   371→                    —
+   372→                  </span>
+   373→                  No vault
+   374→                </DropdownMenuItem>
+   375→                {vaults.map((v) => (
+   376→                  <DropdownMenuItem
+   377→                    key={v.id}
+   378→                    onSelect={() => update({ vaultId: v.id })}
+   379→                    className={cn("gap-2", selectedVault?.id === v.id && "bg-muted/60")}
+   380→                  >
+   381→                    <VaultIcon icon={v.icon} color={v.color} size={18} />
+   382→                    <span className="truncate">{v.name}</span>
+   383→                    {selectedVault?.id === v.id && <Check className="ml-auto h-3.5 w-3.5" />}
+   384→                  </DropdownMenuItem>
+   385→                ))}
+   386→              </DropdownMenuContent>
+   387→            </DropdownMenu>
+   388→
+   389→            {/* Save / Create — type="submit" so Enter inside any input saves. */}
+   390→            <Button
+   391→              type="submit"
+   392→              size="sm"
+   393→              disabled={busy}
+   394→              className="min-w-[72px]"
+   395→              form="lcked-item-editor-form"
+   396→            >
+   397→              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : isEditing ? "Save" : "Create"}
+   398→            </Button>
+   399→          </div>
+   400→        </SheetHeader>
+   401→        <SheetDescription className="sr-only">
+   402→          {isEditing ? "Edit the selected vault item." : "Create a new vault item."}
+   403→        </SheetDescription>
+   404→
+   405→        {/* Body — flat scrollable form. The <form> wraps the body + footer so
+   406→            Enter inside any input triggers handleSave (type="submit" button
+   407→            in the header references this form via the `form` attribute). */}
+   408→        <form id="lcked-item-editor-form" onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="flex min-h-0 flex-1 flex-col">
+   409→        <div className="lcked-scroll flex-1 overflow-y-auto p-4">
+   410→          {/* Type selector — only when creating */}
+   411→          {!isEditing && (
+   412→            <div className="mb-4 grid grid-cols-4 gap-2">
+   413→              {(Object.keys(ITEM_TYPE_LABELS) as ItemType[]).map((t) => (
+   414→                <button
+   415→                  key={t}
+   416→                  type="button"
+   417→                  onClick={() => switchType(t)}
+   418→                  className={cn(
+   419→                    "flex flex-col items-center gap-1.5 rounded-lg border p-3 text-xs transition-colors",
+   420→                    form.type === t
+   421→                      ? "border-primary bg-primary/10 text-foreground"
+   422→                      : "border-border text-muted-foreground hover:bg-muted/50",
+   423→                  )}
+   424→                >
+   425→                  <ItemTypeIcon type={t} size="sm" />
+   426→                  {ITEM_TYPE_LABELS[t]}
+   427→                </button>
+   428→              ))}
+   429→            </div>
+   430→          )}
+   431→
+   432→          {/* Name + favorite star — inline to save space */}
+   433→          <div className="mb-4">
+   434→            <div className="mb-1 flex items-center justify-between">
+   435→              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+   436→                Name
+   437→              </div>
+   438→              <button
+   439→                type="button"
+   440→                onClick={() => update({ favorite: !form.favorite })}
+   441→                className="flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-muted"
+   442→                aria-label={form.favorite ? "Remove favorite" : "Add favorite"}
+   443→                title={form.favorite ? "Remove favorite" : "Add favorite"}
+   444→              >
+   445→                <Star className={cn("h-4 w-4 transition-colors", form.favorite ? "fill-amber-400 text-amber-400" : "text-muted-foreground")} />
+   446→              </button>
+   447→            </div>
+   448→            <input
+   449→              type="text"
+   450→              value={form.name}
+   451→              onChange={(e) => update({ name: e.target.value })}
+   452→              placeholder="e.g. GitHub, Bank card, WiFi password"
+   453→              autoFocus
+   454→              className="w-full border-0 bg-transparent dark:bg-transparent px-0 py-0.5 text-base font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+   455→              aria-label="Item name"
+   456→            />
+   457→          </div>
+   458→
+   459→          {/* Type-specific */}
+   460→          {form.type === "login" && (
+   461→            <div className="space-y-4">
+   462→              {/* Username + Password */}
+   463→              <FieldCluster>
+   464→                <FieldRowInput label={isEmail(form.details.username) ? "Email" : "Username"} first>
+   465→                  <Input
+   466→                    value={form.details.username}
+   467→                    onChange={(e) => updateDetails({ username: e.target.value })}
+   468→                    placeholder="you@example.com"
+   469→                    autoComplete="off"
+   470→                    className={flatInputCls}
+   471→                  />
+   472→                </FieldRowInput>
+   473→                <FieldRowInput label="Password">
+   474→                  <PasswordField
+   475→                    value={form.details.password}
+   476→                    onChange={(v) => updateDetails({ password: v })}
+   477→                    placeholder="Enter password"
+   478→                    showStrength
+   479→                    showGenerate
+   480→                    generatorOptions={settings.generator}
+   481→                    inputClassName={flatPasswordInputCls}
+   482→                  />
+   483→                </FieldRowInput>
+   484→              </FieldCluster>
+   485→
+   486→              {/* TOTP */}
+   487→              <FieldClusterWithLabel label="Verification">
+   488→                <FieldRowInput first>
+   489→                  <Input
+   490→                    value={form.details.totp}
+   491→                    onChange={(e) => updateDetails({ totp: e.target.value })}
+   492→                    placeholder="Base32 secret or otpauth:// URI"
+   493→                    className={cn(flatInputCls, "font-secret")}
+   494→                    autoComplete="off"
+   495→                  />
+   496→                </FieldRowInput>
+   497→              </FieldClusterWithLabel>
+   498→
+   499→              {/* URLs — wrapped in a labelled card cluster (Websites) with the
+   500→                  "Add URL" action in the header. Matches the TOTP / Notes /
+   501→                  Custom fields pattern so every secondary section reads as a
+   502→                  consistent card. Each URL is a divided row inside the card. */}
+   503→              <FieldClusterWithLabel
+   504→                label="Websites"
+   505→                action={
+   506→                  <Button type="button" variant="ghost" size="sm" onClick={addUrl}>
+   507→                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+   508→                    Add URL
+   509→                  </Button>
+   510→                }
+   511→              >
+   512→                {urls.map((url, idx) => (
+   513→                  <div
+   514→                    key={urlKeys[idx] ?? idx}
+   515→                    className={cn(
+   516→                      "flex items-center gap-2 px-3.5 py-2",
+   517→                      idx !== 0 && "border-t border-border/50",
+   518→                    )}
+   519→                  >
+   520→                    <Link2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+   521→                    <Input
+   522→                      value={url}
+   523→                      onChange={(e) => setUrl(idx, e.target.value)}
+   524→                      placeholder="https://example.com"
+   525→                      className={cn(flatInputCls, "font-secret")}
+   526→                      autoComplete="off"
+   527→                    />
+   528→                    {urls.length > 1 && (
+   529→                      <Button
+   530→                        type="button"
+   531→                        size="icon"
+   532→                        variant="ghost"
+   533→                        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-red-400"
+   534→                        onClick={() => removeUrl(idx)}
+   535→                        aria-label={`Remove URL ${idx + 1}`}
+   536→                      >
+   537→                        <Trash2 className="h-3.5 w-3.5" />
+   538→                      </Button>
+   539→                    )}
+   540→                  </div>
+   541→                ))}
+   542→              </FieldClusterWithLabel>
+   543→
+   544→              {/* Notes */}
+   545→              <FieldClusterWithLabel label="Notes">
+   546→                <FieldRowInput first>
+   547→                  <Textarea
+   548→                    value={form.details.notes}
+   549→                    onChange={(e) => updateDetails({ notes: e.target.value })}
+   550→                    placeholder="Optional secure notes…"
+   551→                    rows={3}
+   552→                    className={flatTextareaCls}
+   553→                  />
+   554→                </FieldRowInput>
+   555→              </FieldClusterWithLabel>
+   556→            </div>
+   557→          )}
+   558→
+   559→          {form.type === "note" && (
+   560→            <FieldCluster>
+   561→              <FieldRowInput label="Content" first>
+   562→                <Textarea
+   563→                  value={form.details.content}
+   564→                  onChange={(e) => updateDetails({ content: e.target.value })}
+   565→                  placeholder="Write your secure note here…"
+   566→                  rows={10}
+   567→                  className={flatTextareaCls}
+   568→                />
+   569→              </FieldRowInput>
+   570→            </FieldCluster>
+   571→          )}
+   572→
+   573→          {form.type === "card" && (
+   574→            <div className="space-y-4">
+   575→              {/* Cardholder + Card number + CVV + Expiry + PIN */}
+   576→              <FieldCluster>
+   577→                <FieldRowInput label="Cardholder name" first>
+   578→                  <Input
+   579→                    value={form.details.cardholder}
+   580→                    onChange={(e) => updateDetails({ cardholder: e.target.value })}
+   581→                    placeholder="Name on card"
+   582→                    autoComplete="off"
+   583→                    className={flatInputCls}
+   584→                  />
+   585→                </FieldRowInput>
+   586→                <FieldRowInput label="Card number">
+   587→                  <PasswordField
+   588→                    value={form.details.number}
+   589→                    onChange={(v) => {
+   590→                      const brand = detectCardBrand(v);
+   591→                      updateDetails({ number: v, brand: brand || form.details.brand });
+   592→                    }}
+   593→                    placeholder="0000 0000 0000 0000"
+   594→                    showGenerate={false}
+   595→                    inputClassName={flatPasswordInputCls}
+   596→                  />
+   597→                  {form.details.brand && (
+   598→                    <p className="mt-1 text-xs text-muted-foreground">Detected: {form.details.brand}</p>
+   599→                  )}
+   600→                </FieldRowInput>
+   601→                <div className="grid grid-cols-2 divide-x divide-border/50">
+   602→                  <FieldRowInput label="CVV" first>
+   603→                    <PasswordField
+   604→                      value={form.details.cvv}
+   605→                      onChange={(v) => updateDetails({ cvv: v })}
+   606→                      placeholder="123"
+   607→                      showGenerate={false}
+   608→                      inputClassName={flatPasswordInputCls}
+   609→                    />
+   610→                  </FieldRowInput>
+   611→                  <FieldRowInput label="Expiry (MM/YY)" first>
+   612→                    <Input
+   613→                      value={form.details.expiry}
+   614→                      onChange={(e) => updateDetails({ expiry: e.target.value })}
+   615→                      placeholder="08/27"
+   616→                      className={cn(flatInputCls, "font-secret")}
+   617→                      autoComplete="off"
+   618→                    />
+   619→                  </FieldRowInput>
+   620→                </div>
+   621→                <FieldRowInput label="PIN">
+   622→                  <PasswordField
+   623→                    value={form.details.pin}
+   624→                    onChange={(v) => updateDetails({ pin: v })}
+   625→                    placeholder="••••"
+   626→                    showGenerate={false}
+   627→                    inputClassName={flatPasswordInputCls}
+   628→                  />
+   629→                </FieldRowInput>
+   630→              </FieldCluster>
+   631→
+   632→              {/* Notes */}
+   633→              <FieldClusterWithLabel label="Notes">
+   634→                <FieldRowInput first>
+   635→                  <Textarea
+   636→                    value={form.details.notes}
+   637→                    onChange={(e) => updateDetails({ notes: e.target.value })}
+   638→                    placeholder="Optional notes…"
+   639→                    rows={3}
+   640→                    className={flatTextareaCls}
+   641→                  />
+   642→                </FieldRowInput>
+   643→              </FieldClusterWithLabel>
+   644→            </div>
+   645→          )}
+   646→
+   647→          {form.type === "identity" && (
+   648→            <div className="space-y-4">
+   649→              {/* First name + Last name */}
+   650→              <FieldCluster>
+   651→                <div className="grid grid-cols-2 divide-x divide-border/50">
+   652→                  <FieldRowInput label="First name" first>
+   653→                    <Input
+   654→                      value={form.details.firstName}
+   655→                      onChange={(e) => updateDetails({ firstName: e.target.value })}
+   656→                      autoComplete="off"
+   657→                      className={flatInputCls}
+   658→                    />
+   659→                  </FieldRowInput>
+   660→                  <FieldRowInput label="Last name" first>
+   661→                    <Input
+   662→                      value={form.details.lastName}
+   663→                      onChange={(e) => updateDetails({ lastName: e.target.value })}
+   664→                      autoComplete="off"
+   665→                      className={flatInputCls}
+   666→                    />
+   667→                  </FieldRowInput>
+   668→                </div>
+   669→              </FieldCluster>
+   670→
+   671→              {/* Email + Phone */}
+   672→              <FieldCluster>
+   673→                <div className="grid grid-cols-2 divide-x divide-border/50">
+   674→                  <FieldRowInput label="Email" first>
+   675→                    <Input
+   676→                      type="email"
+   677→                      value={form.details.email}
+   678→                      onChange={(e) => updateDetails({ email: e.target.value })}
+   679→                      autoComplete="off"
+   680→                      className={flatInputCls}
+   681→                    />
+   682→                  </FieldRowInput>
+   683→                  <FieldRowInput label="Phone" first>
+   684→                    <Input
+   685→                      value={form.details.phone}
+   686→                      onChange={(e) => updateDetails({ phone: e.target.value })}
+   687→                      autoComplete="off"
+   688→                      className={flatInputCls}
+   689→                    />
+   690→                  </FieldRowInput>
+   691→                </div>
+   692→              </FieldCluster>
+   693→
+   694→              {/* Company */}
+   695→              <FieldCluster>
+   696→                <FieldRowInput label="Company" first>
+   697→                  <Input
+   698→                    value={form.details.company}
+   699→                    onChange={(e) => updateDetails({ company: e.target.value })}
+   700→                    autoComplete="off"
+   701→                    className={flatInputCls}
+   702→                  />
+   703→                </FieldRowInput>
+   704→              </FieldCluster>
+   705→
+   706→              {/* Address fields */}
+   707→              <FieldCluster>
+   708→                <FieldRowInput label="Address line 1" first>
+   709→                  <Input
+   710→                    value={form.details.address1}
+   711→                    onChange={(e) => updateDetails({ address1: e.target.value })}
+   712→                    autoComplete="off"
+   713→                    className={flatInputCls}
+   714→                  />
+   715→                </FieldRowInput>
+   716→                <FieldRowInput label="Address line 2">
+   717→                  <Input
+   718→                    value={form.details.address2}
+   719→                    onChange={(e) => updateDetails({ address2: e.target.value })}
+   720→                    autoComplete="off"
+   721→                    className={flatInputCls}
+   722→                  />
+   723→                </FieldRowInput>
+   724→                <div className="grid grid-cols-2 divide-x divide-border/50">
+   725→                  <FieldRowInput label="City">
+   726→                    <Input
+   727→                      value={form.details.city}
+   728→                      onChange={(e) => updateDetails({ city: e.target.value })}
+   729→                      autoComplete="off"
+   730→                      className={flatInputCls}
+   731→                    />
+   732→                  </FieldRowInput>
+   733→                  <FieldRowInput label="State / Province">
+   734→                    <Input
+   735→                      value={form.details.state}
+   736→                      onChange={(e) => updateDetails({ state: e.target.value })}
+   737→                      autoComplete="off"
+   738→                      className={flatInputCls}
+   739→                    />
+   740→                  </FieldRowInput>
+   741→                </div>
+   742→                <div className="grid grid-cols-2 divide-x divide-border/50">
+   743→                  <FieldRowInput label="Postal / ZIP">
+   744→                    <Input
+   745→                      value={form.details.zip}
+   746→                      onChange={(e) => updateDetails({ zip: e.target.value })}
+   747→                      autoComplete="off"
+   748→                      className={flatInputCls}
+   749→                    />
+   750→                  </FieldRowInput>
+   751→                  <FieldRowInput label="Country">
+   752→                    <Input
+   753→                      value={form.details.country}
+   754→                      onChange={(e) => updateDetails({ country: e.target.value })}
+   755→                      autoComplete="off"
+   756→                      className={flatInputCls}
+   757→                    />
+   758→                  </FieldRowInput>
+   759→                </div>
+   760→              </FieldCluster>
+   761→
+   762→              {/* Notes */}
+   763→              <FieldClusterWithLabel label="Notes">
+   764→                <FieldRowInput first>
+   765→                  <Textarea
+   766→                    value={form.details.notes}
+   767→                    onChange={(e) => updateDetails({ notes: e.target.value })}
+   768→                    rows={3}
+   769→                    className={flatTextareaCls}
+   770→                  />
+   771→                </FieldRowInput>
+   772→              </FieldClusterWithLabel>
+   773→            </div>
+   774→          )}
+   775→
+   776→          {/* Custom fields */}
+   777→          <div className="mt-4">
+   778→            {form.customFields.length === 0 ? (
+   779→              <FieldClusterWithLabel
+   780→                label="Custom fields"
+   781→                action={
+   782→                  <Button type="button" variant="ghost" size="sm" onClick={addCustomField}>
+   783→                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+   784→                    Add
+   785→                  </Button>
+   786→                }
+   787→              >
+   788→                <div className="px-3.5 py-3 text-xs text-muted-foreground">
+   789→                  Add extra fields like security questions or recovery codes.
+   790→                </div>
+   791→              </FieldClusterWithLabel>
+   792→            ) : (
+   793→              <FieldClusterWithLabel
+   794→                label="Custom fields"
+   795→                action={
+   796→                  <Button type="button" variant="ghost" size="sm" onClick={addCustomField}>
+   797→                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+   798→                    Add
+   799→                  </Button>
+   800→                }
+   801→              >
+   802→                {form.customFields.map((cf, idx) => (
+   803→                  <div
+   804→                    key={cfKeys[idx] ?? idx}
+   805→                    className={cn("px-3.5 py-2.5", idx !== 0 && "border-t border-border/50")}
+   806→                  >
+   807→                    {/* Top row — small name input + type badge (small, pill-shaped) */}
+   808→                    <div className="flex items-center gap-2">
+   809→                      <Input
+   810→                        value={cf.name}
+   811→                        onChange={(e) => updateCustomField(idx, { name: e.target.value })}
+   812→                        placeholder="Field name"
+   813→                        className={cn(flatInputCls, "text-xs")}
+   814→                        aria-label={`Custom field ${idx + 1} name`}
+   815→                      />
+   816→                      <Select
+   817→                        value={cf.type}
+   818→                        onValueChange={(v) => updateCustomField(idx, { type: v as "text" | "hidden" })}
+   819→                      >
+   820→                        <SelectTrigger className="h-6 w-fit shrink-0 gap-1 rounded-full border-border/60 bg-secondary/40 px-2.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground hover:bg-secondary/70 focus-visible:ring-0 focus-visible:outline-none data-[placeholder]:text-muted-foreground">
+   821→                          <SelectValue />
+   822→                        </SelectTrigger>
+   823→                        <SelectContent>
+   824→                          <SelectItem value="text">Text</SelectItem>
+   825→                          <SelectItem value="hidden">Hidden</SelectItem>
+   826→                        </SelectContent>
+   827→                      </Select>
+   828→                    </div>
+   829→                    {/* Bottom row — larger value input + subtle ghost remove */}
+   830→                    <div className="mt-1.5 flex items-center gap-2">
+   831→                      <Input
+   832→                        value={cf.value}
+   833→                        onChange={(e) => updateCustomField(idx, { value: e.target.value })}
+   834→                        placeholder="Value"
+   835→                        className={cn(
+   836→                          flatInputCls,
+   837→                          cf.type === "hidden" && "font-secret",
+   838→                        )}
+   839→                        type={cf.type === "hidden" ? "password" : "text"}
+   840→                        aria-label={`Custom field ${idx + 1} value`}
+   841→                      />
+   842→                      <Button
+   843→                        type="button"
+   844→                        size="icon"
+   845→                        variant="ghost"
+   846→                        className="h-7 w-7 shrink-0 text-muted-foreground/60 hover:text-red-400"
+   847→                        onClick={() => removeCustomField(idx)}
+   848→                        aria-label={`Remove custom field ${idx + 1}`}
+   849→                      >
+   850→                        <Trash2 className="h-3.5 w-3.5" />
+   851→                      </Button>
+   852→                    </div>
+   853→                  </div>
+   854→                ))}
+   855→              </FieldClusterWithLabel>
+   856→            )}
+   857→          </div>
+   858→        </div>
+   859→
+   860→        {/* Footer — Cancel only (Save/Create is in the header) */}
+   861→        <div className="border-t border-border px-4 py-3">
+   862→          <Button
+   863→            type="button"
+   864→            variant="ghost"
+   865→            onClick={() => setEditorOpen(false)}
+   866→            disabled={busy}
+   867→            className="w-full"
+   868→          >
+   869→            Cancel
+   870→          </Button>
+   871→        </div>
+   872→        </form>
+   873→      </SheetContent>
+   874→
+   875→      {/* Confirm-discard dialog (IE-4) — shown when the user closes the
+   876→          editor with unsaved edits. */}
+   877→      <AlertDialog open={confirmDiscardOpen} onOpenChange={setConfirmDiscardOpen}>
+   878→        <AlertDialogContent>
+   879→          <AlertDialogHeader>
+   880→            <AlertDialogTitle>Discard changes?</AlertDialogTitle>
+   881→            <AlertDialogDescription>
+   882→              You have unsaved edits. Discarding will close the editor and lose
+   883→              your changes. This cannot be undone.
+   884→            </AlertDialogDescription>
+   885→          </AlertDialogHeader>
+   886→          <AlertDialogFooter>
+   887→            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+   888→            <AlertDialogAction
+   889→              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+   890→              onClick={() => {
+   891→                setConfirmDiscardOpen(false);
+   892→                setEditorOpen(false);
+   893→              }}
+   894→            >
+   895→              Discard
+   896→            </AlertDialogAction>
+   897→          </AlertDialogFooter>
+   898→        </AlertDialogContent>
+   899→      </AlertDialog>
+   900→    </Sheet>
+   901→  );
+   902→}
+   903→
