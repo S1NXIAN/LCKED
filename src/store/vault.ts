@@ -1003,7 +1003,7 @@ export const useVault = create<VaultState>()(
       /* --------------------------- cloud sync --------------------------- */
 
       connectOAuth: async (idToken, email) => {
-        const { setStoredToken, hashEmailClient, checkCloudExists, downloadCloudData } = await import("@/lib/cloud-sync");
+        const { setStoredToken, hashEmailClient, checkCloudExists, downloadCloudData, uploadCloudData } = await import("@/lib/cloud-sync");
         setStoredToken(idToken, email);
         const emailHash = await hashEmailClient(email);
         if (typeof window !== "undefined") {
@@ -1023,13 +1023,31 @@ export const useVault = create<VaultState>()(
               cloudStatus = decrypted ? "same" : "different";
             }
           } catch {
-            cloudStatus = "different"; // Decryption failed → different vault
+            cloudStatus = "different";
           }
         }
 
-        // Start the smart sync engine now that OAuth is connected.
-        // If cloud is "same" → pull will merge. If "different" → pull fails
-        // silently, and the first mutation will overwrite the stale data.
+        // If cloud data belongs to a DIFFERENT vault (e.g., user reset a
+        // previous vault on another device and is now connecting a new one),
+        // immediately overwrite the stale cloud data with the current vault's
+        // encrypted data. This ensures stale data from a dead device is
+        // cleaned up the moment the user reconnects — no waiting for the
+        // first mutation.
+        if (cloudStatus === "different" && _masterPassword) {
+          try {
+            const envelopeJson = await get().exportEncrypted(_masterPassword);
+            const envelope = JSON.parse(envelopeJson);
+            const { updatedAt } = await uploadCloudData(idToken, envelope, emailHash);
+            set({ cloudLastSync: updatedAt });
+          } catch {
+            // If the immediate overwrite fails, the auto-sync engine
+            // will retry on the first mutation.
+          }
+        }
+
+        // Start the smart sync engine.
+        // If cloud is "same" → pull will merge.
+        // If "different" → we already overwrote above; pull will confirm.
         await startAutoSync(get, set);
 
         return { exists: existsResult.exists, updatedAt: existsResult.updatedAt, cloudStatus };
