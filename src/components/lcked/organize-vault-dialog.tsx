@@ -116,7 +116,7 @@ export function OrganizeVaultDialog({
             <div className="space-y-1.5">
               <AnimatePresence initial={false}>
                 {localVaults.map((vault, index) => {
-                  const count = items.filter((i) => !i.trashed && i.vaultId === vault.id).length;
+                  const count = items.filter((i) => !i.trashed && i.vaultIds.includes(vault.id)).length;
                   const isDragging = dragIndex === index;
                   const isOver = dragOverIndex === index && dragIndex !== null && dragIndex !== index;
                   const Icon = VAULT_LUCIDE_BY_ID[vault.icon] ?? ShieldCheck;

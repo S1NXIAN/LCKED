@@ -182,6 +182,7 @@ export function ItemList({
   const togglePin = useVault((s) => s.togglePin);
   const sortFavoritesFirst = useVault((s) => s.settings.sortFavoritesFirst);
   const hoverItemActions = useVault((s) => s.settings.hoverItemActions);
+  const blurEmailMode = useVault((s) => s.settings.blurEmailMode);
 
   // Always subscribe to activeVault reactively (IL-1). The prop is kept for
   // backwards-compat but the store subscription is the source of truth —
@@ -246,7 +247,7 @@ export function ItemList({
     if (activeVault === "trash") list = list.filter((i) => i.trashed);
     else if (activeVault === "favorites") list = list.filter((i) => !i.trashed && i.favorite);
     else if (activeVault && activeVault !== "all")
-      list = list.filter((i) => !i.trashed && i.vaultId === activeVault);
+      list = list.filter((i) => !i.trashed && i.vaultIds.includes(activeVault));
     else list = list.filter((i) => !i.trashed);
     // Type filter (secondary, list-header dropdown).
     if (filter !== "all" && typeof filter === "string") {
@@ -566,7 +567,19 @@ export function ItemList({
           offers quick "New Login/Note/Card/Identity" actions. */}
       <ContextMenu>
         <ContextMenuTrigger asChild>
-          <div className="lcked-scroll min-h-0 flex-1 overflow-y-auto">
+          <div
+            className="lcked-scroll min-h-0 flex-1 overflow-y-auto"
+            // Suppress native listbox typeahead: pressing bare number keys
+            // (0–9) inside a role="listbox" can move the browser's implicit
+            // selection / focus, which surfaces as an unwanted active-indicator
+            // border. We preventDefault on bare digit keys so only our own
+            // keybinds (which require ⌘/Ctrl for ⌘1–⌘9) move selection.
+            onKeyDown={(e) => {
+              if (/^[0-9]$/.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey) {
+                e.preventDefault();
+              }
+            }}
+          >
             <div className="p-2">
               {filtered.length === 0 ? (
                 <EmptyList
@@ -613,6 +626,7 @@ export function ItemList({
                               multiSelect={multiSelect}
                               isTrashView={isTrashView}
                               hoverItemActions={hoverItemActions}
+                              blurEmailMode={blurEmailMode}
                               // In multi-select mode, dragging a SELECTED row
                               // carries ALL selected IDs. Dragging an unselected
                               // row carries just its own id (single-item drag).
@@ -701,6 +715,7 @@ function ItemRow({
   multiSelect,
   isTrashView,
   hoverItemActions,
+  blurEmailMode,
   dragIds,
   onPick,
   onToggleSelected,
@@ -718,6 +733,7 @@ function ItemRow({
   multiSelect: boolean;
   isTrashView: boolean;
   hoverItemActions: boolean;
+  blurEmailMode: "off" | "hover" | "full";
   /** IDs to move when this row is dragged. In multi-select mode, if this row
    *  is selected, ALL selected IDs are moved. If not selected, just this one
    *  (and it's added to the selection first). Single-select: just this id. */
@@ -805,7 +821,23 @@ function ItemRow({
                 <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />
               )}
             </div>
-            <div className="truncate text-xs text-muted-foreground">
+            <div
+              className={cn(
+                "truncate text-xs text-muted-foreground",
+                // Privacy blur for email/username subtitles. Login subtitles
+                // are always the username (often an email); identity subtitles
+                // may be a name OR an email. We blur both for consistency.
+                //  - "hover": blurred by default, reveals on row hover OR when
+                //    the row is the active selection.
+                //  - "full":  always blurred — even on hover. Reveal only in
+                //    the detail pane (handled there).
+                // The blur uses CSS filter (GPU-composited) + a 200ms transition
+                // so the reveal is smooth. Lightweight: no JS, no re-render.
+                blurEmailMode !== "off" && (item.type === "login" || item.type === "identity") && "lcked-email-blur",
+                blurEmailMode === "hover" && "lcked-email-blur--hoverable",
+                blurEmailMode === "hover" && (active || checked) && "lcked-email-blur--revealed",
+              )}
+            >
               {subtitle(item)}
             </div>
           </div>
@@ -915,7 +947,11 @@ function EmptyList({
   const setActiveVault = useVault((s) => s.setActiveVault);
   const setImportExportOpen = useVault((s) => s.setImportExportOpen);
   return (
-    <div className="lcked-grid flex flex-col items-center justify-center px-6 py-20 text-center">
+    // Background matches the populated list exactly (no dotted grid) so the
+    // transition between empty and non-empty is seamless — the dots-to-solid
+    // flash was jarring. The solid bg-background is what the list scroll area
+    // already uses.
+    <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
       <DiamondMark size={56} glow className="mb-4" />
       <h3 className="text-sm font-semibold">
         {isTrash

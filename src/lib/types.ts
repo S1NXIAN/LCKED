@@ -76,8 +76,10 @@ export interface BaseItem {
   customFields: CustomField[];
   createdAt: number;
   updatedAt: number;
-  /** Which custom vault this item belongs to. null = default vault. */
-  vaultId: string | null;
+  /** Vaults this item belongs to (multi-vault membership). Empty array =
+   *  "All Items" only (no specific vault). An item may belong to several
+   *  vaults at once. Migrated from the old singular `vaultId: string | null`. */
+  vaultIds: string[];
   /** Soft-delete flag — trashed items live 30 days before auto-purge. */
   trashed: boolean;
   /** Epoch ms when the item was trashed (null if not trashed). */
@@ -173,6 +175,11 @@ export interface VaultSettings {
   unlockMethod: UnlockMethod;
   /** Whether item action buttons (restore/delete in trash) only show on hover. */
   hoverItemActions: boolean;
+  /** Privacy blur for email/username fields in lists and detail.
+   *  - "off":   no blur, emails always visible
+   *  - "hover": blurred by default, reveals on hover (list) or when selected (detail)
+   *  - "full":  always blurred in lists; detail hides the value until revealed */
+  blurEmailMode: "off" | "hover" | "full";
 }
 
 export interface GeneratorOptions {
@@ -202,6 +209,7 @@ export const DEFAULT_VAULT_SETTINGS: VaultSettings = {
   showFavicons: true,
   sortFavoritesFirst: false,
   hoverItemActions: true,
+  blurEmailMode: "off",
   unlockMethod: "master",
 };
 

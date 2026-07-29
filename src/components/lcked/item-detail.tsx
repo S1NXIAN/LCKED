@@ -16,7 +16,8 @@ import {
   MapPin,
   Building2,
   Calendar,
-  ShieldOff,
+  Eye,
+  EyeOff,
   RotateCcw,
   KeyRound,
   Lock,
@@ -70,6 +71,11 @@ function FieldRow({
   copyable = true,
   first,
   onCopy,
+  /** When true, the value is masked by default (like a password) even if the
+   *  field isn't inherently sensitive. Used for email/username rows when the
+   *  blurEmailMode setting is "full" — the email is hidden until the user
+   *  clicks the reveal (eye) button. */
+  forceMask = false,
 }: {
   label: string;
   value: string;
@@ -79,11 +85,16 @@ function FieldRow({
   copyable?: boolean;
   first?: boolean;
   onCopy?: () => void;
+  forceMask?: boolean;
 }) {
   const [revealed, setRevealed] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
 
-  const display = masked && !revealed ? "•".repeat(Math.min(value.length || 8, 12)) : value;
+  // Either the field is inherently masked (password/card) OR the user has
+  // force-masked it via blurEmailMode="full". The reveal toggle clears both.
+  const isMasked = masked || (forceMask && !revealed);
+  const display = isMasked && !revealed ? "•".repeat(Math.min(value.length || 8, 12)) : value;
+  const showRevealButton = masked || forceMask;
 
   const handleCopy = async () => {
     if (onCopy) { onCopy(); return; }
@@ -128,7 +139,7 @@ function FieldRow({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-        {masked && (
+        {showRevealButton && (
           <Button
             size="icon"
             variant="ghost"
@@ -139,7 +150,7 @@ function FieldRow({
             }}
             aria-label={revealed ? "Hide" : "Reveal"}
           >
-            {revealed ? <ShieldOff className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
+            {revealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
           </Button>
         )}
         {copyable && (
@@ -161,6 +172,98 @@ function FieldRow({
   );
 }
 
+/* -------------------- Rotating vault chip ----------------- */
+
+/**
+ * A vault chip that cycles through every vault an item belongs to every 1.5s.
+ * The icon and name crossfade with a GPU-friendly opacity+transform transition.
+ * Designed to be "oddly satisfying": a slow, rhythmic pulse that draws the eye
+ * without being distracting. Pauses on hover so the user can click the exact
+ * vault they want.
+ *
+ * Performance notes:
+ *  • Uses a single setInterval (cleared on unmount / vault-count change).
+ *  • The crossfade is pure CSS (opacity + translateY) — no layout thrash.
+ *  • AnimatePresence with mode="popLayout" keeps the transition smooth even
+ *    when the chip width changes between vaults.
+ *  • Reduced-motion users get a static chip (no rotation).
+ */
+function RotatingVaultChip({
+  vaults,
+  onSelect,
+}: {
+  vaults: NonNullable<ReturnType<typeof useVault.getState>["vaults"][number]>[];
+  onSelect: (vaultId: string) => void;
+}) {
+  const [idx, setIdx] = React.useState(0);
+  const [paused, setPaused] = React.useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setPrefersReducedMotion(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  // Clamp the index when the vault list shrinks (e.g. a vault is deleted).
+  React.useEffect(() => {
+    if (idx > vaults.length - 1) setIdx(0);
+  }, [vaults.length, idx]);
+
+  // Rotate every 1.5s — only when there's more than one vault AND motion is
+  // allowed AND the user isn't hovering.
+  React.useEffect(() => {
+    if (vaults.length <= 1) return;
+    if (paused || prefersReducedMotion) return;
+    const t = setInterval(() => {
+      setIdx((i) => (i + 1) % vaults.length);
+    }, 1500);
+    return () => clearInterval(t);
+  }, [vaults.length, paused, prefersReducedMotion]);
+
+  if (vaults.length === 0) return null;
+  const current = vaults[Math.min(idx, vaults.length - 1)];
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(current.id)}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+      className="flex items-center gap-1.5 rounded-md px-1 py-0.5 text-sm text-muted-foreground/80 transition-colors hover:bg-muted/60 hover:text-foreground"
+      title={
+        vaults.length === 1
+          ? `Go to ${current.name} vault`
+          : `In ${vaults.length} vaults: ${vaults.map((v) => v.name).join(", ")}`
+      }
+    >
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.span
+          key={current.id}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+          className="flex items-center gap-1.5"
+        >
+          <VaultIcon icon={current.icon} color={current.color} size={22} bare />
+          <span className="font-medium">{current.name}</span>
+        </motion.span>
+      </AnimatePresence>
+      {vaults.length > 1 && !prefersReducedMotion && (
+        <span className="ml-0.5 text-[10px] tabular-nums text-muted-foreground/50">
+          {idx + 1}/{vaults.length}
+        </span>
+      )}
+    </button>
+  );
+}
+
 /* -------------------- Main Detail Component ----------------- */
 
 export function ItemDetail() {
@@ -175,10 +278,18 @@ export function ItemDetail() {
   const permanentlyDeleteItem = useVault((s) => s.permanentlyDeleteItem);
   const duplicateItem = useVault((s) => s.duplicateItem);
   const showFavicons = useVault((s) => s.settings.showFavicons);
+  const blurEmailMode = useVault((s) => s.settings.blurEmailMode);
   const setActiveVault = useVault((s) => s.setActiveVault);
 
   const item = items.find((i) => i.id === selectedId);
-  const itemVault = item?.vaultId ? vaults.find((v) => v.id === item.vaultId) ?? null : null;
+  // Multi-vault: an item can belong to several vaults. Show all of them as
+  // chips; the header rotates through them every 1.5s so each gets its turn
+  // in the spotlight (icon + name crossfade).
+  const itemVaults = item
+    ? item.vaultIds
+        .map((id) => vaults.find((v) => v.id === id))
+        .filter((v): v is NonNullable<typeof v> => Boolean(v))
+    : [];
 
   // Handlers — defined as consts referencing `item` via closure. They're
   // only ever invoked from inside the `item ?` branch, so `item` is
@@ -251,17 +362,14 @@ export function ItemDetail() {
                     >
                       {ITEM_TYPE_LABELS[item.type]}
                     </button>
-                    {/* Vault chip — clickable: switches the sidebar to this vault. */}
-                    {itemVault && (
-                      <button
-                        type="button"
-                        onClick={() => setActiveVault(itemVault.id)}
-                        className="flex items-center gap-1.5 rounded-md px-1 py-0.5 text-sm text-muted-foreground/80 transition-colors hover:bg-muted/60 hover:text-foreground"
-                        title={`Go to ${itemVault.name} vault`}
-                      >
-                        <VaultIcon icon={itemVault.icon} color={itemVault.color} size={22} bare />
-                        <span className="font-medium">{itemVault.name}</span>
-                      </button>
+                    {/* Vault chip — rotates through every vault this item
+                        belongs to (multi-vault). Each vault gets 1.5s in the
+                        spotlight with a smooth icon+name crossfade. Clicking
+                        the chip navigates to the currently-shown vault. If
+                        the item belongs to only one vault (or none), no
+                        rotation — the chip is static. */}
+                    {itemVaults.length > 0 && (
+                      <RotatingVaultChip vaults={itemVaults} onSelect={(id) => setActiveVault(id)} />
                     )}
                     {item.trashed && (
                       <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
@@ -351,6 +459,7 @@ export function ItemDetail() {
                       value={item.details.username}
                       icon={isEmail(item.details.username) ? Mail : User}
                       first
+                      forceMask={blurEmailMode === "full"}
                     />
                     <FieldRow label="Password" value={item.details.password} mono masked icon={KeyRound} />
                   </FieldCluster>
@@ -437,7 +546,7 @@ export function ItemDetail() {
                       <FieldRow label="Last name" value={item.details.lastName} first />
                     </div>
                     <div className="grid grid-cols-2 divide-x divide-border/50">
-                      <FieldRow label="Email" value={item.details.email} icon={Mail} />
+                      <FieldRow label="Email" value={item.details.email} icon={Mail} forceMask={blurEmailMode === "full"} />
                       <FieldRow label="Phone" value={item.details.phone} icon={Phone} />
                     </div>
                     <FieldRow label="Company" value={item.details.company} icon={Building2} />

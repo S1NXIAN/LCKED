@@ -538,6 +538,28 @@
   border-radius: var(--radius);
 }
 
+/*
+  Email/username privacy blur for item-list subtitles.
+  GPU-composited filter:blur + a 200ms transition = smooth + lightweight.
+
+  • .lcked-email-blur              — applies the blur (always)
+  • .lcked-email-blur--hoverable   — reveals when the parent .group is hovered
+  • .lcked-email-blur--revealed    — reveals unconditionally (active/selected row)
+
+  "full" mode only applies .lcked-email-blur (no hoverable, no revealed) so
+  the blur never lifts in the list — the detail pane handles reveal.
+*/
+.lcked-email-blur {
+  filter: blur(4px);
+  transition: filter 200ms ease-out;
+}
+.group:hover .lcked-email-blur--hoverable {
+  filter: none;
+}
+.lcked-email-blur--revealed {
+  filter: none;
+}
+
 /* Lock screen + empty-state glow (sunset-warmed violet) */
 .lcked-glow {
   background-image:

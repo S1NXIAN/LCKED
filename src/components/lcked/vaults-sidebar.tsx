@@ -562,7 +562,7 @@ export function VaultsSidebar() {
   const favCount = items.filter((i) => !i.trashed && i.favorite).length;
   const trashCount = items.filter((i) => i.trashed).length;
   const vaultCount = (id: string) =>
-    items.filter((i) => !i.trashed && i.vaultId === id).length;
+    items.filter((i) => !i.trashed && i.vaultIds.includes(id)).length;
 
   const handleDelete = async (v: VaultDef) => {
     await deleteVault(v.id);
@@ -596,7 +596,7 @@ export function VaultsSidebar() {
   };
 
   const handleMoveAll = async (source: VaultDef, target: string | null) => {
-    const targets = items.filter((i) => !i.trashed && i.vaultId === source.id);
+    const targets = items.filter((i) => !i.trashed && i.vaultIds.includes(source.id));
     if (targets.length === 0) {
       toast.info(`“${source.name}” has no items to move`);
       return;

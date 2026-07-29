@@ -91,13 +91,21 @@ interface VaultState {
   permanentlyDeleteItem: (id: string) => Promise<void>;
   emptyTrash: () => Promise<void>;
   restoreAllTrash: () => Promise<{ restored: number; failed: number }>;
+  /** Replace an item's vault memberships with a single target vault.
+   *  Pass `null` to clear all vault memberships (item lives only in All Items). */
   moveItemToVault: (itemId: string, vaultId: string | null) => Promise<void>;
+  /** Add a vault membership to an item (multi-vault). No-op if already a member. */
+  addItemToVault: (itemId: string, vaultId: string) => Promise<void>;
+  /** Remove a vault membership from an item. */
+  removeItemFromVault: (itemId: string, vaultId: string) => Promise<void>;
   toggleFavorite: (id: string) => Promise<void>;
   togglePin: (id: string) => Promise<void>;
   /** Unfavorite ALL favorited items at once. */
   clearFavorites: () => Promise<{ cleared: number; failed: number }>;
-  /** Move multiple items at once (used by multi-select drag-and-drop). */
+  /** Replace vault memberships for multiple items (drag-and-drop move). */
   moveItemsToVault: (itemIds: string[], vaultId: string | null) => Promise<{ moved: number; failed: number }>;
+  /** Add a vault membership to multiple items (drag-and-drop add). */
+  addItemsToVault: (itemIds: string[], vaultId: string) => Promise<{ moved: number; failed: number }>;
   trashItems: (itemIds: string[]) => Promise<{ moved: number; failed: number }>;
   duplicateItem: (id: string) => Promise<void>;
   importItems: (filename: string, text: string) => Promise<ImportResult>;
@@ -273,7 +281,14 @@ export const useVault = create<VaultState>()(
               const item = await decryptJson<VaultItem>(s.ciphertext, s.iv, vaultKey);
               // Migration: ensure fields added in later LCKED versions exist.
               let migrated = false;
-              if (item.vaultId === undefined) { item.vaultId = null; migrated = true; }
+              // Migrate old singular `vaultId: string | null` -> `vaultIds: string[]`.
+              if ((item as unknown as { vaultId?: string | null }).vaultId !== undefined && item.vaultIds === undefined) {
+                const oldVid = (item as unknown as { vaultId: string | null }).vaultId;
+                item.vaultIds = oldVid ? [oldVid] : [];
+                delete (item as unknown as { vaultId?: string | null }).vaultId;
+                migrated = true;
+              }
+              if (item.vaultIds === undefined) { item.vaultIds = []; migrated = true; }
               if (item.trashed === undefined) { item.trashed = false; migrated = true; }
               if (item.trashedAt === undefined) { item.trashedAt = null; migrated = true; }
               if (item.customFields === undefined) { item.customFields = []; migrated = true; }
@@ -426,13 +441,15 @@ export const useVault = create<VaultState>()(
         // in the active view, not in Trash.
         const baseTrashed = existing ? existing.trashed : false;
         const baseTrashedAt = existing ? existing.trashedAt : null;
-        const baseVaultId = existing ? existing.vaultId : (input as VaultItem).vaultId ?? null;
+        const baseVaultIds = existing
+          ? existing.vaultIds
+          : (input as VaultItem).vaultIds ?? [];
         const item: VaultItem = {
           ...(input as VaultItem),
           id,
           createdAt: existing?.createdAt ?? now,
           updatedAt: now,
-          vaultId: baseVaultId,
+          vaultIds: baseVaultIds,
           trashed: baseTrashed,
           trashedAt: baseTrashedAt,
         } as VaultItem;
@@ -520,7 +537,22 @@ export const useVault = create<VaultState>()(
       },
 
       moveItemToVault: async (itemId, vaultId) => {
-        await updateItemFlags(itemId, { vaultId, updatedAt: Date.now() }, get, set);
+        // Replace all memberships with the single target (or clear if null).
+        const vaultIds = vaultId === null ? [] : [vaultId];
+        await updateItemFlags(itemId, { vaultIds, updatedAt: Date.now() }, get, set);
+      },
+
+      addItemToVault: async (itemId, vaultId) => {
+        const item = get().items.find((i) => i.id === itemId);
+        if (!item) return;
+        if (item.vaultIds.includes(vaultId)) return; // no-op
+        await updateItemFlags(itemId, { vaultIds: [...item.vaultIds, vaultId], updatedAt: Date.now() }, get, set);
+      },
+
+      removeItemFromVault: async (itemId, vaultId) => {
+        const item = get().items.find((i) => i.id === itemId);
+        if (!item) return;
+        await updateItemFlags(itemId, { vaultIds: item.vaultIds.filter((v) => v !== vaultId), updatedAt: Date.now() }, get, set);
       },
 
       toggleFavorite: async (id) => {
@@ -603,12 +635,13 @@ export const useVault = create<VaultState>()(
         if (!vaultKey) throw new Error("Vault is locked");
         const now = Date.now();
         const targets = get().items.filter((i) => itemIds.includes(i.id));
-        // Filter out no-ops: items already in the target vault.
-        const toMove = targets.filter((i) => i.vaultId !== vaultId);
+        const nextVaultIds = vaultId === null ? [] : [vaultId];
+        // Filter out no-ops: items already in exactly the target membership.
+        const toMove = targets.filter((i) => JSON.stringify(i.vaultIds) !== JSON.stringify(nextVaultIds));
         if (toMove.length === 0) return { moved: 0, failed: 0 };
         const outcomes = await Promise.allSettled(
           toMove.map(async (it) => {
-            const next: VaultItem = { ...it, vaultId, updatedAt: now } as VaultItem;
+            const next: VaultItem = { ...it, vaultIds: nextVaultIds, updatedAt: now } as VaultItem;
             const { ciphertext, iv } = await encryptJson(next, vaultKey);
             await putStoredItem({ id: next.id, type: next.type, ciphertext, iv, createdAt: next.createdAt, updatedAt: now });
             return next;
@@ -624,7 +657,40 @@ export const useVault = create<VaultState>()(
           const movedIds = new Set(moved.map((m) => m.id));
           set((state) => ({
             items: state.items
-              .map((i) => (movedIds.has(i.id) ? { ...i, vaultId, updatedAt: now } as VaultItem : i))
+              .map((i) => (movedIds.has(i.id) ? { ...i, vaultIds: nextVaultIds, updatedAt: now } as VaultItem : i))
+              .sort((a, b) => b.updatedAt - a.updatedAt),
+          }));
+        }
+        return { moved: moved.length, failed };
+      },
+
+      addItemsToVault: async (itemIds, vaultId) => {
+        const { vaultKey } = get();
+        if (!vaultKey) throw new Error("Vault is locked");
+        const now = Date.now();
+        const targets = get().items.filter((i) => itemIds.includes(i.id));
+        // Only items not already in the target vault need updating.
+        const toAdd = targets.filter((i) => !i.vaultIds.includes(vaultId));
+        if (toAdd.length === 0) return { moved: 0, failed: 0 };
+        const outcomes = await Promise.allSettled(
+          toAdd.map(async (it) => {
+            const next: VaultItem = { ...it, vaultIds: [...it.vaultIds, vaultId], updatedAt: now } as VaultItem;
+            const { ciphertext, iv } = await encryptJson(next, vaultKey);
+            await putStoredItem({ id: next.id, type: next.type, ciphertext, iv, createdAt: next.createdAt, updatedAt: now });
+            return next;
+          }),
+        );
+        const moved: VaultItem[] = [];
+        let failed = 0;
+        for (let i = 0; i < outcomes.length; i++) {
+          if (outcomes[i].status === "fulfilled") moved.push(toAdd[i]);
+          else failed++;
+        }
+        if (moved.length > 0) {
+          const movedIds = new Set(moved.map((m) => m.id));
+          set((state) => ({
+            items: state.items
+              .map((i) => (movedIds.has(i.id) ? { ...i, vaultIds: [...i.vaultIds, vaultId], updatedAt: now } as VaultItem : i))
               .sort((a, b) => b.updatedAt - a.updatedAt),
           }));
         }
@@ -696,7 +762,7 @@ export const useVault = create<VaultState>()(
           id: randomId(),
           createdAt: now,
           updatedAt: now,
-          vaultId: (input as VaultItem).vaultId ?? null,
+          vaultIds: (input as VaultItem).vaultIds ?? [],
           trashed: false,
           trashedAt: null,
         }) as VaultItem);
@@ -749,16 +815,16 @@ export const useVault = create<VaultState>()(
         if (!meta) return;
         const prevVaults = meta.vaults ?? [];
         const vaults = prevVaults.filter((v) => v.id !== id);
-        // Orphan any items that lived in this vault — they fall back to the
-        // default vault (vaultId = null). Re-encrypt + persist each BEFORE
+        // Orphan any items that lived in this vault — the vault id is removed
+        // from each item's vaultIds. Re-encrypt + persist each BEFORE
         // committing the meta change, so a partial failure can be rolled back.
         const { vaultKey, items } = get();
-        const orphaned = items.filter((i) => i.vaultId === id);
+        const orphaned = items.filter((i) => i.vaultIds.includes(id));
         if (vaultKey && orphaned.length > 0) {
           try {
             await Promise.all(
               orphaned.map(async (it) => {
-                const next: VaultItem = { ...it, vaultId: null, updatedAt: Date.now() } as VaultItem;
+                const next: VaultItem = { ...it, vaultIds: it.vaultIds.filter((v) => v !== id), updatedAt: Date.now() } as VaultItem;
                 const { ciphertext, iv } = await encryptJson(next, vaultKey);
                 await putStoredItem({
                   id: next.id,
@@ -777,7 +843,7 @@ export const useVault = create<VaultState>()(
           }
           set((state) => ({
             items: state.items.map((i) =>
-              i.vaultId === id ? ({ ...i, vaultId: null, updatedAt: Date.now() } as VaultItem) : i,
+              i.vaultIds.includes(id) ? ({ ...i, vaultIds: i.vaultIds.filter((v) => v !== id), updatedAt: Date.now() } as VaultItem) : i,
             ),
           }));
         }
@@ -802,7 +868,7 @@ export const useVault = create<VaultState>()(
         const { vaultKey, items } = get();
         if (!vaultKey) throw new Error("Vault is locked");
         const now = Date.now();
-        const vaultItems = items.filter((i) => i.vaultId === id && !i.trashed);
+        const vaultItems = items.filter((i) => i.vaultIds.includes(id) && !i.trashed);
 
         // Determine which items to delete vs. transfer.
         let toDelete: VaultItem[] = [];
@@ -830,7 +896,7 @@ export const useVault = create<VaultState>()(
         if (toTransfer.length > 0) {
           await Promise.all(
             toTransfer.map(async (it) => {
-              const next: VaultItem = { ...it, vaultId: targetVaultId, updatedAt: now } as VaultItem;
+              const next: VaultItem = { ...it, vaultIds: targetVaultId ? [targetVaultId] : [], updatedAt: now } as VaultItem;
               const { ciphertext, iv } = await encryptJson(next, vaultKey);
               await putStoredItem({ id: next.id, type: next.type, ciphertext, iv, createdAt: next.createdAt, updatedAt: now });
             }),
@@ -850,7 +916,7 @@ export const useVault = create<VaultState>()(
             .filter((i) => !deletedIds.has(i.id))
             .map((i) =>
               transferredIds.has(i.id)
-                ? { ...i, vaultId: targetVaultId, updatedAt: now } as VaultItem
+                ? { ...i, vaultIds: targetVaultId ? [targetVaultId] : [], updatedAt: now } as VaultItem
                 : i,
             )
             .sort((a, b) => b.updatedAt - a.updatedAt),
@@ -1131,13 +1197,13 @@ function notifyVaultMutation() {
 /* --------------------------- clipboard helper ----------------------------- */
 
 /**
- * Patch one or more flags on an item (vaultId / trashed / trashedAt / favorite)
+ * Patch one or more flags on an item (vaultIds / trashed / trashedAt / favorite)
  * and re-encrypt + persist it. Used by trashItem / restoreItem / moveItemToVault
  * so we have a single fault-tolerant code path.
  */
 async function updateItemFlags(
   id: string,
-  patch: Partial<Pick<VaultItem, "vaultId" | "trashed" | "trashedAt" | "updatedAt">>,
+  patch: Partial<Pick<VaultItem, "vaultIds" | "trashed" | "trashedAt" | "updatedAt">>,
   get: () => VaultState,
   set: (partial: Partial<VaultState>) => void,
 ): Promise<void> {

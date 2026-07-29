@@ -278,6 +278,8 @@ export function SettingsView() {
                 onSortFavoritesFirstChange={(v) => updateSettings({ sortFavoritesFirst: v })}
                 hoverItemActions={settings.hoverItemActions}
                 onHoverItemActionsChange={(v) => updateSettings({ hoverItemActions: v })}
+                blurEmailMode={settings.blurEmailMode}
+                onBlurEmailModeChange={(v) => updateSettings({ blurEmailMode: v })}
               />
             </TabsContent>
 
@@ -329,6 +331,8 @@ function GeneralTab({
   onSortFavoritesFirstChange,
   hoverItemActions,
   onHoverItemActionsChange,
+  blurEmailMode,
+  onBlurEmailModeChange,
 }: {
   themeId: string;
   onSelectTheme: (id: string) => void;
@@ -338,6 +342,8 @@ function GeneralTab({
   onSortFavoritesFirstChange: (v: boolean) => void;
   hoverItemActions: boolean;
   onHoverItemActionsChange: (v: boolean) => void;
+  blurEmailMode: "off" | "hover" | "full";
+  onBlurEmailModeChange: (v: "off" | "hover" | "full") => void;
 }) {
   return (
     <section className="space-y-5">
@@ -429,6 +435,44 @@ function GeneralTab({
           </span>
           <Switch checked={hoverItemActions} onCheckedChange={onHoverItemActionsChange} />
         </label>
+      </div>
+
+      <Separator />
+
+      <header className="space-y-1">
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          <Eye className="h-4 w-4 text-muted-foreground" />
+          Privacy
+        </h2>
+        <p className="text-xs text-muted-foreground">
+          Blur email and username fields in the item list so shoulder-surfers can&rsquo;t read them.
+        </p>
+      </header>
+
+      <div className="grid grid-cols-3 gap-2">
+        {([
+          { id: "off", label: "Off", caption: "Always visible" },
+          { id: "hover", label: "On hover", caption: "Blurred, reveals on hover or selection" },
+          { id: "full", label: "Full", caption: "Always blurred; hidden in details until revealed" },
+        ] as const).map((opt) => {
+          const active = blurEmailMode === opt.id;
+          return (
+            <button
+              key={opt.id}
+              onClick={() => onBlurEmailModeChange(opt.id)}
+              className={cn(
+                "flex flex-col gap-1 rounded-lg border p-3 text-left transition duration-150",
+                active
+                  ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                  : "border-border bg-muted/20 hover:bg-muted/40",
+              )}
+              aria-pressed={active}
+            >
+              <span className="text-sm font-medium">{opt.label}</span>
+              <span className="text-[11px] leading-tight text-muted-foreground">{opt.caption}</span>
+            </button>
+          );
+        })}
       </div>
     </section>
   );
