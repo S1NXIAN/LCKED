@@ -32,23 +32,71 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
 
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-local-*
-.claude
+
+# ============================================================
+# Sandbox / z.ai environment — NOT part of the web app
+# ============================================================
+
+# z.ai gateway + scripts
+Caddyfile
+.zscripts/
 .z-ai-config
+.claude
+
+# Agent context + worklogs (internal development artifacts)
+agent-ctx/
+worklog.md
+worklog*.md
+dev-watchdog.log
+
+# Tool output + scratch dirs
+tool-results/
+download/
+upload/
+prompt
+test
+
+# Skills library (z.ai skill packages — 61MB, not needed by the app)
+/skills/
+
+# Research / design docs (internal reference material)
+research-pp-ux/
+RESEARCH-*.md
+*-design-brief.md
+*-design-plan.md
+LCKED-DESIGN-PLAN.md
+
+# Examples + mini-services (sandbox demos, not part of the app)
+/examples/
+/mini-services/
+
+# Sandbox-only scripts (dev watchdog, push scripts, etc.)
+/scripts/dev-watchdog.sh
+/scripts/push.sh
+
+# Sandbox start script
+start-dev.sh
+
+# Agent browser automation data
+.agent-browser/
+
+# Logs
 *.log
 dev.log
 dev.out.log
-test
-prompt
-
 server.log
-# Skills directory
-/skills/
+
+# Local database (the app uses IndexedDB via Dexie — no server DB needed)
+/db/*.db
+/db/*.db-journal
+
+# Local-only config
+local-*
