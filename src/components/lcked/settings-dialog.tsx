@@ -114,48 +114,10 @@ const UNLOCK_METHODS: {
   { id: "none", label: "None", caption: "Master password only. No quick-unlock option.", icon: Globe },
 ];
 
-// Google OAuth only (GitHub removed per spec).
+// Google OAuth via Firebase Authentication.
 const OAUTH_PROVIDERS = [
   { id: "google", label: "Google", icon: Chrome },
 ] as const;
-
-/**
- * Dynamically load the Google Identity Services (GIS) script.
- * Returns a token client that can request an access token.
- * The GIS script is loaded from Google's CDN on demand.
- */
-function loadGoogleIdentity(): Promise<{ requestAccessToken: (opts: { prompt: string; callback: (resp: { access_token: string; error?: string }) => void }) => void }> {
-  return new Promise((resolve, reject) => {
-    if (typeof window === "undefined") return reject(new Error("SSR"));
-    // If already loaded, reuse.
-    const w = window as unknown as { google?: { accounts?: { oauth2?: { initTokenClient: (config: { client_id: string; scope: string; callback: (resp: { access_token: string; error?: string }) => void }) => { requestAccessToken: (opts: { prompt: string }) => void } } } } };
-    if (w.google?.accounts?.oauth2) {
-      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
-      const client = w.google.accounts.oauth2.initTokenClient({
-        client_id: clientId,
-        scope: "email profile",
-        callback: () => {}, // Will be overridden by requestAccessToken's callback
-      });
-      return resolve(client);
-    }
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
-      if (!w.google?.accounts?.oauth2) return reject(new Error("GIS failed to load"));
-      const client = w.google.accounts.oauth2.initTokenClient({
-        client_id: clientId,
-        scope: "email profile",
-        callback: () => {},
-      });
-      resolve(client);
-    };
-    script.onerror = () => reject(new Error("Failed to load GIS script"));
-    document.head.appendChild(script);
-  });
-}
 
 /* --------------------------------- helpers --------------------------------- */
 
@@ -699,73 +661,34 @@ function AccountTab() {
   const [showDisconnectConfirm, setShowDisconnectConfirm] = React.useState(false);
   const [deleteCloudOnDisconnect, setDeleteCloudOnDisconnect] = React.useState(true);
 
-  // Google OAuth: opens a popup window for Google Sign-In.
-  // NOTE: This requires a Google OAuth client ID configured in the Firebase
-  // Console. The client ID is loaded from the NEXT_PUBLIC_GOOGLE_CLIENT_ID
-  // environment variable. Without it, the connect button shows an error.
-  const GOOGLE_CLIENT_ID = typeof window !== "undefined"
-    ? process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""
-    : "";
-
+  // Google OAuth via Firebase Authentication (popup).
   const handleConnect = async () => {
-    if (!GOOGLE_CLIENT_ID) {
-      toast.error("Google OAuth not configured", {
-        description: "Set NEXT_PUBLIC_GOOGLE_CLIENT_ID in .env.local to enable cloud sync.",
-      });
-      return;
-    }
     setConnecting(true);
     try {
-      // Use Google Identity Services (GIS) token client.
-      const tokenClient = await loadGoogleIdentity();
-      tokenClient.requestAccessToken({
-        prompt: "consent",
-        callback: async (resp: { access_token: string; error?: string }) => {
-          if (resp.error || !resp.access_token) {
-            setConnecting(false);
-            toast.error("Google sign-in failed");
-            return;
-          }
-          try {
-            // Exchange the access token for a Firebase ID token.
-            // This goes through our API route which uses the Admin SDK.
-            const exchangeRes = await fetch("/api/auth/exchange-token", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ accessToken: resp.access_token }),
-            });
-            if (!exchangeRes.ok) throw new Error("Token exchange failed");
-            const { idToken, email } = await exchangeRes.json();
-            const result = await connectOAuth(idToken, email);
-            if (result.cloudStatus === "same") {
-              toast.success("Connected to Google", {
-                description: "Cloud backup found for this vault. Auto-sync is active.",
-              });
-            } else if (result.cloudStatus === "different") {
-              // Cloud data exists but belongs to a different vault.
-              // This happens when: user reset a vault on another device
-              // (offline), or connected a second vault to the same account.
-              toast.warning("Cloud data belongs to a different vault", {
-                description: "Your current vault will overwrite the cloud backup on the next change. This is expected if you reset a previous vault.",
-              });
-            } else if (result.exists) {
-              toast.success("Connected to Google", {
-                description: "Cloud data found. Auto-sync will merge it.",
-              });
-            } else {
-              toast.success("Connected to Google", {
-                description: "Your vault is ready to sync.",
-              });
-            }
-          } catch {
-            toast.error("Could not complete Google sign-in");
-          }
-          setConnecting(false);
-        },
-      });
+      const { signInWithGoogle } = await import("@/lib/firebase-client");
+      const { idToken, email } = await signInWithGoogle();
+      const result = await connectOAuth(idToken, email);
+      if (result.cloudStatus === "same") {
+        toast.success("Connected to Google", {
+          description: "Cloud backup found for this vault. Auto-sync is active.",
+        });
+      } else if (result.cloudStatus === "different") {
+        toast.warning("Cloud data belongs to a different vault", {
+          description: "Your current vault will overwrite the cloud backup. This is expected if you reset a previous vault.",
+        });
+      } else if (result.exists) {
+        toast.success("Connected to Google", {
+          description: "Cloud data found. Auto-sync will merge it.",
+        });
+      } else {
+        toast.success("Connected to Google", {
+          description: "Your vault is ready to sync.",
+        });
+      }
     } catch {
+      toast.error("Could not complete Google sign-in");
+    } finally {
       setConnecting(false);
-      toast.error("Could not load Google Sign-In");
     }
   };
 
@@ -774,6 +697,9 @@ function AccountTab() {
     setDisconnecting(true);
     try {
       await disconnectOAuth(deleteCloudOnDisconnect);
+      // Sign out from Firebase client SDK too.
+      const { signOutFirebase } = await import("@/lib/firebase-client");
+      await signOutFirebase();
       toast.success(deleteCloudOnDisconnect ? "Disconnected and cloud data deleted" : "Disconnected");
     } catch {
       toast.error("Could not disconnect. Make sure you are online.");
@@ -955,11 +881,6 @@ function AccountTab() {
                   </Button>
                 );
               })}
-              {!GOOGLE_CLIENT_ID && (
-                <p className="mt-2 text-center text-[10px] text-amber-500/70">
-                  Set NEXT_PUBLIC_GOOGLE_CLIENT_ID in .env.local to enable
-                </p>
-              )}
             </motion.div>
           )}
         </AnimatePresence>

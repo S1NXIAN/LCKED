@@ -1,55 +1,34 @@
 "use client";
 
 /**
- * LCKED — ActiveHighlight (v2 — clean state machine)
+ * LCKED — ActiveHighlight (v3 — edge-glide)
  * ---------------------------------------------------------------------------
  * Shared sliding highlight for the item-list and the vaults-sidebar.
  *
- * The highlight is a single absolutely-positioned div inside `containerRef`.
- * It uses a CSS `transition: opacity` for fade-in/fade-out and a rAF spring
- * (exponential lerp) for the glide. The two animations run independently:
- * opacity is CSS-driven (GPU-composited), position is JS-driven (rAF).
+ * Animation strategy:
+ *   • When the target appears (or reappears after being hidden), the
+ *     highlight starts from the NEAREST EDGE of the container (top wall
+ *     if the target is in the top half, bottom wall if in the bottom half)
+ *     and glides to the target position. This is simpler and more
+ *     predictable than gliding from the last known position, which could
+ *     be stale or off-screen and cause visual teleporting.
+ *   • When the target moves within the same view (e.g., selecting a
+ *     different item), the highlight glides from its current position
+ *     to the new target — smooth, natural.
+ *   • When the target disappears (item not in current vault), the
+ *     highlight fades out (opacity 1→0 via CSS transition).
+ *   • When the target reappears (switching back to a vault that has the
+ *     item), the highlight fades in from the nearest edge — no teleport.
  *
- * ┌─────────┐  target found   ┌───────────┐  opacity→1   ┌─────────┐
- * │ HIDDEN  │ ──────────────► │ FADING_IN │ ───────────► │ VISIBLE │
- * │ op:0    │                 │ op:0→1    │               │ op:1    │
- * └─────────┘                 └───────────┘               └─────────┘
- *      ▲                                                       │
- *      │  opacity→0                                    target │ lost
- *      │                                               ┌──────▼──────┐
- *      └─────────────────────────────────────────────  │ FADING_OUT  │
- *                                                      │ op:1→0      │
- *                                                      └─────────────┘
- *
- * Key design decisions:
- *   • The element is ALWAYS mounted (never `return null`). This avoids
- *     DOM remount costs and enables smooth CSS opacity transitions.
- *   • On the VERY FIRST show (`everVisible === false`), the position
- *     snaps to the target (no glide from 0,0). On every subsequent
- *     show, the position glides from `posRef` (last known position).
- *   • `posRef` is updated every frame by the rAF spring AND by `measure()`
- *     when snapping. It always reflects the current animated position.
- *   • The rAF spring is a persistent loop — it runs whenever there's a
- *     target and the position hasn't settled. It is NOT canceled on
- *     `activeKey` change; it settles naturally.
- *   • `measure()` is called via `kick()` which is triggered by:
- *       - activeKey change (triple rAF delay for DOM settle)
- *       - MutationObserver (rAF delay + 300ms delayed re-check)
- *       - scroll/resize (rAF-throttled)
- *   • `everVisibleRef` prevents re-snapping after the first show. Once
- *     the highlight has been visible, it always glides.
+ * The element is ALWAYS mounted. Opacity drives the fade via CSS
+ * `transition: opacity 0.2s`. Position is driven by a rAF spring
+ * (exponential lerp, factor 0.35).
  */
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-// ─── Types ────────────────────────────────────────────────────────────────
-
-type Phase = "hidden" | "fadingIn" | "visible" | "fadingOut";
-
 interface Rect { x: number; y: number; w: number; h: number; }
-
-// ─── Component ────────────────────────────────────────────────────────────
 
 export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
   containerRef,
@@ -62,24 +41,20 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
   selectorAttr: string;
   className?: string;
 }) {
-  // ─── Refs (mutable, don't trigger re-render) ──────────────────────────
   const hlRef = React.useRef<HTMLDivElement | null>(null);
   const rafRef = React.useRef<number | null>(null);
   const targetRef = React.useRef<Rect | null>(null);
   const posRef = React.useRef({ x: 0, y: 0 });
   const everVisibleRef = React.useRef(false);
-  const phaseRef = React.useRef<Phase>("hidden");
+  const wasHiddenRef = React.useRef(true); // true = target was not found last measure
   const activeKeyRef = React.useRef(activeKey);
   const animateRef = React.useRef<(() => void) | null>(null);
 
   React.useEffect(() => { activeKeyRef.current = activeKey; }, [activeKey]);
 
-  // ─── State (triggers re-render for opacity changes) ───────────────────
   const [opacity, setOpacity] = React.useState(0);
 
-  // ─── measure() — find the target element and update targetRef ─────────
-  // Returns true if the target was found (indicator should be visible),
-  // false if not (indicator should hide).
+  // ─── measure() — find target, set start position if transitioning ─────
   const measure = React.useCallback((): boolean => {
     const container = containerRef.current;
     const hl = hlRef.current;
@@ -105,53 +80,46 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
       hl.style.width = `${next.w}px`;
       hl.style.height = `${next.h}px`;
 
-      // Snap ONLY on the very first appearance ever. On all subsequent
-      // appearances, glide from posRef (last known position).
       if (!everVisibleRef.current) {
+        // Very first appearance: snap to target.
         hl.style.transform = `translate(${next.x}px, ${next.y}px)`;
         posRef.current = { x: next.x, y: next.y };
         everVisibleRef.current = true;
+      } else if (wasHiddenRef.current) {
+        // Reappearing after being hidden: start from the nearest edge.
+        // Top wall = y=0, bottom wall = y = container height.
+        const containerH = cr.height;
+        const startY = next.y < containerH / 2 ? -next.h : containerH;
+        hl.style.transform = `translate(${next.x}px, ${startY}px)`;
+        posRef.current = { x: next.x, y: startY };
       }
+      // If not hidden (target moved within view), posRef stays at the
+      // current animated position — the spring glides naturally.
     }
 
     targetRef.current = next;
+    wasHiddenRef.current = false;
     return true;
   }, [containerRef, selectorAttr]);
 
-  // ─── kick() — measure + start the rAF spring if needed ────────────────
+  // ─── kick() — measure + start/continue the rAF spring ─────────────────
   const kick = React.useCallback(() => {
     const found = measure();
 
     if (found) {
-      // Target exists — show the indicator.
-      if (phaseRef.current === "hidden" || phaseRef.current === "fadingOut") {
-        // Transitioning from hidden → visible. If we've been visible before,
-        // restore posRef to the element so we glide from the last position.
-        if (everVisibleRef.current && hlRef.current) {
-          hlRef.current.style.transform = `translate(${posRef.current.x}px, ${posRef.current.y}px)`;
-        }
-        phaseRef.current = "fadingIn";
-      }
-      if (phaseRef.current === "fadingIn") {
-        phaseRef.current = "visible";
-      }
       setOpacity(1);
     } else {
-      // Target doesn't exist — hide the indicator.
-      if (phaseRef.current === "visible" || phaseRef.current === "fadingIn") {
-        phaseRef.current = "fadingOut";
-      }
+      wasHiddenRef.current = true;
       targetRef.current = null;
       setOpacity(0);
     }
 
-    // Start or continue the rAF spring if we have a target.
     if (targetRef.current && !rafRef.current && animateRef.current) {
       rafRef.current = requestAnimationFrame(animateRef.current);
     }
   }, [measure]);
 
-  // ─── rAF spring step (defined once, reads from refs) ──────────────────
+  // ─── rAF spring step ──────────────────────────────────────────────────
   React.useEffect(() => {
     const step = () => {
       const hl = hlRef.current;
@@ -168,10 +136,7 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
       pos.x = settled ? target.x : nx;
       pos.y = settled ? target.y : ny;
       hl.style.transform = `translate(${pos.x}px, ${pos.y}px)`;
-      if (settled) {
-        rafRef.current = null;
-        return;
-      }
+      if (settled) { rafRef.current = null; return; }
       rafRef.current = requestAnimationFrame(step);
     };
     animateRef.current = step;
@@ -179,13 +144,10 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
   }, []);
 
   // ─── On activeKey change: triple-rAF + kick ───────────────────────────
-  // Triple rAF ensures the DOM has fully painted (AnimatePresence exits,
-  // sort reorder, pinned items pushed) before measuring.
   React.useEffect(() => {
     if (!activeKey) {
-      // Explicitly hide.
+      wasHiddenRef.current = true;
       targetRef.current = null;
-      phaseRef.current = "fadingOut";
       setOpacity(0);
       return;
     }
@@ -198,7 +160,7 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
     return () => { cancelAnimationFrame(f1); cancelAnimationFrame(f2); cancelAnimationFrame(f3); };
   }, [activeKey, kick]);
 
-  // ─── MutationObserver: re-measure on DOM changes + delayed catch-up ──
+  // ─── MutationObserver ─────────────────────────────────────────────────
   React.useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -215,7 +177,7 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
     return () => { observer.disconnect(); if (delayed) clearTimeout(delayed); };
   }, [containerRef, kick, selectorAttr]);
 
-  // ─── Scroll + resize: rAF-throttled re-measure ────────────────────────
+  // ─── Scroll + resize ──────────────────────────────────────────────────
   React.useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -231,10 +193,9 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
     return () => { scrollEl?.removeEventListener("scroll", handler); window.removeEventListener("resize", handler); };
   }, [containerRef, kick]);
 
-  // ─── Cleanup rAF on unmount ───────────────────────────────────────────
+  // ─── Cleanup ──────────────────────────────────────────────────────────
   React.useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
 
-  // ─── Render (always mounted; opacity drives the fade) ─────────────────
   return (
     <div
       ref={hlRef}

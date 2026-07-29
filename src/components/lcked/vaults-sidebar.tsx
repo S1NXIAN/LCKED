@@ -263,7 +263,7 @@ function VaultRow({
       onDragOver={handleDragOver}
       aria-current={active ? "true" : undefined}
       className={cn(
-        "group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors duration-100",
+        "group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left transition-colors duration-100",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
         active
           ? "text-accent-foreground"
@@ -645,7 +645,12 @@ export function VaultsSidebar() {
           active vault row leaves the visible viewport. No floating overlay,
           no follow-the-item-off-screen: it disappears with the row, exactly
           like the item-list indicator. (Shared ActiveHighlight component.) */}
-      <div className="lcked-scroll min-h-0 flex-1 overflow-y-auto">
+      {/* Scrollable vault list — capped to show exactly 5 rows before
+          scrolling. Row height is ~49px (py-2 + 28px icon + gap), so
+          5 rows ≈ 245px. Using max-h to trigger overflow at the right
+          point; min-h-0 + flex-1 ensures it shrinks below 5 if the
+          viewport is short. */}
+      <div className="lcked-scroll min-h-0 max-h-[15.3rem] flex-1 overflow-y-auto">
         <div ref={listRef} className="relative">
           {/* Sliding highlight — only active for non-trash vaults. Clipped
               by the scroll area's overflow when the row scrolls away. */}
