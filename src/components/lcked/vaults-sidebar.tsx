@@ -39,6 +39,7 @@ import {
   FolderInput,
   Home,
   LayoutGrid,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -539,6 +540,8 @@ export function VaultsSidebar() {
   const deleteVault = useVault((s) => s.deleteVault);
   const moveItemToVault = useVault((s) => s.moveItemToVault);
   const clearFavorites = useVault((s) => s.clearFavorites);
+  const emptyTrash = useVault((s) => s.emptyTrash);
+  const restoreAllTrash = useVault((s) => s.restoreAllTrash);
   const hoverItemActions = useVault((s) => s.settings.hoverItemActions);
 
   // Refs for the two ActiveHighlight instances:
@@ -575,6 +578,21 @@ export function VaultsSidebar() {
     } else if (failed > 0) {
       toast.error(`Could not clear ${failed} favorite${failed === 1 ? "" : "s"}`);
     }
+  };
+
+  const handleEmptyTrash = async () => {
+    try {
+      await emptyTrash();
+      toast.success("Trash emptied");
+    } catch {
+      toast.error("Could not empty trash");
+    }
+  };
+
+  const handleRestoreAllTrash = async () => {
+    const { restored, failed } = await restoreAllTrash();
+    if (restored > 0) toast.success(`Restored ${restored} item${restored === 1 ? "" : "s"}`);
+    if (failed > 0) toast.error(`Could not restore ${failed} item${failed === 1 ? "" : "s"}`);
   };
 
   const handleMoveAll = async (source: VaultDef, target: string | null) => {
@@ -864,6 +882,41 @@ export function VaultsSidebar() {
           warn={trashCount > 0}
           onSelect={() => setActiveVault("trash")}
           dragOver={overKey === "trash"}
+          menu={
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground",
+                    hoverItemActions && "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+                  )}
+                  aria-label="Trash options"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem
+                  onSelect={handleRestoreAllTrash}
+                  disabled={trashCount === 0}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Restore all
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={handleEmptyTrash}
+                  disabled={trashCount === 0}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Empty trash
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          }
         />
       </div>
 

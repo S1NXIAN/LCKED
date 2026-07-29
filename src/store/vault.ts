@@ -47,7 +47,6 @@ import {
   type ImportResult,
   type LckedExport,
 } from "@/lib/import-export";
-import { getSeedItems, getSeedVaults } from "@/lib/seed-data";
 
 export type VaultStatus = "loading" | "setup" | "locked" | "unlocked";
 
@@ -91,6 +90,7 @@ interface VaultState {
   restoreItem: (id: string) => Promise<void>;
   permanentlyDeleteItem: (id: string) => Promise<void>;
   emptyTrash: () => Promise<void>;
+  restoreAllTrash: () => Promise<{ restored: number; failed: number }>;
   moveItemToVault: (itemId: string, vaultId: string | null) => Promise<void>;
   toggleFavorite: (id: string) => Promise<void>;
   togglePin: (id: string) => Promise<void>;
@@ -200,33 +200,7 @@ export const useVault = create<VaultState>()(
         const { ciphertext, iv } = await wrapVaultKey(vaultKey, masterKey);
         const verifier = await buildVerifier(masterKey);
 
-        // Seed demo vaults + items for easier debugging of edge cases.
         const now = Date.now();
-        const seedVaults = getSeedVaults(now);
-        const seedInputs = getSeedItems(now);
-
-        // Encrypt + persist each seed item. The plaintext item is kept directly
-        // so we don't waste a decrypt pass re-reading what we just wrote.
-        const decryptedItems: VaultItem[] = [];
-        for (const input of seedInputs) {
-          const item: VaultItem = {
-            ...input,
-            id: randomId(),
-            createdAt: now,
-            updatedAt: now,
-          } as VaultItem;
-          const enc = await encryptJson(item, vaultKey);
-          await putStoredItem({
-            id: item.id,
-            type: item.type,
-            ciphertext: enc.ciphertext,
-            iv: enc.iv,
-            createdAt: item.createdAt,
-            updatedAt: item.updatedAt,
-          });
-          decryptedItems.push(item);
-        }
-
         const meta: VaultMeta = {
           id: "singleton",
           salt,
@@ -238,7 +212,7 @@ export const useVault = create<VaultState>()(
           verifierToken: verifier.verifierToken,
           createdAt: now,
           settings: DEFAULT_VAULT_SETTINGS,
-          vaults: seedVaults,
+          vaults: [],
         };
         await saveVaultMeta(meta);
 
@@ -247,14 +221,12 @@ export const useVault = create<VaultState>()(
           masterKey,
           vaultKey,
           settings: DEFAULT_VAULT_SETTINGS,
-          items: decryptedItems,
-          vaults: seedVaults,
+          items: [],
+          vaults: [],
           activeVault: "all",
           selectedId: null,
         });
-        // Store master password for auto-sync encryption (in-memory only).
         _masterPassword = masterPassword;
-        // Start the smart sync engine (if OAuth is connected).
         await startAutoSync(get, set);
       },
 
@@ -534,6 +506,17 @@ export const useVault = create<VaultState>()(
           }));
           throw new Error(`Could not delete ${failedIds.size} item(s)`);
         }
+      },
+
+      restoreAllTrash: async () => {
+        const trashed = get().items.filter((i) => i.trashed);
+        if (trashed.length === 0) return { restored: 0, failed: 0 };
+        const outcomes = await Promise.allSettled(
+          trashed.map((it) => updateItemFlags(it.id, { trashed: false, trashedAt: null, updatedAt: Date.now() }, get, set)),
+        );
+        const restored = outcomes.filter((o) => o.status === "fulfilled").length;
+        const failed = outcomes.filter((o) => o.status === "rejected").length;
+        return { restored, failed };
       },
 
       moveItemToVault: async (itemId, vaultId) => {
