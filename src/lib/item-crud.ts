@@ -51,8 +51,7 @@ export async function patchItem(
  *
  * @param vaultKey  Decrypted vault CryptoKey.
  * @param items     Items to patch (pre-filtered to what actually needs work).
- * @param patchFn   Called per item with (item, index); should return the
- *                  partial fields to merge (or a full replacement).
+ * @param patchFn   Called per item; should return the partial fields to merge.
  * @returns         `{ updated, failed }` — `updated` is the list of freshly
  *                  encrypted-and-persisted items; `failed` is the count of
  *                  items whose encrypt/persist rejected.
@@ -60,12 +59,12 @@ export async function patchItem(
 export async function patchItems(
   vaultKey: CryptoKey,
   items: VaultItem[],
-  patchFn: (item: VaultItem, index: number) => Partial<VaultItem>,
+  patchFn: (item: VaultItem) => Partial<VaultItem>,
 ): Promise<{ updated: VaultItem[]; failed: number }> {
   const now = Date.now();
   const outcomes = await Promise.allSettled(
     items.map(async (item, i) => {
-      const patch = patchFn(item, i);
+      const patch = patchFn(item);
       const updated: VaultItem = { ...item, ...patch, updatedAt: now } as VaultItem;
       const { ciphertext, iv } = await encryptJson(updated, vaultKey);
       await putStoredItem({

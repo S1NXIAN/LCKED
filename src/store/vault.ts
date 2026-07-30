@@ -157,7 +157,16 @@ let _masterPassword: string | null = null;
 
 export const useVault = create<VaultState>()(
   persist(
-    (set, get) => ({
+    (set, get) => {
+      const applyItemUpdate = (id: string, updated: VaultItem) => {
+        set((state) => ({
+          items: state.items
+            .map((i) => (i.id === id ? updated : i))
+            .sort((a, b) => b.updatedAt - a.updatedAt),
+        }));
+        notifyVaultMutation();
+      };
+      return {
       status: "loading",
       items: [],
       vaults: [],
@@ -471,12 +480,7 @@ export const useVault = create<VaultState>()(
         const item = get().items.find((i) => i.id === id);
         if (!item) return;
         const updated = await patchItem(vaultKey, item, { trashed: true, trashedAt: Date.now() });
-        set((state) => ({
-          items: state.items
-            .map((i) => (i.id === id ? updated : i))
-            .sort((a, b) => b.updatedAt - a.updatedAt),
-        }));
-        notifyVaultMutation();
+        applyItemUpdate(id, updated);
       },
 
       restoreItem: async (id) => {
@@ -485,12 +489,7 @@ export const useVault = create<VaultState>()(
         const item = get().items.find((i) => i.id === id);
         if (!item) return;
         const updated = await patchItem(vaultKey, item, { trashed: false, trashedAt: null });
-        set((state) => ({
-          items: state.items
-            .map((i) => (i.id === id ? updated : i))
-            .sort((a, b) => b.updatedAt - a.updatedAt),
-        }));
-        notifyVaultMutation();
+        applyItemUpdate(id, updated);
       },
 
       permanentlyDeleteItem: async (id) => {
@@ -552,6 +551,7 @@ export const useVault = create<VaultState>()(
               .map((i) => updatedMap.get(i.id) ?? i)
               .sort((a, b) => b.updatedAt - a.updatedAt),
           }));
+          notifyVaultMutation();
         }
         return { restored: updated.length, failed };
       },
@@ -563,12 +563,7 @@ export const useVault = create<VaultState>()(
         if (!item) return;
         const vaultIds = vaultId === null ? [] : [vaultId];
         const updated = await patchItem(vaultKey, item, { vaultIds });
-        set((state) => ({
-          items: state.items
-            .map((i) => (i.id === itemId ? updated : i))
-            .sort((a, b) => b.updatedAt - a.updatedAt),
-        }));
-        notifyVaultMutation();
+        applyItemUpdate(itemId, updated);
       },
 
       toggleFavorite: async (id) => {
@@ -577,12 +572,7 @@ export const useVault = create<VaultState>()(
         const currentItem = get().items.find((i) => i.id === id);
         if (!currentItem) return;
         const updated = await patchItem(vaultKey, currentItem, { favorite: !currentItem.favorite });
-        set((state) => ({
-          items: state.items
-            .map((i) => (i.id === id ? updated : i))
-            .sort((a, b) => b.updatedAt - a.updatedAt),
-        }));
-        notifyVaultMutation();
+        applyItemUpdate(id, updated);
       },
 
       togglePin: async (id) => {
@@ -591,12 +581,7 @@ export const useVault = create<VaultState>()(
         const currentItem = get().items.find((i) => i.id === id);
         if (!currentItem) return;
         const updated = await patchItem(vaultKey, currentItem, { pinned: !currentItem.pinned });
-        set((state) => ({
-          items: state.items
-            .map((i) => (i.id === id ? updated : i))
-            .sort((a, b) => b.updatedAt - a.updatedAt),
-        }));
-        notifyVaultMutation();
+        applyItemUpdate(id, updated);
       },
 
       /* ----------- bulk actions (multi-select drag-and-drop) ----------- */
@@ -1029,7 +1014,8 @@ export const useVault = create<VaultState>()(
         if (!token) return;
         try { await executePendingDeletion(); } catch { /* retry later */ }
       },
-    }),
+      };
+    },
     {
       name: "lcked-ui-prefs",
       // Only persist non-sensitive UI preferences — NEVER keys or items.

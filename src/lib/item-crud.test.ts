@@ -86,22 +86,6 @@ describe("patchItems", () => {
     expect(result.updated[1].favorite).toBe(false);
   });
 
-  it("passes index to patchFn", async () => {
-    const items = [makeItem({ id: "a" }), makeItem({ id: "b" })];
-    const indices: number[] = [];
-
-    await patchItems(mockVaultKey, items, (_, i) => {
-      indices.push(i);
-      return { name: `item-${i}` };
-    });
-
-    expect(indices).toEqual([0, 1]);
-    // Both items get their own name via patchFn — verify the second persisted.
-    const { putStoredItem } = await import("@/lib/vault-db");
-    const calls = vi.mocked(putStoredItem).mock.calls;
-    expect(calls[1][0].ciphertext).toContain("item-1");
-  });
-
   it("reports failures without losing the rest", async () => {
     const { encryptJson } = await import("@/lib/crypto");
     vi.mocked(encryptJson).mockRejectedValueOnce(new Error("crypto fail"));
