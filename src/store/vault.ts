@@ -9,13 +9,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
-  encryptJson,
-  randomId,
-} from "@/lib/crypto";
-import {
   deleteStoredItem,
   loadVaultMeta,
-  putStoredItem,
   saveVaultMeta,
   vaultExists,
   wipeVault,
@@ -35,7 +30,7 @@ import {
 } from "@/lib/import-export";
 import { clearAllClipboardTimers } from "@/lib/clipboard";
 import * as vaultManager from "@/lib/vault-manager";
-import { patchItem, patchItems } from "@/lib/item-crud";
+import { patchItem, patchItems, writeItem, writeItems } from "@/lib/item-crud";
 import {
   createVault,
   unlockVault,
@@ -316,33 +311,13 @@ export const useVault = create<VaultState>()(
         const { vaultKey } = get();
         if (!vaultKey) throw new Error("Vault is locked");
 
-        const now = Date.now();
-        const id = existingId ?? randomId();
         const existing = existingId ? get().items.find((i) => i.id === existingId) : undefined;
-        // Never inherit trashed state from a duplicated item — duplicates land
-        // in the active view, not in Trash.
-        const baseTrashed = existing ? existing.trashed : false;
-        const baseTrashedAt = existing ? existing.trashedAt : null;
-        const baseVaultIds = existing
-          ? existing.vaultIds
-          : (input as VaultItem).vaultIds ?? [];
-        const item: VaultItem = {
-          ...(input as VaultItem),
-          id,
-          createdAt: existing?.createdAt ?? now,
-          updatedAt: now,
-          vaultIds: baseVaultIds,
-          trashed: baseTrashed,
-          trashedAt: baseTrashedAt,
-        } as VaultItem;
-
-        const { ciphertext, iv } = await encryptJson(item, vaultKey);
-        await putStoredItem({ id, type: item.type, ciphertext, iv, createdAt: item.createdAt, updatedAt: now });
+        const item = await writeItem(vaultKey, input, existing);
 
         set((state) => {
-          const others = state.items.filter((i) => i.id !== id);
+          const others = state.items.filter((i) => i.id !== item.id);
           const next = [item, ...others].sort((a, b) => b.updatedAt - a.updatedAt);
-          return { items: next, selectedId: id };
+          return { items: next, selectedId: item.id };
         });
         notifyVaultMutation();
         return item;
@@ -562,33 +537,7 @@ export const useVault = create<VaultState>()(
           };
         }
 
-        // Batch: encrypt + persist all items in parallel, then a single state
-        // update + sort. Avoids O(n) sequential awaits + O(n) re-renders.
-        const now = Date.now();
-        const built: VaultItem[] = items.map((input) => ({
-          ...(input as VaultItem),
-          id: randomId(),
-          createdAt: now,
-          updatedAt: now,
-          vaultIds: (input as VaultItem).vaultIds ?? [],
-          trashed: false,
-          trashedAt: null,
-        }) as VaultItem);
-
-        const encOutcomes = await Promise.allSettled(
-          built.map(async (item) => {
-            const { ciphertext, iv } = await encryptJson(item, vaultKey);
-            await putStoredItem({ id: item.id, type: item.type, ciphertext, iv, createdAt: item.createdAt, updatedAt: item.updatedAt });
-            return item;
-          }),
-        );
-
-        const succeeded: VaultItem[] = [];
-        let saveSkipped = 0;
-        for (let i = 0; i < encOutcomes.length; i++) {
-          if (encOutcomes[i].status === "fulfilled") succeeded.push(built[i]);
-          else saveSkipped++;
-        }
+        const { succeeded, failed } = await writeItems(vaultKey, items);
 
         if (succeeded.length > 0) {
           set((state) => ({
@@ -596,7 +545,7 @@ export const useVault = create<VaultState>()(
           }));
         }
         result.imported = succeeded.length;
-        result.skipped += saveSkipped;
+        result.skipped += failed;
         return result;
       },
 

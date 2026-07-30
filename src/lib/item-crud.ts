@@ -10,9 +10,9 @@
  * so this module has no dependency on zustand or the vault store.
  */
 
-import { encryptJson } from "@/lib/crypto";
+import { encryptJson, randomId } from "@/lib/crypto";
 import { putStoredItem } from "@/lib/vault-db";
-import type { VaultItem } from "@/lib/types";
+import type { NewItemInput, VaultItem } from "@/lib/types";
 
 /**
  * Patch a single item: merge `patch` into `item`, re-encrypt, persist to
@@ -86,4 +86,119 @@ export async function patchItems(
     else failed++;
   }
   return { updated, failed };
+}
+
+/**
+ * Create or fully update a single item: build the VaultItem, inherit
+ * existing-appropriate defaults (trashed state, vaultIds, createdAt),
+ * apply caller overrides, encrypt, persist to IndexedDB, and return.
+ *
+ * @param vaultKey  Decrypted vault CryptoKey.
+ * @param input     Desired item fields (NewItemInput or partial VaultItem).
+ * @param existing  If present, inherit trashed/trashedAt/vaultIds/createdAt
+ *                  from this item. Overrides in `input` win after inheritance.
+ */
+export async function writeItem(
+  vaultKey: CryptoKey,
+  input: NewItemInput,
+  existing?: VaultItem,
+): Promise<VaultItem> {
+  const now = Date.now();
+
+  if (existing) {
+    const item: VaultItem = {
+      ...(input as VaultItem),
+      id: existing.id,
+      createdAt: existing.createdAt,
+      updatedAt: now,
+      trashed: input.trashed !== undefined ? input.trashed : existing.trashed,
+      trashedAt: input.trashedAt !== undefined ? input.trashedAt : existing.trashedAt,
+      vaultIds: input.vaultIds ?? existing.vaultIds,
+    } as VaultItem;
+
+    const { ciphertext, iv } = await encryptJson(item, vaultKey);
+    await putStoredItem({
+      id: item.id,
+      type: item.type,
+      ciphertext,
+      iv,
+      createdAt: item.createdAt,
+      updatedAt: now,
+    });
+
+    return item;
+  }
+
+  const item: VaultItem = {
+    ...(input as VaultItem),
+    id: randomId(),
+    createdAt: now,
+    updatedAt: now,
+    trashed: false,
+    trashedAt: null,
+    vaultIds: (input as VaultItem).vaultIds ?? [],
+  } as VaultItem;
+
+  const { ciphertext, iv } = await encryptJson(item, vaultKey);
+  await putStoredItem({
+    id: item.id,
+    type: item.type,
+    ciphertext,
+    iv,
+    createdAt: item.createdAt,
+    updatedAt: now,
+  });
+
+  return item;
+}
+
+/**
+ * Batch-create items with partial-failure resilience.
+ * Each item is encrypted and persisted independently via allSettled.
+ *
+ * @param vaultKey  Decrypted vault CryptoKey.
+ * @param items     Raw parsed items (no IDs/timestamps yet).
+ * @returns         `{ succeeded, failed }` — succeeded are the fully-built
+ *                  VaultItem instances (with id, createdAt, updatedAt set).
+ */
+export async function writeItems(
+  vaultKey: CryptoKey,
+  items: NewItemInput[],
+): Promise<{ succeeded: VaultItem[]; failed: number }> {
+  if (items.length === 0) return { succeeded: [], failed: 0 };
+
+  const now = Date.now();
+  const built: VaultItem[] = items.map((input) => ({
+    ...(input as VaultItem),
+    id: randomId(),
+    createdAt: now,
+    updatedAt: now,
+    trashed: false,
+    trashedAt: null,
+    vaultIds: (input as VaultItem).vaultIds ?? [],
+  })) as VaultItem[];
+
+  const outcomes = await Promise.allSettled(
+    built.map(async (item) => {
+      const { ciphertext, iv } = await encryptJson(item, vaultKey);
+      await putStoredItem({
+        id: item.id,
+        type: item.type,
+        ciphertext,
+        iv,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      });
+      return item;
+    }),
+  );
+
+  const succeeded: VaultItem[] = [];
+  let failed = 0;
+  for (const o of outcomes) {
+    if (o.status === "fulfilled") succeeded.push(o.value);
+    else failed++;
+  }
+
+  return { succeeded, failed };
 }
