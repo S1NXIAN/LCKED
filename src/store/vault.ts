@@ -9,10 +9,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
-  bytesToBase64,
-  decryptJson,
   encryptJson,
-  randomBytes,
   randomId,
 } from "@/lib/crypto";
 import {
@@ -37,6 +34,7 @@ import {
   importFromText,
 } from "@/lib/import-export";
 import { clearAllClipboardTimers } from "@/lib/clipboard";
+import * as vaultManager from "@/lib/vault-manager";
 import { patchItem, patchItems } from "@/lib/item-crud";
 import {
   createVault,
@@ -605,62 +603,20 @@ export const useVault = create<VaultState>()(
       /* --------------------------- vaults (containers) ---------------------- */
 
       createVault: async (name, color, icon) => {
-        const meta = await loadVaultMeta();
-        if (!meta) throw new Error("Vault meta missing");
-        const vault: VaultDef = {
-          id: randomId(),
-          name: name.trim() || "Untitled vault",
-          color,
-          icon,
-          createdAt: Date.now(),
-        };
-        const vaults = [...(meta.vaults ?? []), vault];
-        await saveVaultMeta({ ...meta, vaults });
+        const { vaults } = await vaultManager.createVault(name, color, icon);
         set({ vaults, createVaultDialogOpen: false, vaultEditorOpen: false, editingVaultId: null });
-        return vault;
+        return vaults[vaults.length - 1];
       },
 
       deleteVault: async (id) => {
-        const meta = await loadVaultMeta();
-        if (!meta) return;
-        const prevVaults = meta.vaults ?? [];
-        const vaults = prevVaults.filter((v) => v.id !== id);
-        // Orphan any items that lived in this vault — the vault id is removed
-        // from each item's vaultIds. Re-encrypt + persist each BEFORE
-        // committing the meta change, so a partial failure can be rolled back.
         const { vaultKey, items } = get();
-        const orphaned = items.filter((i) => i.vaultIds.includes(id));
-        if (vaultKey && orphaned.length > 0) {
-          try {
-            await Promise.all(
-              orphaned.map(async (it) => {
-                const next: VaultItem = { ...it, vaultIds: it.vaultIds.filter((v) => v !== id), updatedAt: Date.now() } as VaultItem;
-                const { ciphertext, iv } = await encryptJson(next, vaultKey);
-                await putStoredItem({
-                  id: next.id,
-                  type: next.type,
-                  ciphertext,
-                  iv,
-                  createdAt: next.createdAt,
-                  updatedAt: next.updatedAt,
-                });
-              }),
-            );
-          } catch (err) {
-            // Orphaning failed — do NOT commit the meta change. The vault stays.
-            console.error("deleteVault: orphaning failed, rolling back", err);
-            throw err;
-          }
-          set((state) => ({
-            items: state.items.map((i) =>
-              i.vaultIds.includes(id) ? ({ ...i, vaultIds: i.vaultIds.filter((v) => v !== id), updatedAt: Date.now() } as VaultItem) : i,
-            ),
-          }));
-        }
-        // All orphans re-parented successfully — now safe to remove the vault.
-        await saveVaultMeta({ ...meta, vaults });
+        if (!vaultKey) throw new Error("Vault is locked");
+        const { vaults, updatedItems } = await vaultManager.deleteVault(id, vaultKey, items);
         set((state) => ({
           vaults,
+          items: updatedItems
+            ? state.items.map((i) => updatedItems.find((u) => u.id === i.id) ?? i)
+            : state.items,
           activeVault: state.activeVault === id ? "all" : state.activeVault,
           vaultEditorOpen: state.editingVaultId === id ? false : state.vaultEditorOpen,
           editingVaultId: state.editingVaultId === id ? null : state.editingVaultId,
@@ -669,87 +625,17 @@ export const useVault = create<VaultState>()(
       },
 
       renameVault: async (id, name) => {
-        await get().updateVault(id, { name });
-      },
-
-      deleteVaultWithOptions: async (id, mode, targetVaultId, itemIdsToDelete) => {
-        const meta = await loadVaultMeta();
-        if (!meta) return;
-        const { vaultKey, items } = get();
-        if (!vaultKey) throw new Error("Vault is locked");
-        const now = Date.now();
-        const vaultItems = items.filter((i) => i.vaultIds.includes(id) && !i.trashed);
-
-        // Determine which items to delete vs. transfer.
-        let toDelete: VaultItem[] = [];
-        let toTransfer: VaultItem[] = [];
-        if (mode === "delete") {
-          toDelete = vaultItems;
-        } else if (mode === "transfer") {
-          toTransfer = vaultItems;
-        } else if (mode === "selective") {
-          const deleteSet = new Set(itemIdsToDelete ?? []);
-          toDelete = vaultItems.filter((i) => deleteSet.has(i.id));
-          toTransfer = vaultItems.filter((i) => !deleteSet.has(i.id));
-        }
-
-        // Permanently delete items (remove from IDB + state).
-        if (toDelete.length > 0) {
-          await Promise.all(
-            toDelete.map(async (it) => {
-              try { await deleteStoredItem(it.id); } catch { /* best-effort */ }
-            }),
-          );
-        }
-
-        // Transfer items to the target vault (re-encrypt + persist).
-        if (toTransfer.length > 0) {
-          await Promise.all(
-            toTransfer.map(async (it) => {
-              const next: VaultItem = { ...it, vaultIds: targetVaultId ? [targetVaultId] : [], updatedAt: now } as VaultItem;
-              const { ciphertext, iv } = await encryptJson(next, vaultKey);
-              await putStoredItem({ id: next.id, type: next.type, ciphertext, iv, createdAt: next.createdAt, updatedAt: now });
-            }),
-          );
-        }
-
-        // Remove the vault from meta.
-        const vaults = (meta.vaults ?? []).filter((v) => v.id !== id);
-        await saveVaultMeta({ ...meta, vaults });
-
-        // Update in-memory state.
-        const deletedIds = new Set(toDelete.map((d) => d.id));
-        const transferredIds = new Set(toTransfer.map((t) => t.id));
-        set((state) => ({
-          vaults,
-          items: state.items
-            .filter((i) => !deletedIds.has(i.id))
-            .map((i) =>
-              transferredIds.has(i.id)
-                ? { ...i, vaultIds: targetVaultId ? [targetVaultId] : [], updatedAt: now } as VaultItem
-                : i,
-            )
-            .sort((a, b) => b.updatedAt - a.updatedAt),
-          activeVault: state.activeVault === id ? "all" : state.activeVault,
-          selectedId: state.selectedId && deletedIds.has(state.selectedId) ? null : state.selectedId,
-        }));
-        notifyVaultMutation();
+        const { vaults } = await vaultManager.renameVault(id, name);
+        set({ vaults, vaultEditorOpen: false, editingVaultId: null });
       },
 
       reorderVaults: async (newOrder) => {
-        const meta = await loadVaultMeta();
-        if (!meta) return;
-        await saveVaultMeta({ ...meta, vaults: newOrder });
-        set({ vaults: newOrder });
+        const { vaults } = await vaultManager.reorderVaults(newOrder);
+        set({ vaults });
       },
 
       updateVault: async (id, patch) => {
-        const meta = await loadVaultMeta();
-        if (!meta) return;
-        const vaults = (meta.vaults ?? []).map((v) =>
-          v.id === id ? { ...v, ...patch, name: patch.name ?? v.name } : v,
-        );
-        await saveVaultMeta({ ...meta, vaults });
+        const { vaults } = await vaultManager.updateVault(id, patch);
         set({ vaults, vaultEditorOpen: false, editingVaultId: null });
       },
 
