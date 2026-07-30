@@ -110,7 +110,7 @@ export function UnlockView() {
                   }}
                   placeholder="Your master password"
                   autoComplete="current-password"
-                  className={`font-secret pl-9 pr-10 focus-visible:ring-1 ${error ? "border-red-500/60 focus-visible:ring-red-500/40" : ""}`}
+                  className={`font-secret pl-9 pr-10 focus-visible:ring-0 focus-visible:border-primary/50 ${error ? "border-red-500/60" : ""}`}
                   autoFocus
                 />
                 <button

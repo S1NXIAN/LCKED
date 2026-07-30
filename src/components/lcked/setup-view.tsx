@@ -29,16 +29,15 @@ export function SetupView() {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const isImporting = Boolean(importFile);
-
-  // The master password is "complete" when it's 8+ chars. Once it reaches
-  // that threshold, the confirm field smoothly slides in below.
   const masterComplete = password.length >= 8;
-
-  // The user can proceed to the agreement step when the confirm matches.
   const passwordsMatch = !isImporting ? (masterComplete && password === confirm) : masterComplete;
-
-  // canSubmit: all steps done + agreed + not busy.
   const canSubmit = passwordsMatch && agreed && !busy;
+
+  // "confirmMode" = the confirm field is showing IN PLACE of the master field.
+  // We swap the master field for the confirm field once the master reaches
+  // 8+ chars. This replaces (not adds) the field, so the card height never
+  // changes — no shift at all.
+  const confirmMode = !isImporting && masterComplete;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -55,11 +54,6 @@ export function SetupView() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // When the user clicks "Create encrypted vault" (or "Restore vault"), we
-  // don't immediately create the vault. Instead, we advance to the agreement
-  // step: the password fields collapse away and the "I understand..." checkbox
-  // + the real submit button appear. This makes the form feel light and
-  // progressive instead of showing everything at once.
   const handleAdvanceToAgree = (e: React.FormEvent) => {
     e.preventDefault();
     if (!passwordsMatch) return;
@@ -71,6 +65,11 @@ export function SetupView() {
     setAgreed(false);
   };
 
+  // Shared input className — overrides the global Input's thick focus ring
+  // with a subtle border-only focus. The thick ring was clashing with the
+  // soft thin border, creating a "double border" look on focus.
+  const inputCls = "font-secret pl-9 pr-10 focus-visible:ring-0 focus-visible:border-primary/50";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
@@ -78,8 +77,6 @@ export function SetupView() {
     try {
       const fileText = importFile ? await importFile.text() : null;
 
-      // If importing an encrypted LCKED export, decrypt it FIRST (before
-      // creating the vault) so we can fail early on a wrong password.
       let decryptedPayload: { items: import("@/lib/types").VaultItem[]; vaults: import("@/lib/types").VaultDef[] } | null = null;
       let isLckedExport = false;
       if (importFile && fileText) {
@@ -169,6 +166,88 @@ export function SetupView() {
     }
   };
 
+  // The password field row. In confirmMode, the confirm field REPLACES the
+  // master field in the exact same position — same height, same layout.
+  // The master field's value is preserved (we just hide it); if the user
+  // goes back (edits), we swap back. This eliminates ALL card height
+  // changes: the field is always exactly one row.
+  const renderPasswordField = () => {
+    if (confirmMode && !showAgreeStep) {
+      return (
+        <div className="space-y-1.5">
+          <Label htmlFor="confirm">Confirm master password</Label>
+          <div className="relative">
+            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="confirm"
+              type={show ? "text" : "password"}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder="Re-enter your password"
+              autoComplete="new-password"
+              className={inputCls}
+              autoFocus
+            />
+            <button
+              type="button"
+              onClick={() => setShow((s) => !s)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label={show ? "Hide" : "Show"}
+            >
+              {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          {confirm.length > 0 && confirm !== password && (
+            <p className="text-xs text-red-400">Passwords don&apos;t match</p>
+          )}
+          {/* Back-to-master link — lets the user edit the master password.
+              Inline text link, no height change. */}
+          {confirm.length === 0 && (
+            <button
+              type="button"
+              onClick={() => { setPassword(""); setConfirm(""); }}
+              className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Edit master password
+            </button>
+          )}
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-1.5">
+        <Label htmlFor="master">
+          {isImporting ? "Vault password" : "Master password"}
+        </Label>
+        <div className="relative">
+          <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            id="master"
+            type={show ? "text" : "password"}
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setConfirm("");
+            }}
+            placeholder={isImporting ? "Backup password" : "At least 8 characters"}
+            autoComplete="new-password"
+            className={inputCls}
+            autoFocus
+          />
+          <button
+            type="button"
+            onClick={() => setShow((s) => !s)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            aria-label={show ? "Hide" : "Show"}
+          >
+            {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+        {!isImporting && <PasswordStrengthMeter password={password} />}
+      </div>
+    );
+  };
+
   return (
     <div className="relative flex h-dvh w-full flex-col items-center justify-center overflow-hidden px-4 py-4 sm:py-6">
       <DotField className="pointer-events-auto absolute inset-0 h-full w-full" />
@@ -193,8 +272,10 @@ export function SetupView() {
           </div>
         </div>
 
-        {/* Card */}
-        <div className="flex max-h-[75vh] w-full flex-col overflow-y-auto rounded-2xl border border-border/60 bg-card/40 p-5 shadow-2xl backdrop-blur-xl sm:p-6 md:p-7">
+        {/* Card — fixed height container so content swaps never shift the
+            layout. The card uses a stable height based on the longest step
+            (the password step with strength meter + import + button). */}
+        <div className="flex w-full flex-col rounded-2xl border border-border/60 bg-card/40 p-5 shadow-2xl backdrop-blur-xl sm:p-6 md:p-7">
           <div className="mb-4 flex shrink-0 flex-col items-center text-center sm:mb-5">
             <h1 className="text-lg font-semibold tracking-tight sm:text-xl">
               {showAgreeStep
@@ -213,7 +294,8 @@ export function SetupView() {
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-1 flex-col gap-3.5 sm:gap-4">
-            {/* Step 1+2: password entry + confirm (collapses on agree step) */}
+            {/* Step 1+2: password entry. The field swaps in-place between
+                master and confirm — no height change. */}
             <AnimatePresence initial={false}>
               {!showAgreeStep && (
                 <motion.div
@@ -225,76 +307,20 @@ export function SetupView() {
                   className="overflow-hidden"
                 >
                   <div className="flex flex-col gap-3.5 sm:gap-4">
-                    {/* Master password */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="master">
-                        {isImporting ? "Vault password" : "Master password"}
-                      </Label>
-                      <div className="relative">
-                        <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          id="master"
-                          type={show ? "text" : "password"}
-                          value={password}
-                          onChange={(e) => {
-                            setPassword(e.target.value);
-                            // Reset the confirm when the user edits the master
-                            // password after having matched it once.
-                            setConfirm("");
-                          }}
-                          placeholder={isImporting ? "Backup password" : "At least 8 characters"}
-                          autoComplete="new-password"
-                          className="font-secret pl-9 pr-10"
-                          autoFocus
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShow((s) => !s)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          aria-label={show ? "Hide" : "Show"}
-                        >
-                          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                      {!isImporting && <PasswordStrengthMeter password={password} />}
-                    </div>
-
-                    {/* Confirm password — slides in once master is 8+ chars.
-                        Not shown when importing (the password already exists). */}
-                    <AnimatePresence initial={false}>
-                      {!isImporting && masterComplete && (
-                        <motion.div
-                          key="confirm-field"
-                          initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                          animate={{ opacity: 1, height: "auto", marginTop: undefined }}
-                          exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                          className="overflow-hidden"
-                        >
-                          <div className="space-y-1.5">
-                            <Label htmlFor="confirm">Confirm master password</Label>
-                            <div className="relative">
-                              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                              <Input
-                                id="confirm"
-                                type={show ? "text" : "password"}
-                                value={confirm}
-                                onChange={(e) => setConfirm(e.target.value)}
-                                placeholder="Re-enter your password"
-                                autoComplete="new-password"
-                                className="font-secret pl-9"
-                                autoFocus
-                              />
-                            </div>
-                            {confirm.length > 0 && confirm !== password && (
-                              <p className="text-xs text-red-400">Passwords don&apos;t match</p>
-                            )}
-                          </div>
-                        </motion.div>
-                      )}
+                    {/* Password field — swaps between master and confirm in-place */}
+                    <AnimatePresence mode="wait" initial={false}>
+                      <motion.div
+                        key={confirmMode ? "confirm" : "master"}
+                        initial={{ opacity: 0, x: 12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -12 }}
+                        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                      >
+                        {renderPasswordField()}
+                      </motion.div>
                     </AnimatePresence>
 
-                    {/* Import existing vault (optional) — shown in step 1 */}
+                    {/* Import existing vault (optional) */}
                     <div className="space-y-2 pt-1">
                       <AnimatePresence mode="wait" initial={false}>
                         {!importFile ? (
@@ -342,7 +368,7 @@ export function SetupView() {
                       />
                     </div>
 
-                    {/* Advance button — validates passwords match, moves to agree step */}
+                    {/* Advance button */}
                     <Button
                       type="button"
                       onClick={handleAdvanceToAgree}
@@ -358,7 +384,7 @@ export function SetupView() {
               )}
             </AnimatePresence>
 
-            {/* Step 3: agreement + final submit (collapses in after clicking create) */}
+            {/* Step 3: agreement + final submit */}
             <AnimatePresence initial={false}>
               {showAgreeStep && (
                 <motion.div
