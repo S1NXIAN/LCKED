@@ -34,16 +34,21 @@ export function SetupView() {
   const canSubmit = passwordsMatch && agreed && !busy;
 
   // "confirmMode" = the confirm field is showing IN PLACE of the master field.
-  // We swap the master field for the confirm field once the master reaches
-  // 8+ chars. This replaces (not adds) the field, so the card height never
-  // changes — no shift at all.
-  const confirmMode = !isImporting && masterComplete;
+  // This is triggered ONLY by an explicit user action (clicking "Continue"),
+  // NOT automatically when the password reaches 8 chars. The user stays on
+  // the master field until they explicitly choose to proceed.
+  const [confirmMode, setConfirmMode] = React.useState(false);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setImportFile(file);
+      // Clear ALL password state — the backup password is a fresh input.
+      // Previously the master/confirm values leaked into the import flow,
+      // pre-filling the backup password field.
+      setPassword("");
       setConfirm("");
+      setConfirmMode(false);
       setShowAgreeStep(false);
       setAgreed(false);
     }
@@ -52,17 +57,42 @@ export function SetupView() {
   const handleRemoveFile = () => {
     setImportFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    // Reset password state when removing the file too.
+    setPassword("");
+    setConfirm("");
+    setConfirmMode(false);
   };
 
-  const handleAdvanceToAgree = (e: React.FormEvent) => {
+  // When the user clicks "Continue" (or "Restore vault" when importing),
+  // we advance to the agreement step. For non-import flow, we first swap
+  // to the confirm field so the user can re-enter their password. The
+  // confirm field replaces the master field in-place — same height, no shift.
+  const handleAdvance = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!passwordsMatch) return;
-    setShowAgreeStep(true);
+    if (!masterComplete) return;
+    if (isImporting) {
+      // Importing: no confirm needed, go straight to agreement.
+      setShowAgreeStep(true);
+    } else if (!confirmMode) {
+      // First click: swap to confirm mode. Don't advance yet.
+      setConfirmMode(true);
+      setConfirm("");
+    } else if (passwordsMatch) {
+      // Second click (confirm matches): advance to agreement.
+      setShowAgreeStep(true);
+    }
   };
 
   const handleBack = () => {
     setShowAgreeStep(false);
     setAgreed(false);
+  };
+
+  // Go back from confirm mode to master mode (edit the master password).
+  const handleEditMaster = () => {
+    setConfirmMode(false);
+    setPassword("");
+    setConfirm("");
   };
 
   // Shared input className — overrides the global Input's thick focus ring
@@ -205,7 +235,7 @@ export function SetupView() {
           {confirm.length === 0 && (
             <button
               type="button"
-              onClick={() => { setPassword(""); setConfirm(""); }}
+              onClick={handleEditMaster}
               className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             >
               Edit master password
@@ -368,16 +398,24 @@ export function SetupView() {
                       />
                     </div>
 
-                    {/* Advance button */}
+                    {/* Advance button — label and disabled logic depend on the
+                        current mode:
+                        - Master mode (not importing): "Continue" — disabled until 8+ chars
+                        - Confirm mode: "Create encrypted vault" — disabled until passwords match
+                        - Importing: "Restore vault" — disabled until 8+ chars */}
                     <Button
                       type="button"
-                      onClick={handleAdvanceToAgree}
-                      disabled={!passwordsMatch}
+                      onClick={handleAdvance}
+                      disabled={isImporting ? !masterComplete : (confirmMode ? !passwordsMatch : !masterComplete)}
                       className="mt-auto w-full"
                       size="lg"
                     >
                       <ShieldCheck className="mr-2 h-4 w-4" />
-                      {isImporting ? "Restore vault" : "Create encrypted vault"}
+                      {isImporting
+                        ? "Restore vault"
+                        : confirmMode
+                          ? "Create encrypted vault"
+                          : "Continue"}
                     </Button>
                   </div>
                 </motion.div>
