@@ -10,7 +10,7 @@
  */
 
 import * as React from "react";
-import { RefreshCw, Copy, Check, Dice5, X, ArrowRight } from "lucide-react";
+import { RefreshCw, Copy, Check, Dice5, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -98,29 +98,14 @@ export function PasswordGeneratorDialog() {
         side="right"
         className="w-full gap-0 overflow-hidden border-l border-border bg-background p-0 sm:max-w-[420px] [&>button[data-slot=dialog-close]]:hidden"
       >
-        {/* Header — close (left) + title (center) + use/copy (right) */}
-        <SheetHeader className="flex-row items-center justify-between border-b border-border px-4 py-3">
-          <button
-            onClick={handleClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
+        {/* Header — title only. No close X, no copy/use button (those live in
+            the footer now). The radix Sheet's built-in close button is hidden
+            via the [&>button[data-slot=dialog-close]]:hidden class above. */}
+        <SheetHeader className="flex-row items-center justify-center border-b border-border px-4 py-3">
           <SheetTitle className="flex items-center gap-2 text-base font-semibold">
             <Dice5 className="h-4 w-4 text-primary" />
             Generator
           </SheetTitle>
-          {hasCallback ? (
-            <Button onClick={handleUse} disabled={!password} size="sm" className="min-w-[72px] gap-1">
-              <ArrowRight className="h-4 w-4" />
-              Use
-            </Button>
-          ) : (
-            <Button onClick={handleCopy} disabled={!password} size="sm" className="min-w-[72px]">
-              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            </Button>
-          )}
           <SheetDescription className="sr-only">
             Generate a cryptographically secure password.
           </SheetDescription>
@@ -146,23 +131,15 @@ export function PasswordGeneratorDialog() {
             ))}
           </div>
 
-          {/* Output — large, monospace, with regenerate button */}
-          <div className="relative overflow-hidden rounded-lg border border-border bg-secondary/20 p-4 dark:bg-secondary/20">
+          {/* Output — large, monospace. No regenerate button here — the
+              footer already has a Regenerate button. */}
+          <div className="overflow-hidden rounded-lg border border-border bg-secondary/20 p-4 dark:bg-secondary/20">
             <div
               className="break-all font-secret text-xl font-medium leading-snug tracking-wide"
               style={{ fontFeatureSettings: '"tnum" 1, "zero" 1' }}
             >
               {password || "—"}
             </div>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="absolute right-2 top-2 h-7 w-7"
-              onClick={regenerate}
-              aria-label="Regenerate"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
           </div>
 
           {mode === "random" ? (

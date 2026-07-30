@@ -265,7 +265,9 @@ function VaultRow({
       aria-current={active ? "true" : undefined}
       className={cn(
         "group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors duration-100",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+        // No focus-visible ring — native typeahead (number keys, etc.) moves
+        // focus to role="button" rows and would show a border on every keypress.
+        "focus:outline-none",
         active
           ? "text-accent-foreground"
           : warn
