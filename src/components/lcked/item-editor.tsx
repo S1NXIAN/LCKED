@@ -163,28 +163,33 @@ function FieldClusterWithLabel({
   );
 }
 
-/** A labelled field row inside a FieldCluster. Flat borderless input.
- *  `label` is optional — when omitted (e.g. inside a FieldClusterWithLabel
- *  whose header already names the section), the row renders without the
- *  small uppercase label so the section isn't visually redundant.
- *  `icon` — optional leading SVG rendered inside the input row. */
+/** A labelled field row inside a FieldCluster. Matches the item-detail
+ *  FieldRow layout: icon (optional) in the flow, label+input stacked in a
+ *  flex-1 div. This keeps the editor visually faithful to the detail view.
+ *  `icon` — optional leading SVG rendered in the flow (NOT absolute), same
+ *  as item-detail's FieldRow. */
 function FieldRowInput({
   label,
+  icon: Icon,
   first,
   children,
 }: {
   label?: string;
+  icon?: LucideIcon;
   first?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className={cn("px-3.5 py-2", !first && "border-t border-border/50")}>
-      {label && (
-        <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
-          {label}
-        </div>
-      )}
-      {children}
+    <div className={cn("flex items-center gap-3 px-3.5 py-2.5", !first && "border-t border-border/50")}>
+      {Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground/70" />}
+      <div className="min-w-0 flex-1">
+        {label && (
+          <div className="mb-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+            {label}
+          </div>
+        )}
+        {children}
+      </div>
     </div>
   );
 }
@@ -192,12 +197,6 @@ function FieldRowInput({
 /** Flat borderless input used inside FieldCluster rows. */
 const flatInputCls =
   "w-full border-0 bg-transparent dark:bg-transparent px-0 py-0.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:outline-none";
-
-/** Flat borderless input WITH a leading icon (left-padded).
- *  Icon is 14px (h-3.5 w-3.5) at left-0; pl-5 (20px) was too much gap.
- *  pl-4 (16px) = 14px icon + 2px gap — tight and clean. */
-const flatIconInputCls =
-  "w-full border-0 bg-transparent dark:bg-transparent pl-4 py-0.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:outline-none";
 
 /** Flat borderless variant for PasswordField — keeps right padding for action buttons.
  *  No explicit pl-* here — the PasswordField component adds pl-9 when an icon
@@ -209,25 +208,6 @@ const flatPasswordInputCls =
 /** Flat borderless textarea used inside FieldCluster rows. */
 const flatTextareaCls =
   "w-full border-0 bg-transparent dark:bg-transparent px-0 py-0.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:outline-none resize-none";
-
-/**
- * Wraps a flat Input with a leading SVG icon. The icon is absolutely
- * positioned at the left; the input gets left padding so text doesn't
- * overlap. Used throughout the editor so every field has a recognizable
- * glyph (mail/user/globe/lock/etc).
- */
-function IconInput({
-  icon: Icon,
-  className,
-  ...props
-}: React.ComponentProps<typeof Input> & { icon: LucideIcon }) {
-  return (
-    <div className="relative flex items-center">
-      <Icon className="pointer-events-none absolute left-0 h-3.5 w-3.5 text-muted-foreground/60" />
-      <Input className={cn(flatIconInputCls, className)} {...props} />
-    </div>
-  );
-}
 
 export function ItemEditor() {
   const open = useVault((s) => s.editorOpen);
@@ -601,16 +581,16 @@ export function ItemEditor() {
                   switch between Mail / User based on whether the value looks
                   like an email. This mirrors the item-detail presentation. */}
               <FieldCluster>
-                <FieldRowInput label={isEmail(form.details.username) ? "Email" : "Username"} first>
-                  <IconInput
-                    icon={isEmail(form.details.username) ? Mail : User}
+                <FieldRowInput label={isEmail(form.details.username) ? "Email" : "Username"} icon={isEmail(form.details.username) ? Mail : User} first>
+                  <Input
                     value={form.details.username}
                     onChange={(e) => updateDetails({ username: e.target.value })}
                     placeholder="you@example.com"
                     autoComplete="off"
+                    className={flatInputCls}
                   />
                 </FieldRowInput>
-                <FieldRowInput label="Password">
+                <FieldRowInput label="Password" icon={KeyRound}>
                   <PasswordField
                     value={form.details.password}
                     onChange={(v) => updateDetails({ password: v })}
@@ -619,20 +599,18 @@ export function ItemEditor() {
                     showGenerate
                     generatorOptions={settings.generator}
                     inputClassName={flatPasswordInputCls}
-                    icon={KeyRound}
                   />
                 </FieldRowInput>
               </FieldCluster>
 
               {/* TOTP */}
               <FieldClusterWithLabel label="Verification">
-                <FieldRowInput first>
-                  <IconInput
-                    icon={Lock}
+                <FieldRowInput icon={Lock} first>
+                  <Input
                     value={form.details.totp}
                     onChange={(e) => updateDetails({ totp: e.target.value })}
                     placeholder="Base32 secret or otpauth:// URI"
-                    className="font-secret"
+                    className={cn(flatInputCls, "font-secret")}
                     autoComplete="off"
                   />
                 </FieldRowInput>
@@ -660,11 +638,11 @@ export function ItemEditor() {
                   <div
                     key={urlKeys[idx] ?? idx}
                     className={cn(
-                      "flex items-center gap-2 px-3.5 py-2",
+                      "flex items-center gap-3 px-3.5 py-2.5",
                       idx !== 0 && "border-t border-border/50",
                     )}
                   >
-                    <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+                    <Globe className="h-4 w-4 shrink-0 text-muted-foreground/70" />
                     <Input
                       value={url}
                       onChange={(e) => setUrl(idx, e.target.value)}
@@ -693,7 +671,7 @@ export function ItemEditor() {
                       }}
                       list="lcked-known-urls"
                       placeholder="example.com"
-                      className={cn(flatInputCls, "pl-4 font-secret")}
+                      className={cn(flatInputCls, "font-secret")}
                       autoComplete="off"
                     />
                     {urls.length > 1 && (
@@ -729,17 +707,14 @@ export function ItemEditor() {
 
           {form.type === "note" && (
             <FieldCluster>
-              <FieldRowInput label="Content" first>
-                <div className="relative">
-                  <StickyNote className="pointer-events-none absolute left-0 top-1 h-3.5 w-3.5 text-muted-foreground/60" />
-                  <Textarea
-                    value={form.details.content}
-                    onChange={(e) => updateDetails({ content: e.target.value })}
-                    placeholder="Write your secure note here…"
-                    rows={10}
-                    className={cn(flatTextareaCls, "pl-5")}
-                  />
-                </div>
+              <FieldRowInput label="Content" icon={StickyNote} first>
+                <Textarea
+                  value={form.details.content}
+                  onChange={(e) => updateDetails({ content: e.target.value })}
+                  placeholder="Write your secure note here…"
+                  rows={10}
+                  className={flatTextareaCls}
+                />
               </FieldRowInput>
             </FieldCluster>
           )}
@@ -748,16 +723,16 @@ export function ItemEditor() {
             <div className="space-y-4">
               {/* Cardholder + Card number + CVV + Expiry + PIN */}
               <FieldCluster>
-                <FieldRowInput label="Cardholder name" first>
-                  <IconInput
-                    icon={User}
+                <FieldRowInput label="Cardholder name" icon={User} first>
+                  <Input
                     value={form.details.cardholder}
                     onChange={(e) => updateDetails({ cardholder: e.target.value })}
                     placeholder="Name on card"
                     autoComplete="off"
+                    className={flatInputCls}
                   />
                 </FieldRowInput>
-                <FieldRowInput label="Card number">
+                <FieldRowInput label="Card number" icon={CreditCard}>
                   <PasswordField
                     value={form.details.number}
                     onChange={(v) => {
@@ -767,26 +742,23 @@ export function ItemEditor() {
                     placeholder="0000 0000 0000 0000"
                     showGenerate={false}
                     inputClassName={flatPasswordInputCls}
-                    icon={CreditCard}
                   />
                   {form.details.brand && (
                     <p className="mt-1 text-xs text-muted-foreground">Detected: {form.details.brand}</p>
                   )}
                 </FieldRowInput>
                 <div className="grid grid-cols-2 divide-x divide-border/50">
-                  <FieldRowInput label="CVV" first>
+                  <FieldRowInput label="CVV" icon={Lock} first>
                     <PasswordField
                       value={form.details.cvv}
                       onChange={(v) => updateDetails({ cvv: v })}
                       placeholder="123"
                       showGenerate={false}
                       inputClassName={flatPasswordInputCls}
-                      icon={Lock}
                     />
                   </FieldRowInput>
-                  <FieldRowInput label="Expiry (MM/YY)" first>
-                    <IconInput
-                      icon={Calendar}
+                  <FieldRowInput label="Expiry (MM/YY)" icon={Calendar} first>
+                    <Input
                       value={form.details.expiry}
                       onChange={(e) => {
                         // Auto-format as MM/YY: strip non-digits, max 4 digits,
@@ -796,21 +768,20 @@ export function ItemEditor() {
                         updateDetails({ expiry: v });
                       }}
                       placeholder="08/27"
-                      className="font-secret"
+                      className={cn(flatInputCls, "font-secret")}
                       autoComplete="off"
                       inputMode="numeric"
                       maxLength={5}
                     />
                   </FieldRowInput>
                 </div>
-                <FieldRowInput label="PIN">
+                <FieldRowInput label="PIN" icon={KeyRound}>
                   <PasswordField
                     value={form.details.pin}
                     onChange={(v) => updateDetails({ pin: v })}
                     placeholder="••••"
                     showGenerate={false}
                     inputClassName={flatPasswordInputCls}
-                    icon={KeyRound}
                   />
                 </FieldRowInput>
               </FieldCluster>
@@ -835,20 +806,20 @@ export function ItemEditor() {
               {/* First name + Last name */}
               <FieldCluster>
                 <div className="grid grid-cols-2 divide-x divide-border/50">
-                  <FieldRowInput label="First name" first>
-                    <IconInput
-                      icon={User}
+                  <FieldRowInput label="First name" icon={User} first>
+                    <Input
                       value={form.details.firstName}
                       onChange={(e) => updateDetails({ firstName: e.target.value })}
                       autoComplete="off"
+                      className={flatInputCls}
                     />
                   </FieldRowInput>
-                  <FieldRowInput label="Last name" first>
-                    <IconInput
-                      icon={User}
+                  <FieldRowInput label="Last name" icon={User} first>
+                    <Input
                       value={form.details.lastName}
                       onChange={(e) => updateDetails({ lastName: e.target.value })}
                       autoComplete="off"
+                      className={flatInputCls}
                     />
                   </FieldRowInput>
                 </div>
@@ -857,21 +828,21 @@ export function ItemEditor() {
               {/* Email + Phone */}
               <FieldCluster>
                 <div className="grid grid-cols-2 divide-x divide-border/50">
-                  <FieldRowInput label="Email" first>
-                    <IconInput
-                      icon={Mail}
+                  <FieldRowInput label="Email" icon={Mail} first>
+                    <Input
                       type="email"
                       value={form.details.email}
                       onChange={(e) => updateDetails({ email: e.target.value })}
                       autoComplete="off"
+                      className={flatInputCls}
                     />
                   </FieldRowInput>
-                  <FieldRowInput label="Phone" first>
-                    <IconInput
-                      icon={Phone}
+                  <FieldRowInput label="Phone" icon={Phone} first>
+                    <Input
                       value={form.details.phone}
                       onChange={(e) => updateDetails({ phone: e.target.value })}
                       autoComplete="off"
+                      className={flatInputCls}
                     />
                   </FieldRowInput>
                 </div>
@@ -879,67 +850,67 @@ export function ItemEditor() {
 
               {/* Company */}
               <FieldCluster>
-                <FieldRowInput label="Company" first>
-                  <IconInput
-                    icon={Building2}
+                <FieldRowInput label="Company" icon={Building2} first>
+                  <Input
                     value={form.details.company}
                     onChange={(e) => updateDetails({ company: e.target.value })}
                     autoComplete="off"
+                    className={flatInputCls}
                   />
                 </FieldRowInput>
               </FieldCluster>
 
               {/* Address fields */}
               <FieldCluster>
-                <FieldRowInput label="Address line 1" first>
-                  <IconInput
-                    icon={MapPin}
+                <FieldRowInput label="Address line 1" icon={MapPin} first>
+                  <Input
                     value={form.details.address1}
                     onChange={(e) => updateDetails({ address1: e.target.value })}
                     autoComplete="off"
+                    className={flatInputCls}
                   />
                 </FieldRowInput>
-                <FieldRowInput label="Address line 2">
-                  <IconInput
-                    icon={MapPin}
+                <FieldRowInput label="Address line 2" icon={MapPin}>
+                  <Input
                     value={form.details.address2}
                     onChange={(e) => updateDetails({ address2: e.target.value })}
                     autoComplete="off"
+                    className={flatInputCls}
                   />
                 </FieldRowInput>
                 <div className="grid grid-cols-2 divide-x divide-border/50">
-                  <FieldRowInput label="City">
-                    <IconInput
-                      icon={MapPin}
+                  <FieldRowInput label="City" icon={MapPin}>
+                    <Input
                       value={form.details.city}
                       onChange={(e) => updateDetails({ city: e.target.value })}
                       autoComplete="off"
+                      className={flatInputCls}
                     />
                   </FieldRowInput>
-                  <FieldRowInput label="State / Province">
-                    <IconInput
-                      icon={MapPin}
+                  <FieldRowInput label="State / Province" icon={MapPin}>
+                    <Input
                       value={form.details.state}
                       onChange={(e) => updateDetails({ state: e.target.value })}
                       autoComplete="off"
+                      className={flatInputCls}
                     />
                   </FieldRowInput>
                 </div>
                 <div className="grid grid-cols-2 divide-x divide-border/50">
-                  <FieldRowInput label="Postal / ZIP">
-                    <IconInput
-                      icon={MapPin}
+                  <FieldRowInput label="Postal / ZIP" icon={MapPin}>
+                    <Input
                       value={form.details.zip}
                       onChange={(e) => updateDetails({ zip: e.target.value })}
                       autoComplete="off"
+                      className={flatInputCls}
                     />
                   </FieldRowInput>
-                  <FieldRowInput label="Country">
-                    <IconInput
-                      icon={Globe}
+                  <FieldRowInput label="Country" icon={Globe}>
+                    <Input
                       value={form.details.country}
                       onChange={(e) => updateDetails({ country: e.target.value })}
                       autoComplete="off"
+                      className={flatInputCls}
                     />
                   </FieldRowInput>
                 </div>
