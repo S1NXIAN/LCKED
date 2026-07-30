@@ -26,17 +26,8 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useVault } from "@/store/vault";
 import { detectFormat } from "@/lib/import-export";
+import { download } from "@/lib/browser-utils";
 import { cn } from "@/lib/utils";
-
-function download(filename: string, content: string, mime: string) {
-  const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 export function ImportExportDialog() {
   const open = useVault((s) => s.importExportOpen);

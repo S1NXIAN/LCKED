@@ -18,8 +18,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useVault } from "@/store/vault";
-import { download } from "@/lib/api-settings";
+import { download } from "@/lib/browser-utils";
 import { cn } from "@/lib/utils";
+
+const TRANSITION = { duration: 0.12, ease: [0.16, 1, 0.3, 1] } as const;
 
 type ExportFormat = "pgp" | "zip" | "csv";
 
@@ -192,7 +194,7 @@ export function ExportTab() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
+            transition={TRANSITION}
             className="space-y-3"
           >
             <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200/90">
@@ -236,7 +238,7 @@ export function ExportTab() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
+            transition={TRANSITION}
             className="space-y-2"
           >
             <div className="space-y-1.5">

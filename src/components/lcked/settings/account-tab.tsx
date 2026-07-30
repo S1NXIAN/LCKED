@@ -27,8 +27,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { loadGoogleIdentity } from "@/lib/api-settings";
-import { cn } from "@/lib/utils";
+import { loadGoogleIdentity } from "@/lib/browser-utils";
 import { useVault } from "@/store/vault";
 
 const OAUTH_PROVIDERS = [

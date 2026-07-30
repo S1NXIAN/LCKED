@@ -1,7 +1,7 @@
 /**
- * LCKED — API-level settings helpers
+ * LCKED — Browser-side shared utilities
  * ---------------------------------------------------------------------------
- * Shared browser-side helpers extracted from the monolithic settings-dialog.
+ * Shared browser/DOM helpers extracted from the monolithic settings-dialog.
  */
 
 /**
@@ -75,14 +75,4 @@ export function download(filename: string, content: string, mime: string) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
-}
-
-/**
- * Format a byte count as a human-readable string.
- */
-export function formatBytes(bytes: number) {
-  if (!bytes) return "0 B";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }

@@ -73,7 +73,7 @@ export function SettingsView() {
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col bg-background">
-      {/* Top bar: back + title + storage badge */}
+      {/* Top bar: back + title + item count */}
       <header className="flex items-center gap-2 border-b border-border bg-background px-3 py-2.5 md:px-4">
         <Button
           variant="ghost"
