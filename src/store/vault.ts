@@ -1247,36 +1247,4 @@ export async function decryptLckedExport(
   return payload;
 }
 
-/* ----------------------- generator callback ------------------------------- */
-
-/**
- * When the user clicks the dice button in a password field, the generator
- * sidebar opens with a callback. Clicking "Use this password" calls the
- * callback with the generated password and inserts it into the field.
- */
-let _generatorCallback: ((password: string) => void) | null = null;
-
-export function setGeneratorCallback(cb: ((password: string) => void) | null): void {
-  _generatorCallback = cb;
-}
-
-export function getGeneratorCallback(): ((password: string) => void) | null {
-  return _generatorCallback;
-}
-
-/** Fire the callback with the generated password and clear it (one-shot). */
-export function consumeGeneratorCallback(password: string): boolean {
-  if (_generatorCallback) {
-    _generatorCallback(password);
-    _generatorCallback = null;
-    return true;
-  }
-  return false;
-}
-
-/** Clear the callback WITHOUT firing it. Used when the generator dialog is
- *  closed without clicking "Use this password" — so closing does NOT wipe the
- *  source field with an empty string (D-1). */
-export function clearGeneratorCallback(): void {
-  _generatorCallback = null;
-}
+/* -------------- generator-callback moved to lib/generator-bridge.ts ---------- */
