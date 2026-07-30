@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Lock, ShieldCheck, Eye, EyeOff, AlertTriangle, Loader2, KeyRound, Upload, FileJson, X } from "lucide-react";
+import { Lock, ShieldCheck, Eye, EyeOff, AlertTriangle, Loader2, KeyRound, Upload, FileJson, X, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -33,19 +33,12 @@ export function SetupView() {
   const passwordsMatch = !isImporting ? (masterComplete && password === confirm) : masterComplete;
   const canSubmit = passwordsMatch && agreed && !busy;
 
-  // "confirmMode" = the confirm field is showing IN PLACE of the master field.
-  // This is triggered ONLY by an explicit user action (clicking "Continue"),
-  // NOT automatically when the password reaches 8 chars. The user stays on
-  // the master field until they explicitly choose to proceed.
   const [confirmMode, setConfirmMode] = React.useState(false);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setImportFile(file);
-      // Clear ALL password state — the backup password is a fresh input.
-      // Previously the master/confirm values leaked into the import flow,
-      // pre-filling the backup password field.
       setPassword("");
       setConfirm("");
       setConfirmMode(false);
@@ -57,52 +50,38 @@ export function SetupView() {
   const handleRemoveFile = () => {
     setImportFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
-    // Reset password state when removing the file too.
     setPassword("");
     setConfirm("");
     setConfirmMode(false);
   };
 
-  // When the user clicks "Continue" (or "Restore vault" when importing),
-  // we advance to the agreement step. For non-import flow, we first swap
-  // to the confirm field so the user can re-enter their password. The
-  // confirm field replaces the master field in-place — same height, no shift.
-  const handleAdvance = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Advance through the flow. Called by the button AND by Enter key.
+  // - Importing: go straight to vault creation (no agreement step — the user
+  //   already accepted the risks when they first created the vault they're
+  //   now restoring).
+  // - Non-importing, master mode: swap to confirm mode.
+  // - Non-importing, confirm mode: advance to agreement step.
+  const handleAdvance = React.useCallback(async () => {
     if (!masterComplete) return;
     if (isImporting) {
-      // Importing: no confirm needed, go straight to agreement.
-      setShowAgreeStep(true);
-    } else if (!confirmMode) {
-      // First click: swap to confirm mode. Don't advance yet.
+      // Importing: skip agreement, create the vault directly.
+      await createVaultWithImport();
+      return;
+    }
+    if (!confirmMode) {
       setConfirmMode(true);
       setConfirm("");
-    } else if (passwordsMatch) {
-      // Second click (confirm matches): advance to agreement.
+      return;
+    }
+    if (passwordsMatch) {
       setShowAgreeStep(true);
     }
-  };
+  }, [masterComplete, isImporting, confirmMode, passwordsMatch]);
 
-  const handleBack = () => {
-    setShowAgreeStep(false);
-    setAgreed(false);
-  };
-
-  // Go back from confirm mode to master mode (edit the master password).
-  const handleEditMaster = () => {
-    setConfirmMode(false);
-    setPassword("");
-    setConfirm("");
-  };
-
-  // Shared input className — overrides the global Input's thick focus ring
-  // with a subtle border-only focus. The thick ring was clashing with the
-  // soft thin border, creating a "double border" look on focus.
-  const inputCls = "font-secret pl-9 pr-10 focus-visible:ring-0 focus-visible:border-primary/50";
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!canSubmit) return;
+  // Create the vault + optionally import items. Used by both the import
+  // advance (Enter or button) and the agreement submit.
+  const createVaultWithImport = React.useCallback(async () => {
+    if (busy) return;
     setBusy(true);
     try {
       const fileText = importFile ? await importFile.text() : null;
@@ -120,8 +99,6 @@ export function SetupView() {
                 description: "The password doesn't match this backup file.",
               });
               setBusy(false);
-              setShowAgreeStep(false);
-              setAgreed(false);
               return;
             }
           }
@@ -194,13 +171,54 @@ export function SetupView() {
     } finally {
       setBusy(false);
     }
+  }, [busy, importFile, password, setupVault, createVault, saveItem, importItems]);
+
+  const handleBack = () => {
+    setShowAgreeStep(false);
+    setAgreed(false);
   };
 
-  // The password field row. In confirmMode, the confirm field REPLACES the
-  // master field in the exact same position — same height, same layout.
-  // The master field's value is preserved (we just hide it); if the user
-  // goes back (edits), we swap back. This eliminates ALL card height
-  // changes: the field is always exactly one row.
+  const handleEditMaster = () => {
+    setConfirmMode(false);
+    setPassword("");
+    setConfirm("");
+  };
+
+  const inputCls = "font-secret pl-9 pr-10 focus-visible:ring-0 focus-visible:border-primary/50";
+
+  // Handle Enter key on the password field. Instead of submitting the form
+  // (which requires the agreement checkbox), Enter advances the flow:
+  // - Master mode: swap to confirm
+  // - Confirm mode: advance to agreement
+  // - Importing: create the vault directly
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      // Only advance if the current field is valid.
+      if (isImporting ? masterComplete : (confirmMode ? passwordsMatch : masterComplete)) {
+        handleAdvance();
+      }
+    }
+  };
+
+  // Agreement step submit (non-import only).
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canSubmit) return;
+    await createVaultWithImport();
+  };
+
+  // Show the back arrow when we're in confirm mode OR the agree step.
+  const showBackArrow = confirmMode || showAgreeStep;
+
+  const handleBackArrow = () => {
+    if (showAgreeStep) {
+      handleBack();
+    } else if (confirmMode) {
+      handleEditMaster();
+    }
+  };
+
   const renderPasswordField = () => {
     if (confirmMode && !showAgreeStep) {
       return (
@@ -213,6 +231,7 @@ export function SetupView() {
               type={show ? "text" : "password"}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="Re-enter your password"
               autoComplete="new-password"
               className={inputCls}
@@ -230,8 +249,6 @@ export function SetupView() {
           {confirm.length > 0 && confirm !== password && (
             <p className="text-xs text-red-400">Passwords don&apos;t match</p>
           )}
-          {/* Back-to-master link — lets the user edit the master password.
-              Inline text link, no height change. */}
           {confirm.length === 0 && (
             <button
               type="button"
@@ -259,6 +276,7 @@ export function SetupView() {
               setPassword(e.target.value);
               setConfirm("");
             }}
+            onKeyDown={handleKeyDown}
             placeholder={isImporting ? "Backup password" : "At least 8 characters"}
             autoComplete="new-password"
             className={inputCls}
@@ -302,10 +320,28 @@ export function SetupView() {
           </div>
         </div>
 
-        {/* Card — fixed height container so content swaps never shift the
-            layout. The card uses a stable height based on the longest step
-            (the password step with strength meter + import + button). */}
+        {/* Card */}
         <div className="flex w-full flex-col rounded-2xl border border-border/60 bg-card/40 p-5 shadow-2xl backdrop-blur-xl sm:p-6 md:p-7">
+          {/* Back arrow — top-left. Shows when in confirm mode or agree step.
+              Smooth fade in/out. Aesthetically subtle: ghost button, muted. */}
+          <AnimatePresence>
+            {showBackArrow && (
+              <motion.button
+                type="button"
+                onClick={handleBackArrow}
+                disabled={busy}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -8 }}
+                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="absolute left-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:left-5 sm:top-5"
+                aria-label="Back"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </motion.button>
+            )}
+          </AnimatePresence>
+
           <div className="mb-4 flex shrink-0 flex-col items-center text-center sm:mb-5">
             <h1 className="text-lg font-semibold tracking-tight sm:text-xl">
               {showAgreeStep
@@ -324,8 +360,7 @@ export function SetupView() {
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-1 flex-col gap-3.5 sm:gap-4">
-            {/* Step 1+2: password entry. The field swaps in-place between
-                master and confirm — no height change. */}
+            {/* Step 1+2: password entry */}
             <AnimatePresence initial={false}>
               {!showAgreeStep && (
                 <motion.div
@@ -337,7 +372,6 @@ export function SetupView() {
                   className="overflow-hidden"
                 >
                   <div className="flex flex-col gap-3.5 sm:gap-4">
-                    {/* Password field — swaps between master and confirm in-place */}
                     <AnimatePresence mode="wait" initial={false}>
                       <motion.div
                         key={confirmMode ? "confirm" : "master"}
@@ -398,19 +432,19 @@ export function SetupView() {
                       />
                     </div>
 
-                    {/* Advance button — label and disabled logic depend on the
-                        current mode:
-                        - Master mode (not importing): "Continue" — disabled until 8+ chars
-                        - Confirm mode: "Create encrypted vault" — disabled until passwords match
-                        - Importing: "Restore vault" — disabled until 8+ chars */}
+                    {/* Advance button */}
                     <Button
                       type="button"
                       onClick={handleAdvance}
-                      disabled={isImporting ? !masterComplete : (confirmMode ? !passwordsMatch : !masterComplete)}
+                      disabled={isImporting ? !masterComplete || busy : (confirmMode ? !passwordsMatch : !masterComplete)}
                       className="mt-auto w-full"
                       size="lg"
                     >
-                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      {busy ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <ShieldCheck className="mr-2 h-4 w-4" />
+                      )}
                       {isImporting
                         ? "Restore vault"
                         : confirmMode
@@ -422,7 +456,7 @@ export function SetupView() {
               )}
             </AnimatePresence>
 
-            {/* Step 3: agreement + final submit */}
+            {/* Step 3: agreement + final submit (non-import only) */}
             <AnimatePresence initial={false}>
               {showAgreeStep && (
                 <motion.div
@@ -463,31 +497,19 @@ export function SetupView() {
                       </span>
                     </label>
 
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={handleBack}
-                        disabled={busy}
-                        className="shrink-0"
-                        size="lg"
-                      >
-                        Back
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={!canSubmit}
-                        className="flex-1"
-                        size="lg"
-                      >
-                        {busy ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <ShieldCheck className="mr-2 h-4 w-4" />
-                        )}
-                        {isImporting ? "Confirm & restore" : "Confirm & create"}
-                      </Button>
-                    </div>
+                    <Button
+                      type="submit"
+                      disabled={!canSubmit}
+                      className="w-full"
+                      size="lg"
+                    >
+                      {busy ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <ShieldCheck className="mr-2 h-4 w-4" />
+                      )}
+                      Confirm & create
+                    </Button>
                   </div>
                 </motion.div>
               )}
