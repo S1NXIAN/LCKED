@@ -5,7 +5,7 @@ import { Copy, Check, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { generateTotp, resolveTotpParams, looksLikeTotp, type TotpParams } from "@/lib/totp";
-import { copyWithAutoClear } from "@/store/vault";
+import { copyWithAutoClear } from "@/lib/clipboard";
 import { cn } from "@/lib/utils";
 
 interface TOTPDisplayProps {

@@ -14,7 +14,8 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { copyWithAutoClear, setGeneratorCallback, useVault } from "@/store/vault";
+import { copyWithAutoClear } from "@/lib/clipboard";
+import { setGeneratorCallback, useVault } from "@/store/vault";
 import type { GeneratorOptions } from "@/lib/types";
 import { PasswordStrengthMeter } from "./password-strength-meter";
 

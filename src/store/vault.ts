@@ -47,6 +47,7 @@ import {
   type ImportResult,
   type LckedExport,
 } from "@/lib/import-export";
+import { clearAllClipboardTimers } from "@/lib/clipboard";
 
 export type VaultStatus = "loading" | "setup" | "locked" | "unlocked";
 
@@ -1196,57 +1197,6 @@ async function updateItemFlags(
   notifyVaultMutation();
 }
 
-/**
- * Copy-to-clipboard with an automatic 30-second clear. Returns the timeout id
- * so callers can cancel early if needed. Sensitive values never linger.
- */
-const clipboardTimers = new Map<string, ReturnType<typeof setTimeout>>();
-
-export async function copyWithAutoClear(
-  value: string,
-  key = "default",
-  clearMs = 30_000,
-): Promise<void> {
-  if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
-    throw new Error("Clipboard API unavailable");
-  }
-  await navigator.clipboard.writeText(value);
-  // Clear any prior timer for this key.
-  const prior = clipboardTimers.get(key);
-  if (prior) clearTimeout(prior);
-  const timer = setTimeout(async () => {
-    try {
-      const current = await navigator.clipboard.readText().catch(() => "");
-      if (current === value) {
-        await navigator.clipboard.writeText("");
-      }
-    } catch {
-      // readText may be denied — best-effort clear.
-    }
-    clipboardTimers.delete(key);
-  }, clearMs);
-  clipboardTimers.set(key, timer);
-}
-
-export function cancelClipboardClear(key = "default"): void {
-  const t = clipboardTimers.get(key);
-  if (t) {
-    clearTimeout(t);
-    clipboardTimers.delete(key);
-  }
-}
-
-/** Clear ALL pending clipboard auto-clear timers + wipe the clipboard if it
- *  still holds a value we copied. Called from `lock()` so a password copied
- *  just before locking doesn't linger for up to 30s. */
-export function clearAllClipboardTimers(): void {
-  for (const t of clipboardTimers.values()) clearTimeout(t);
-  clipboardTimers.clear();
-  // Best-effort clipboard wipe.
-  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText("").catch(() => {});
-  }
-}
 
 /* ----------------------- encrypted export decrypt ------------------------- */
 

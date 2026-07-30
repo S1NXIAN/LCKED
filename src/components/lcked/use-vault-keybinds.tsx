@@ -18,7 +18,8 @@
  */
 
 import * as React from "react";
-import { useVault, copyWithAutoClear } from "@/store/vault";
+import { copyWithAutoClear } from "@/lib/clipboard";
+import { useVault } from "@/store/vault";
 import {
   isTyping,
   matchBinding,

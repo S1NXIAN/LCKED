@@ -17,7 +17,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { copyWithAutoClear } from "@/store/vault";
+import { copyWithAutoClear } from "@/lib/clipboard";
 import { useReducedMotion } from "framer-motion";
 
 interface LargeTypeRevealProps {

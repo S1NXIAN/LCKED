@@ -63,7 +63,8 @@ import {
   ContextMenuSubContent,
 } from "@/components/ui/context-menu";
 import { cn, isEmail } from "@/lib/utils";
-import { useVault, copyWithAutoClear } from "@/store/vault";
+import { copyWithAutoClear } from "@/lib/clipboard";
+import { useVault } from "@/store/vault";
 import { searchItems } from "@/lib/fuzzy-search";
 import { ActiveHighlight } from "./active-highlight";
 import { toast } from "sonner";

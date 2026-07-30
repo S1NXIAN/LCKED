@@ -39,7 +39,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useVault, copyWithAutoClear } from "@/store/vault";
+import { copyWithAutoClear } from "@/lib/clipboard";
+import { useVault } from "@/store/vault";
 import { ItemTypeIcon, ITEM_TYPE_LABELS } from "./item-icons";
 import { TOTPDisplay } from "./totp-display";
 import { FaviconIcon } from "./favicon-icon";
