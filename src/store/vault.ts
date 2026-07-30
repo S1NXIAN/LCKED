@@ -9,23 +9,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
-  buildVerifier,
   bytesToBase64,
-  checkVerifier,
   decryptJson,
-  deriveMasterKey,
   encryptJson,
-  generateVaultKey,
-  PBKDF2_ITERATIONS,
   randomBytes,
   randomId,
-  unwrapVaultKey,
-  VERIFIER_TOKEN,
-  wrapVaultKey,
 } from "@/lib/crypto";
 import {
   deleteStoredItem,
-  loadAllStoredItems,
   loadVaultMeta,
   putStoredItem,
   saveVaultMeta,
@@ -35,20 +26,43 @@ import {
 import {
   DEFAULT_VAULT_SETTINGS,
   type GeneratorOptions,
+  type ImportResult,
   type NewItemInput,
   type VaultDef,
   type VaultItem,
-  type VaultMeta,
   type VaultSettings,
 } from "@/lib/types";
 import {
   exportToCsv,
   importFromText,
-  type ImportResult,
-  type LckedExport,
 } from "@/lib/import-export";
 import { clearAllClipboardTimers } from "@/lib/clipboard";
 import { patchItem, patchItems } from "@/lib/item-crud";
+import {
+  createVault,
+  unlockVault,
+  clearSession,
+  changeMasterPassword as changeMasterPasswordAuth,
+  exportEncrypted as exportEncryptedPayload,
+} from "@/lib/vault-auth";
+import {
+  setMasterPassword,
+  clearMasterPassword,
+  markPendingCloudDeletion,
+  startSync,
+  stopSyncEngine,
+  notifyVaultMutation,
+  hashEmailClient,
+  setStoredToken,
+  getStoredToken,
+  clearStoredToken,
+  deleteCloudData,
+  clearPendingCloudDeletion,
+  hasPendingCloudDeletion,
+  isOnline,
+  executePendingDeletion,
+  checkCloudExists,
+} from "@/lib/cloud-sync";
 
 export type VaultStatus = "loading" | "setup" | "locked" | "unlocked";
 
@@ -150,11 +164,6 @@ interface VaultState {
   checkPendingDeletion: () => Promise<void>;
 }
 
-// Module-level: stores the master password while unlocked (in-memory only,
-// never persisted). Used by the auto-sync engine to encrypt cloud backups
-// without re-prompting the user. Cleared on lock.
-let _masterPassword: string | null = null;
-
 export const useVault = create<VaultState>()(
   persist(
     (set, get) => {
@@ -212,170 +221,47 @@ export const useVault = create<VaultState>()(
       },
 
       setupVault: async (masterPassword) => {
-        const salt = bytesToBase64(randomBytes(16));
-        const masterKey = await deriveMasterKey(masterPassword, salt, PBKDF2_ITERATIONS);
-        const vaultKey = await generateVaultKey();
-        const { ciphertext, iv } = await wrapVaultKey(vaultKey, masterKey);
-        const verifier = await buildVerifier(masterKey);
-
-        const now = Date.now();
-        const meta: VaultMeta = {
-          id: "singleton",
-          salt,
-          iterations: PBKDF2_ITERATIONS,
-          encryptedVaultKey: ciphertext,
-          vaultKeyIv: iv,
-          verifier: verifier.verifier,
-          verifierIv: verifier.verifierIv,
-          verifierToken: verifier.verifierToken,
-          createdAt: now,
-          settings: DEFAULT_VAULT_SETTINGS,
-          vaults: [],
-        };
-        await saveVaultMeta(meta);
-
+        const result = await createVault(masterPassword);
+        setMasterPassword(masterPassword);
         set({
           status: "unlocked",
-          masterKey,
-          vaultKey,
-          settings: DEFAULT_VAULT_SETTINGS,
-          items: [],
-          vaults: [],
+          masterKey: result.masterKey,
+          vaultKey: result.vaultKey,
+          settings: result.settings,
+          items: result.items,
+          vaults: result.vaults,
           activeVault: "all",
           selectedId: null,
         });
-        _masterPassword = masterPassword;
-        await startAutoSync(get, set);
+        await startSync(get, set);
       },
 
       unlock: async (masterPassword) => {
-        const meta = await loadVaultMeta();
-        if (!meta) {
-          set({ status: "setup" });
-          return false;
-        }
-        const masterKey = await deriveMasterKey(
-          masterPassword,
-          meta.salt,
-          meta.iterations,
-        );
-        const ok = await checkVerifier(
-          masterKey,
-          meta.verifier,
-          meta.verifierIv,
-          meta.verifierToken,
-        );
-        if (!ok) return false;
-
-        const vaultKey = await unwrapVaultKey(
-          meta.encryptedVaultKey,
-          meta.vaultKeyIv,
-          masterKey,
-        );
-
-        // Decrypt every stored item in parallel (Web Crypto handles concurrent
-        // subtle.decrypt calls). Each item is decrypted + migrated + TTL-checked
-        // in its own async task, then the results are gathered.
-        const stored = await loadAllStoredItems();
-        const TRASH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-        const now = Date.now();
-
-        type DecryptOutcome =
-          | { kind: "ok"; item: VaultItem; migrated: boolean }
-          | { kind: "expired"; id: string }
-          | { kind: "error"; id: string };
-
-        const outcomes = await Promise.all(
-          stored.map(async (s): Promise<DecryptOutcome> => {
-            try {
-              const item = await decryptJson<VaultItem>(s.ciphertext, s.iv, vaultKey);
-              // Migration: ensure fields added in later LCKED versions exist.
-              let migrated = false;
-              if (item.vaultIds === undefined) { item.vaultIds = []; migrated = true; }
-              if (item.trashed === undefined) { item.trashed = false; migrated = true; }
-              if (item.trashedAt === undefined) { item.trashedAt = null; migrated = true; }
-              if (item.customFields === undefined) { item.customFields = []; migrated = true; }
-              if (item.favorite === undefined) { item.favorite = false; migrated = true; }
-              if (item.pinned === undefined) { item.pinned = false; migrated = true; }
-              if (item.folder === undefined) { item.folder = ""; migrated = true; }
-              // 30-day auto-delete: drop trashed items whose TTL has expired.
-              if (item.trashed && item.trashedAt && now - item.trashedAt > TRASH_TTL_MS) {
-                return { kind: "expired", id: item.id };
-              }
-              return { kind: "ok", item, migrated };
-            } catch {
-              return { kind: "error", id: s.id };
-            }
-          }),
-        );
-
-        const items: VaultItem[] = [];
-        const toReencrypt: VaultItem[] = [];
-        for (const o of outcomes) {
-          if (o.kind === "ok") {
-            if (o.migrated) toReencrypt.push(o.item);
-            items.push(o.item);
-          } else if (o.kind === "expired") {
-            try { await deleteStoredItem(o.id); } catch { /* best-effort */ }
-          } else {
-            console.warn("Failed to decrypt item", o.id);
-          }
-        }
-        // Persist any migrated records so we never re-migrate them again.
-        if (toReencrypt.length > 0) {
-          await Promise.all(
-            toReencrypt.map(async (it) => {
-              const { ciphertext, iv } = await encryptJson(it, vaultKey);
-              await putStoredItem({
-                id: it.id,
-                type: it.type,
-                ciphertext,
-                iv,
-                createdAt: it.createdAt,
-                updatedAt: it.updatedAt,
-              });
-            }),
-          );
-        }
-        items.sort((a, b) => b.updatedAt - a.updatedAt);
-
-        // Hydrate vaults (custom containers) — migrate older meta that lacks
-        // the field by persisting an empty array.
-        const vaults: VaultDef[] = Array.isArray(meta.vaults) ? meta.vaults : [];
-        if (!Array.isArray(meta.vaults)) {
-          await saveVaultMeta({ ...meta, vaults });
-        }
-
+        const result = await unlockVault(masterPassword);
+        if (!result.ok) return false;
+        setMasterPassword(result.masterPassword);
         set({
           status: "unlocked",
-          masterKey,
-          vaultKey,
-          items,
-          vaults,
+          masterKey: result.masterKey,
+          vaultKey: result.vaultKey,
+          items: result.items,
+          vaults: result.vaults,
           activeVault: "all",
-          // Merge with defaults so vaults persisted before the
-          // showFavicons / sortFavoritesFirst settings existed still get
-          // sane values instead of `undefined`.
-          settings: { ...DEFAULT_VAULT_SETTINGS, ...meta.settings },
+          settings: result.settings,
+          selectedId: null,
         });
-        // Store master password for auto-sync encryption (in-memory only).
-        _masterPassword = masterPassword;
-        // Start the smart sync engine (if OAuth is connected).
-        await startAutoSync(get, set);
+        await startSync(get, set);
         return true;
       },
 
       lock: () => {
-        // Clear any pending clipboard auto-clear timers so a password copied
-        // just before locking doesn't linger in the system clipboard.
         clearAllClipboardTimers();
-        // Clear the in-memory master password + stop the sync engine.
-        _masterPassword = null;
+        clearMasterPassword();
         stopSyncEngine();
+        const session = clearSession();
         set({
+          ...session,
           status: "locked",
-          masterKey: null,
-          vaultKey: null,
           items: [],
           vaults: [],
           activeVault: "all",
@@ -394,16 +280,16 @@ export const useVault = create<VaultState>()(
 
       resetVault: async () => {
         clearAllClipboardTimers();
-        _masterPassword = null;
+        clearMasterPassword();
         await stopSyncEngine();
         await wipeVault();
+        const session = clearSession();
         set({
+          ...session,
           status: "setup",
           items: [],
           vaults: [],
           activeVault: "all",
-          masterKey: null,
-          vaultKey: null,
           selectedId: null,
           settings: DEFAULT_VAULT_SETTINGS,
           editorOpen: false,
@@ -414,10 +300,6 @@ export const useVault = create<VaultState>()(
           vaultEditorOpen: false,
           editingVaultId: null,
           createVaultDialogOpen: false,
-          // Clear OAuth state — the vault is gone, the cloud data is now
-          // inaccessible (encrypted with the forgotten master password).
-          // Mark pending cloud deletion so it gets cleaned up on next
-          // online + OAuth connection.
           oauthConnected: false,
           oauthEmail: null,
           cloudLastSync: null,
@@ -425,9 +307,8 @@ export const useVault = create<VaultState>()(
         // Mark pending cloud deletion (edge case: reset while offline).
         if (typeof window !== "undefined") {
           try {
-            const { markPendingCloudDeletion } = await import("@/lib/cloud-sync");
             markPendingCloudDeletion();
-          } catch { /* cloud-sync module not available — skip */ }
+          } catch { /* best-effort */ }
         }
       },
 
@@ -896,70 +777,19 @@ export const useVault = create<VaultState>()(
       },
 
       changeMasterPassword: async (current, next) => {
-        const meta = await loadVaultMeta();
-        if (!meta) return false;
-        const currentKey = await deriveMasterKey(current, meta.salt, meta.iterations);
-        const ok = await checkVerifier(currentKey, meta.verifier, meta.verifierIv, meta.verifierToken);
-        if (!ok) return false;
-
-        // New salt + new master key; re-wrap the SAME vault key so no item
-        // needs re-encryption.
-        const newSalt = bytesToBase64(randomBytes(16));
-        const newMasterKey = await deriveMasterKey(next, newSalt, PBKDF2_ITERATIONS);
         const { vaultKey } = get();
         if (!vaultKey) return false;
-        const wrapped = await wrapVaultKey(vaultKey, newMasterKey);
-        const verifier = await buildVerifier(newMasterKey);
-        await saveVaultMeta({
-          ...meta,
-          salt: newSalt,
-          iterations: PBKDF2_ITERATIONS,
-          encryptedVaultKey: wrapped.ciphertext,
-          vaultKeyIv: wrapped.iv,
-          verifier: verifier.verifier,
-          verifierIv: verifier.verifierIv,
-          // Write the new verifier token too (defensive — today it's a constant,
-          // but if per-vault tokens are introduced later this prevents a
-          // password-change → unlock-failure regression).
-          verifierToken: verifier.verifierToken,
-        });
-        set({ masterKey: newMasterKey });
+        const result = await changeMasterPasswordAuth(current, next, vaultKey);
+        if (!result) return false;
+        set({ masterKey: result.masterKey });
         return true;
       },
 
       /* ------------------------------ export -------------------------------- */
 
       exportEncrypted: async (password) => {
-        const items = get().items;
-        const vaults = get().vaults;
-        const salt = bytesToBase64(randomBytes(16));
-        const exportMasterKey = await deriveMasterKey(password, salt, PBKDF2_ITERATIONS);
-        const exportVaultKey = await generateVaultKey();
-        const verifier = await buildVerifier(exportMasterKey);
-        const wrapped = await wrapVaultKey(exportVaultKey, exportMasterKey);
-
-        // The payload (items + vaults) is encrypted with the export vault key.
-        // The export vault key itself is wrapped with the export master key and
-        // hoisted to the ENVELOPE level (not inside `data`) so decryption is
-        // possible: derive master key → check verifier → unwrap vault key →
-        // decrypt data. (Burying it inside `data` created a circular dependency.)
-        const payload = { items, vaults };
-        const { ciphertext: dataCipher, iv: dataIv } = await encryptJson(payload, exportVaultKey);
-
-        const envelope: LckedExport = {
-          format: "lcked-encrypted-v1",
-          version: 1,
-          exportedAt: Date.now(),
-          salt,
-          iterations: PBKDF2_ITERATIONS,
-          verifier: verifier.verifier,
-          verifierIv: verifier.verifierIv,
-          wrappedVaultKey: wrapped.ciphertext,
-          wrappedVaultKeyIv: wrapped.iv,
-          data: dataCipher,
-          dataIv: dataIv,
-        };
-        return JSON.stringify(envelope, null, 2);
+        const { items, vaults } = get();
+        return exportEncryptedPayload(items, vaults, password);
       },
 
       exportCsv: () => exportToCsv(get().items),
@@ -981,7 +811,6 @@ export const useVault = create<VaultState>()(
       /* --------------------------- cloud sync --------------------------- */
 
       connectOAuth: async (idToken, email) => {
-        const { setStoredToken, hashEmailClient, checkCloudExists } = await import("@/lib/cloud-sync");
         setStoredToken(idToken, email);
         const emailHash = await hashEmailClient(email);
         if (typeof window !== "undefined") {
@@ -989,13 +818,11 @@ export const useVault = create<VaultState>()(
         }
         const result = await checkCloudExists(idToken);
         set({ oauthConnected: true, oauthEmail: email });
-        // Start the smart sync engine now that OAuth is connected.
-        await startAutoSync(get, set);
+        await startSync(get, set);
         return result;
       },
 
       disconnectOAuth: async (deleteCloud) => {
-        const { getStoredToken, clearStoredToken, deleteCloudData, clearPendingCloudDeletion } = await import("@/lib/cloud-sync");
         await stopSyncEngine();
         const token = getStoredToken();
         if (deleteCloud && token) {
@@ -1007,7 +834,6 @@ export const useVault = create<VaultState>()(
       },
 
       checkPendingDeletion: async () => {
-        const { hasPendingCloudDeletion, executePendingDeletion, isOnline, getStoredToken } = await import("@/lib/cloud-sync");
         if (!hasPendingCloudDeletion()) return;
         if (!isOnline()) return;
         const token = getStoredToken();
@@ -1026,151 +852,4 @@ export const useVault = create<VaultState>()(
   ),
 );
 
-/* ----------------------- smart sync helpers ----------------------------- */
-
-/**
- * Start the automatic cloud sync engine. Called after unlock or OAuth
- * connect. The engine debounces uploads (3s after last mutation) and
- * auto-pulls on going online. All uploads use the in-memory master
- * password to encrypt the vault data — no user interaction needed.
- */
-async function startAutoSync(
-  get: () => VaultState,
-  set: (partial: Partial<VaultState>) => void,
-) {
-  const { startSyncEngine, isOAuthConnected, getStoredToken, uploadCloudData,
-    downloadCloudData, isOnline, setLastSync, getLastSync } =
-    await import("@/lib/cloud-sync");
-
-  if (!isOAuthConnected()) return;
-
-  // Upload function: encrypt the current vault + upload to Firestore.
-  const uploadFn = async () => {
-    if (!_masterPassword) return;
-    const token = getStoredToken();
-    if (!token) return;
-    if (!isOnline()) return;
-    set({ cloudSyncing: true });
-    try {
-      const envelopeJson = await get().exportEncrypted(_masterPassword);
-      const envelope = JSON.parse(envelopeJson);
-      const emailHash = typeof window !== "undefined"
-        ? sessionStorage.getItem("lcked-oauth-email-hash") ?? ""
-        : "";
-      const { updatedAt } = await uploadCloudData(token, envelope, emailHash);
-      setLastSync(updatedAt);
-      set({ cloudLastSync: updatedAt });
-    } finally {
-      set({ cloudSyncing: false });
-    }
-  };
-
-  // Pull function: check for newer cloud data and merge if found.
-  const pullFn = async () => {
-    if (!_masterPassword) return;
-    const token = getStoredToken();
-    if (!token) return;
-    if (!isOnline()) return;
-    const { data, updatedAt } = await downloadCloudData(token);
-    if (!data || !updatedAt) return;
-    const lastSync = getLastSync();
-    // Only pull if cloud is newer than our last sync.
-    if (lastSync && updatedAt <= lastSync) return;
-    // Decrypt the cloud data.
-    const decrypted = await decryptLckedExport(data, _masterPassword);
-    if (!decrypted) return;
-    // Merge: replace local items with cloud items (last-write-wins).
-    // Re-encrypt each cloud item with the local vault key + persist.
-    const { vaultKey } = get();
-    if (!vaultKey) return;
-    set({ cloudSyncing: true });
-    try {
-      const { putStoredItem } = await import("@/lib/vault-db");
-      const now = Date.now();
-      await Promise.all(
-        decrypted.items.map(async (item) => {
-          const { ciphertext, iv } = await encryptJson(item, vaultKey);
-          await putStoredItem({ id: item.id, type: item.type, ciphertext, iv, createdAt: item.createdAt, updatedAt: item.updatedAt });
-        }),
-      );
-      // Update local state with merged items.
-      set({
-        items: decrypted.items.sort((a, b) => b.updatedAt - a.updatedAt),
-        vaults: decrypted.vaults,
-        cloudLastSync: updatedAt,
-      });
-      setLastSync(updatedAt);
-    } finally {
-      set({ cloudSyncing: false });
-    }
-  };
-
-  startSyncEngine(uploadFn, pullFn);
-  // Immediately pull on start (in case cloud is newer).
-  const engine = (await import("@/lib/cloud-sync")).getSyncEngine();
-  engine?.pull().catch(() => {});
-}
-
-async function stopSyncEngine() {
-  const { stopSyncEngine: stop } = await import("@/lib/cloud-sync");
-  await stop();
-}
-
-/**
- * Call after any vault mutation to schedule a debounced auto-upload.
- * Safe to call even if sync is not active (no-op if engine is null).
- */
-function notifyVaultMutation() {
-  import("@/lib/cloud-sync").then(({ notifyVaultMutation: notify }) => notify());
-}
-
-/* ----------------------- encrypted export decrypt ------------------------- */
-
-/**
- * Decrypt an LCKED encrypted-export envelope (produced by `exportEncrypted`).
- * Returns the items + custom vaults, or null if the password is wrong.
- *
- * Path: derive master key → check verifier → unwrap vault key → decrypt data.
- */
-export async function decryptLckedExport(
-  envelope: LckedExport,
-  password: string,
-): Promise<{ items: VaultItem[]; vaults: VaultDef[] } | null> {
-  if (envelope.format !== "lcked-encrypted-v1") return null;
-  const exportMasterKey = await deriveMasterKey(password, envelope.salt, envelope.iterations);
-  const ok = await checkVerifier(
-    exportMasterKey,
-    envelope.verifier,
-    envelope.verifierIv,
-    VERIFIER_TOKEN,
-  );
-  if (!ok) {
-    console.warn("decryptLckedExport: verifier check failed (wrong password or corrupted envelope)");
-    return null;
-  }
-  let exportVaultKey: CryptoKey;
-  try {
-    exportVaultKey = await unwrapVaultKey(
-      envelope.wrappedVaultKey,
-      envelope.wrappedVaultKeyIv,
-      exportMasterKey,
-    );
-  } catch (err) {
-    console.error("decryptLckedExport: unwrapVaultKey failed", err);
-    return null;
-  }
-  let payload: { items: VaultItem[]; vaults: VaultDef[] };
-  try {
-    payload = await decryptJson<{ items: VaultItem[]; vaults: VaultDef[] }>(
-      envelope.data,
-      envelope.dataIv,
-      exportVaultKey,
-    );
-  } catch (err) {
-    console.error("decryptLckedExport: decryptJson failed", err);
-    return null;
-  }
-  return payload;
-}
-
-/* -------------- generator-callback moved to lib/generator-bridge.ts ---------- */
+export { decryptLckedExport } from "@/lib/vault-auth";

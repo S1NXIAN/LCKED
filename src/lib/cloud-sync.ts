@@ -20,6 +20,8 @@
  */
 
 import type { LckedExport } from "@/lib/import-export";
+import type { VaultDef, VaultItem } from "@/lib/types";
+import { decryptLckedExport, exportEncrypted } from "@/lib/vault-auth";
 
 const OAUTH_TOKEN_KEY = "lcked-oauth-token";
 const OAUTH_EMAIL_KEY = "lcked-oauth-email";
@@ -282,4 +284,95 @@ export async function stopSyncEngine() {
 
 export function notifyVaultMutation() {
   if (syncEngine) syncEngine.scheduleUpload();
+}
+
+/* ─── Master password for sync encryption ───────────────── */
+
+let _masterPassword: string | null = null;
+
+/** Store the master password in-memory for cloud backup encryption. */
+export function setMasterPassword(pw: string) {
+  _masterPassword = pw;
+}
+
+/** Clear the in-memory master password (called on lock/reset). */
+export function clearMasterPassword() {
+  _masterPassword = null;
+}
+
+/**
+ * Start the automatic cloud sync engine. Called after unlock or OAuth
+ * connect. The engine debounces uploads (3s after last mutation) and
+ * auto-pulls on going online. All uploads use the in-memory master
+ * password to encrypt the vault data — no user interaction needed.
+ *
+ * @param get  - Store's get() to read items/vaults
+ * @param set  - Store's set() to update sync state
+ */
+export async function startSync(
+  get: () => { items: VaultItem[]; vaults: VaultDef[]; settings: { generator: any } },
+  set: (partial: Record<string, unknown>) => void,
+) {
+  if (!isOAuthConnected()) return;
+
+  const uploadFn = async () => {
+    if (!_masterPassword) return;
+    const token = getStoredToken();
+    if (!token) return;
+    if (!isOnline()) return;
+    set({ cloudSyncing: true });
+    try {
+      const state = get();
+      const envelopeJson = await exportEncrypted(state.items, state.vaults, _masterPassword);
+      const envelope = JSON.parse(envelopeJson);
+      const emailHash = typeof window !== "undefined"
+        ? sessionStorage.getItem("lcked-oauth-email-hash") ?? ""
+        : "";
+      const { updatedAt } = await uploadCloudData(token, envelope, emailHash);
+      setLastSync(updatedAt);
+      set({ cloudLastSync: updatedAt });
+    } finally {
+      set({ cloudSyncing: false });
+    }
+  };
+
+  const pullFn = async () => {
+    if (!_masterPassword) return;
+    const token = getStoredToken();
+    if (!token) return;
+    if (!isOnline()) return;
+    const { data, updatedAt } = await downloadCloudData(token);
+    if (!data || !updatedAt) return;
+    const lastSync = getLastSync();
+    if (lastSync && updatedAt <= lastSync) return;
+    const decrypted = await decryptLckedExport(data, _masterPassword);
+    if (!decrypted) return;
+    const { vaultKey } = get() as any;
+    if (!vaultKey) return;
+    set({ cloudSyncing: true });
+    try {
+      const { putStoredItem } = await import("@/lib/vault-db");
+      const now = Date.now();
+      const { encryptJson } = await import("@/lib/crypto");
+      await Promise.all(
+        decrypted.items.map(async (item) => {
+          const { ciphertext, iv } = await encryptJson(item, vaultKey);
+          await putStoredItem({ id: item.id, type: item.type, ciphertext, iv, createdAt: item.createdAt, updatedAt: item.updatedAt });
+        }),
+      );
+      set({
+        items: decrypted.items.sort((a, b) => b.updatedAt - a.updatedAt),
+        vaults: decrypted.vaults,
+        cloudLastSync: updatedAt,
+      });
+      setLastSync(updatedAt);
+    } finally {
+      set({ cloudSyncing: false });
+    }
+  };
+
+  startSyncEngine(uploadFn, pullFn);
+  // Immediately pull on start (in case cloud is newer).
+  const engine = getSyncEngine();
+  engine?.pull().catch(() => {});
 }
