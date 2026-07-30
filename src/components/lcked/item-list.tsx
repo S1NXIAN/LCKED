@@ -9,7 +9,7 @@ import {
   Square,
   X,
   FolderInput,
-  FolderMinus,
+  CopyPlus,
   ChevronDown,
   ArrowUpDown,
   LayoutGrid,
@@ -180,8 +180,7 @@ export function ItemList({
   const restoreItem = useVault((s) => s.restoreItem);
   const permanentlyDeleteItem = useVault((s) => s.permanentlyDeleteItem);
   const moveItemToVault = useVault((s) => s.moveItemToVault);
-  const addItemToVault = useVault((s) => s.addItemToVault);
-  const removeItemFromVault = useVault((s) => s.removeItemFromVault);
+  const copyItemToVault = useVault((s) => s.copyItemToVault);
   const toggleFavorite = useVault((s) => s.toggleFavorite);
   const togglePin = useVault((s) => s.togglePin);
   const sortFavoritesFirst = useVault((s) => s.settings.sortFavoritesFirst);
@@ -664,14 +663,9 @@ export function ItemList({
                                   toast.success("Moved to Trash"),
                                 )
                               }
-                              onRemoveFromVault={(vaultId) =>
-                                removeItemFromVault(item.id, vaultId).then(() =>
-                                  toast.success(`Removed from ${vaults.find((v) => v.id === vaultId)?.name ?? "vault"}`),
-                                )
-                              }
-                              onAddToVault={(vaultId) =>
-                                addItemToVault(item.id, vaultId).then(() =>
-                                  toast.success(`Added to ${vaults.find((v) => v.id === vaultId)?.name ?? "vault"}`),
+                              onCopyToVault={(vaultId) =>
+                                copyItemToVault(item.id, vaultId).then(() =>
+                                  toast.success(`Copied to ${vaults.find((v) => v.id === vaultId)?.name ?? "vault"}`),
                                 )
                               }
                             />
@@ -744,8 +738,7 @@ function ItemRow({
   onTogglePin,
   onEdit,
   onTrash,
-  onRemoveFromVault,
-  onAddToVault,
+  onCopyToVault,
 }: {
   item: VaultItem;
   active: boolean;
@@ -754,10 +747,9 @@ function ItemRow({
   isTrashView: boolean;
   hoverItemActions: boolean;
   blurEmailMode: "off" | "hover" | "full";
-  /** The current vault filter id ("all" | "favorites" | "trash" | vaultId).
-   *  Used to decide whether to show "Remove from this vault". */
+  /** The current vault filter id ("all" | "favorites" | "trash" | vaultId). */
   activeVaultId: string;
-  /** All user-defined vaults — for the "Add to vault" submenu. */
+  /** All user-defined vaults — for the "Copy to vault" submenu. */
   vaults: { id: string; name: string; icon: string; color: string }[];
   /** IDs to move when this row is dragged. In multi-select mode, if this row
    *  is selected, ALL selected IDs are moved. If not selected, just this one
@@ -772,11 +764,9 @@ function ItemRow({
   onTogglePin: () => void;
   onEdit: () => void;
   onTrash: () => void;
-  /** Remove the item from the currently-viewed vault (multi-vault: keeps it
-   *  in any other vaults it belongs to). NOT a delete. */
-  onRemoveFromVault: (vaultId: string) => void;
-  /** Add the item to another vault (multi-vault membership). */
-  onAddToVault: (vaultId: string) => void;
+  /** Duplicate the item into a target vault. The copy is a fully independent
+   *  record — deleting it does NOT affect the original. */
+  onCopyToVault: (vaultId: string) => void;
 }) {
   // Per-item context menu — wraps the button so left-click still picks the
   // item, and right-click opens the context menu with copy/edit/etc.
@@ -949,54 +939,21 @@ function ItemRow({
           <Pencil className="h-3.5 w-3.5" />
           Edit
         </ContextMenuItem>
-        {/* Multi-vault actions — only show when not in trash/all/favorites.
-            "Add to vault" lets you add the item to MORE vaults (it stays in
-            its current ones). "Remove from this vault" takes it out of the
-            currently-viewed vault only — the item is NOT deleted; it stays in
-            any other vaults it belongs to (or All Items if none remain). */}
-        {!isTrashView && activeVaultId !== "all" && activeVaultId !== "favorites" && vaults.length > 0 && (
-          <>
-            <ContextMenuSeparator />
-            {/* Add to vault — shows vaults the item is NOT yet a member of. */}
-            {vaults.filter((v) => !item.vaultIds.includes(v.id)).length > 0 && (
-              <ContextMenuSub>
-                <ContextMenuSubTrigger>
-                  <Plus className="h-3.5 w-3.5" />
-                  Add to vault
-                </ContextMenuSubTrigger>
-                <ContextMenuSubContent className="w-48">
-                  {vaults.filter((v) => !item.vaultIds.includes(v.id)).map((v) => (
-                    <ContextMenuItem key={v.id} onSelect={() => onAddToVault(v.id)}>
-                      <VaultIcon icon={v.icon} color={v.color} size={16} />
-                      <span className="truncate">{v.name}</span>
-                    </ContextMenuItem>
-                  ))}
-                </ContextMenuSubContent>
-              </ContextMenuSub>
-            )}
-            {/* Remove from this vault — only when the item IS in this vault. */}
-            {item.vaultIds.includes(activeVaultId) && (
-              <ContextMenuItem onSelect={() => onRemoveFromVault(activeVaultId)}>
-                <FolderMinus className="h-3.5 w-3.5" />
-                Remove from this vault
-              </ContextMenuItem>
-            )}
-          </>
-        )}
-        {/* Also show "Add to vault" in All Items / Favorites views (without
-            the "Remove from this vault" option, since there's no specific
-            vault to remove from). */}
-        {!isTrashView && (activeVaultId === "all" || activeVaultId === "favorites") && vaults.length > 0 && vaults.filter((v) => !item.vaultIds.includes(v.id)).length > 0 && (
+        {/* Copy to vault — creates a fully independent duplicate of the item
+            in the target vault. The copy gets its own ID, so deleting it
+            never affects the original (and vice versa). Shown in all non-trash
+            views as long as there's at least one vault to copy to. */}
+        {!isTrashView && vaults.length > 0 && (
           <>
             <ContextMenuSeparator />
             <ContextMenuSub>
               <ContextMenuSubTrigger>
-                <Plus className="h-3.5 w-3.5" />
-                Add to vault
+                <CopyPlus className="h-3.5 w-3.5" />
+                Copy to vault
               </ContextMenuSubTrigger>
               <ContextMenuSubContent className="w-48">
-                {vaults.filter((v) => !item.vaultIds.includes(v.id)).map((v) => (
-                  <ContextMenuItem key={v.id} onSelect={() => onAddToVault(v.id)}>
+                {vaults.map((v) => (
+                  <ContextMenuItem key={v.id} onSelect={() => onCopyToVault(v.id)}>
                     <VaultIcon icon={v.icon} color={v.color} size={16} />
                     <span className="truncate">{v.name}</span>
                   </ContextMenuItem>

@@ -108,6 +108,11 @@ interface VaultState {
   addItemsToVault: (itemIds: string[], vaultId: string) => Promise<{ moved: number; failed: number }>;
   trashItems: (itemIds: string[]) => Promise<{ moved: number; failed: number }>;
   duplicateItem: (id: string) => Promise<void>;
+  /** Duplicate an item into a specific vault. The copy is a fully independent
+   *  record (new ID) assigned to the target vault — deleting the original or
+   *  the copy does NOT affect the other. Replaces the old "add to vault"
+   *  membership approach which symlinked one item across vaults. */
+  copyItemToVault: (itemId: string, vaultId: string) => Promise<void>;
   importItems: (filename: string, text: string) => Promise<ImportResult>;
 
   // vault (custom containers) CRUD
@@ -737,6 +742,23 @@ export const useVault = create<VaultState>()(
         // active view, unpinned, ready for the user to customize.
         const { id: _id, createdAt: _c, updatedAt: _u, trashed: _t, trashedAt: _ta, pinned: _p, ...rest } = item;
         await get().saveItem(rest as NewItemInput);
+      },
+
+      copyItemToVault: async (itemId, vaultId) => {
+        const item = get().items.find((i) => i.id === itemId);
+        if (!item) return;
+        // Create a fully independent copy assigned to the target vault.
+        // The copy gets a fresh ID, so deleting it never affects the original
+        // (and vice versa). This replaces the old "symlink" membership model.
+        const { id: _id, createdAt: _c, updatedAt: _u, trashed: _t, trashedAt: _ta, pinned: _p, ...rest } = item;
+        await get().saveItem({
+          ...rest,
+          vaultIds: [vaultId],
+          favorite: false,
+          pinned: false,
+          trashed: false,
+          trashedAt: null,
+        } as NewItemInput);
       },
 
       importItems: async (filename, text) => {
