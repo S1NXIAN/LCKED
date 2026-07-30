@@ -405,7 +405,7 @@ export function ItemEditor() {
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent
         side="right"
-        className="w-full gap-0 overflow-hidden border-l border-border bg-background p-0 sm:max-w-[441px] [&>button:last-child]:hidden"
+        className="w-full gap-0 overflow-hidden border-l border-border bg-background p-0 sm:max-w-[454px] [&>button:last-child]:hidden"
       >
         {/* Header — type icon + title (left); vault selector + Save (right) */}
         <SheetHeader className="flex-row items-center justify-between gap-2 border-b border-border px-4 py-3">

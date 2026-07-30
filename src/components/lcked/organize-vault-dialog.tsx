@@ -79,7 +79,7 @@ export function OrganizeVaultDialog({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full gap-0 overflow-hidden border-l border-border bg-background p-0 sm:max-w-[441px] [&>button:last-child]:hidden"
+        className="w-full gap-0 overflow-hidden border-l border-border bg-background p-0 sm:max-w-[454px] [&>button:last-child]:hidden"
       >
         <SheetHeader className="flex-row items-center justify-between gap-2 border-b border-border px-4 py-3">
           <SheetTitle className="flex min-w-0 items-center gap-2.5 text-base font-semibold">
