@@ -1327,17 +1327,48 @@ export async function decryptLckedExport(
     envelope.verifierIv,
     VERIFIER_TOKEN,
   );
-  if (!ok) return null;
-  const exportVaultKey = await unwrapVaultKey(
-    envelope.wrappedVaultKey,
-    envelope.wrappedVaultKeyIv,
-    exportMasterKey,
-  );
-  const payload = await decryptJson<{ items: VaultItem[]; vaults: VaultDef[] }>(
-    envelope.data,
-    envelope.dataIv,
-    exportVaultKey,
-  );
+  if (!ok) {
+    console.warn("decryptLckedExport: verifier check failed (wrong password or corrupted envelope)");
+    return null;
+  }
+  let exportVaultKey: CryptoKey;
+  try {
+    exportVaultKey = await unwrapVaultKey(
+      envelope.wrappedVaultKey,
+      envelope.wrappedVaultKeyIv,
+      exportMasterKey,
+    );
+  } catch (err) {
+    console.error("decryptLckedExport: unwrapVaultKey failed", err);
+    return null;
+  }
+  let payload: { items: VaultItem[]; vaults: VaultDef[] };
+  try {
+    payload = await decryptJson<{ items: VaultItem[]; vaults: VaultDef[] }>(
+      envelope.data,
+      envelope.dataIv,
+      exportVaultKey,
+    );
+  } catch (err) {
+    console.error("decryptLckedExport: decryptJson failed", err);
+    return null;
+  }
+  // Migration: old exports may have items with the singular `vaultId` field.
+  // Convert to `vaultIds` array so the imported items work with the current
+  // multi-vault schema.
+  if (payload.items) {
+    payload.items = payload.items.map((item) => {
+      const oldItem = item as unknown as { vaultId?: string | null };
+      if (oldItem.vaultId !== undefined && item.vaultIds === undefined) {
+        const { vaultId, ...rest } = oldItem;
+        return { ...rest, vaultIds: vaultId ? [vaultId] : [] } as VaultItem;
+      }
+      if (item.vaultIds === undefined) {
+        return { ...item, vaultIds: [] } as VaultItem;
+      }
+      return item;
+    });
+  }
   return payload;
 }
 

@@ -55,31 +55,10 @@ export function SetupView() {
     setConfirmMode(false);
   };
 
-  // Advance through the flow. Called by the button AND by Enter key.
-  // - Importing: go straight to vault creation (no agreement step — the user
-  //   already accepted the risks when they first created the vault they're
-  //   now restoring).
-  // - Non-importing, master mode: swap to confirm mode.
-  // - Non-importing, confirm mode: advance to agreement step.
-  const handleAdvance = React.useCallback(async () => {
-    if (!masterComplete) return;
-    if (isImporting) {
-      // Importing: skip agreement, create the vault directly.
-      await createVaultWithImport();
-      return;
-    }
-    if (!confirmMode) {
-      setConfirmMode(true);
-      setConfirm("");
-      return;
-    }
-    if (passwordsMatch) {
-      setShowAgreeStep(true);
-    }
-  }, [masterComplete, isImporting, confirmMode, passwordsMatch]);
-
   // Create the vault + optionally import items. Used by both the import
   // advance (Enter or button) and the agreement submit.
+  // Defined BEFORE handleAdvance so handleAdvance's useCallback captures
+  // the current (non-stale) version.
   const createVaultWithImport = React.useCallback(async () => {
     if (busy) return;
     setBusy(true);
@@ -93,6 +72,8 @@ export function SetupView() {
           const parsed = JSON.parse(fileText);
           if (parsed?.format === "lcked-encrypted-v1") {
             isLckedExport = true;
+            // decryptLckedExport returns null on wrong password OR decryption
+            // failure. It logs the specific cause to the console.
             decryptedPayload = await decryptLckedExport(parsed as LckedExport, password);
             if (!decryptedPayload) {
               toast.error("Wrong password", {
@@ -102,8 +83,10 @@ export function SetupView() {
               return;
             }
           }
-        } catch {
-          // Not JSON → CSV/other format; fall through to importItems.
+        } catch (parseErr) {
+          // JSON.parse failed → not a JSON file → CSV/other format.
+          // Fall through to importItems.
+          console.warn("Import file is not JSON, trying as CSV/other format", parseErr);
         }
       }
 
@@ -172,6 +155,29 @@ export function SetupView() {
       setBusy(false);
     }
   }, [busy, importFile, password, setupVault, createVault, saveItem, importItems]);
+
+  // Advance through the flow. Called by the button AND by Enter key.
+  // - Importing: go straight to vault creation (no agreement step — the user
+  //   already accepted the risks when they first created the vault they're
+  //   now restoring).
+  // - Non-importing, master mode: swap to confirm mode.
+  // - Non-importing, confirm mode: advance to agreement step.
+  const handleAdvance = React.useCallback(async () => {
+    if (!masterComplete) return;
+    if (isImporting) {
+      // Importing: skip agreement, create the vault directly.
+      await createVaultWithImport();
+      return;
+    }
+    if (!confirmMode) {
+      setConfirmMode(true);
+      setConfirm("");
+      return;
+    }
+    if (passwordsMatch) {
+      setShowAgreeStep(true);
+    }
+  }, [masterComplete, isImporting, confirmMode, passwordsMatch, createVaultWithImport]);
 
   const handleBack = () => {
     setShowAgreeStep(false);
