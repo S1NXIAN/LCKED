@@ -57,7 +57,7 @@
   --color-signal-info: var(--signal-info);
 
   /* Proton Pass sidebar width (360px) */
-  --pass-sidebar-size: 20.25rem;
+  --pass-sidebar-size: 21.26rem;
 
   /* Vault color palette (Proton Pass) — used by the vault picker + indicators */
   --color-vault-heliotrope: var(--vault-heliotrope);
