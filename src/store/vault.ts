@@ -94,18 +94,12 @@ interface VaultState {
   /** Replace an item's vault memberships with a single target vault.
    *  Pass `null` to clear all vault memberships (item lives only in All Items). */
   moveItemToVault: (itemId: string, vaultId: string | null) => Promise<void>;
-  /** Add a vault membership to an item (multi-vault). No-op if already a member. */
-  addItemToVault: (itemId: string, vaultId: string) => Promise<void>;
-  /** Remove a vault membership from an item. */
-  removeItemFromVault: (itemId: string, vaultId: string) => Promise<void>;
   toggleFavorite: (id: string) => Promise<void>;
   togglePin: (id: string) => Promise<void>;
   /** Unfavorite ALL favorited items at once. */
   clearFavorites: () => Promise<{ cleared: number; failed: number }>;
   /** Replace vault memberships for multiple items (drag-and-drop move). */
   moveItemsToVault: (itemIds: string[], vaultId: string | null) => Promise<{ moved: number; failed: number }>;
-  /** Add a vault membership to multiple items (drag-and-drop add). */
-  addItemsToVault: (itemIds: string[], vaultId: string) => Promise<{ moved: number; failed: number }>;
   trashItems: (itemIds: string[]) => Promise<{ moved: number; failed: number }>;
   duplicateItem: (id: string) => Promise<void>;
   /** Duplicate an item into a specific vault. The copy is a fully independent
@@ -286,13 +280,6 @@ export const useVault = create<VaultState>()(
               const item = await decryptJson<VaultItem>(s.ciphertext, s.iv, vaultKey);
               // Migration: ensure fields added in later LCKED versions exist.
               let migrated = false;
-              // Migrate old singular `vaultId: string | null` -> `vaultIds: string[]`.
-              if ((item as unknown as { vaultId?: string | null }).vaultId !== undefined && item.vaultIds === undefined) {
-                const oldVid = (item as unknown as { vaultId: string | null }).vaultId;
-                item.vaultIds = oldVid ? [oldVid] : [];
-                delete (item as unknown as { vaultId?: string | null }).vaultId;
-                migrated = true;
-              }
               if (item.vaultIds === undefined) { item.vaultIds = []; migrated = true; }
               if (item.trashed === undefined) { item.trashed = false; migrated = true; }
               if (item.trashedAt === undefined) { item.trashedAt = null; migrated = true; }
@@ -547,19 +534,6 @@ export const useVault = create<VaultState>()(
         await updateItemFlags(itemId, { vaultIds, updatedAt: Date.now() }, get, set);
       },
 
-      addItemToVault: async (itemId, vaultId) => {
-        const item = get().items.find((i) => i.id === itemId);
-        if (!item) return;
-        if (item.vaultIds.includes(vaultId)) return; // no-op
-        await updateItemFlags(itemId, { vaultIds: [...item.vaultIds, vaultId], updatedAt: Date.now() }, get, set);
-      },
-
-      removeItemFromVault: async (itemId, vaultId) => {
-        const item = get().items.find((i) => i.id === itemId);
-        if (!item) return;
-        await updateItemFlags(itemId, { vaultIds: item.vaultIds.filter((v) => v !== vaultId), updatedAt: Date.now() }, get, set);
-      },
-
       toggleFavorite: async (id) => {
         const { vaultKey } = get();
         if (!vaultKey) throw new Error("Vault is locked");
@@ -663,39 +637,6 @@ export const useVault = create<VaultState>()(
           set((state) => ({
             items: state.items
               .map((i) => (movedIds.has(i.id) ? { ...i, vaultIds: nextVaultIds, updatedAt: now } as VaultItem : i))
-              .sort((a, b) => b.updatedAt - a.updatedAt),
-          }));
-        }
-        return { moved: moved.length, failed };
-      },
-
-      addItemsToVault: async (itemIds, vaultId) => {
-        const { vaultKey } = get();
-        if (!vaultKey) throw new Error("Vault is locked");
-        const now = Date.now();
-        const targets = get().items.filter((i) => itemIds.includes(i.id));
-        // Only items not already in the target vault need updating.
-        const toAdd = targets.filter((i) => !i.vaultIds.includes(vaultId));
-        if (toAdd.length === 0) return { moved: 0, failed: 0 };
-        const outcomes = await Promise.allSettled(
-          toAdd.map(async (it) => {
-            const next: VaultItem = { ...it, vaultIds: [...it.vaultIds, vaultId], updatedAt: now } as VaultItem;
-            const { ciphertext, iv } = await encryptJson(next, vaultKey);
-            await putStoredItem({ id: next.id, type: next.type, ciphertext, iv, createdAt: next.createdAt, updatedAt: now });
-            return next;
-          }),
-        );
-        const moved: VaultItem[] = [];
-        let failed = 0;
-        for (let i = 0; i < outcomes.length; i++) {
-          if (outcomes[i].status === "fulfilled") moved.push(toAdd[i]);
-          else failed++;
-        }
-        if (moved.length > 0) {
-          const movedIds = new Set(moved.map((m) => m.id));
-          set((state) => ({
-            items: state.items
-              .map((i) => (movedIds.has(i.id) ? { ...i, vaultIds: [...i.vaultIds, vaultId], updatedAt: now } as VaultItem : i))
               .sort((a, b) => b.updatedAt - a.updatedAt),
           }));
         }
@@ -1352,22 +1293,6 @@ export async function decryptLckedExport(
   } catch (err) {
     console.error("decryptLckedExport: decryptJson failed", err);
     return null;
-  }
-  // Migration: old exports may have items with the singular `vaultId` field.
-  // Convert to `vaultIds` array so the imported items work with the current
-  // multi-vault schema.
-  if (payload.items) {
-    payload.items = payload.items.map((item) => {
-      const oldItem = item as unknown as { vaultId?: string | null };
-      if (oldItem.vaultId !== undefined && item.vaultIds === undefined) {
-        const { vaultId, ...rest } = oldItem;
-        return { ...rest, vaultIds: vaultId ? [vaultId] : [] } as VaultItem;
-      }
-      if (item.vaultIds === undefined) {
-        return { ...item, vaultIds: [] } as VaultItem;
-      }
-      return item;
-    });
   }
   return payload;
 }

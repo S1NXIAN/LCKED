@@ -96,7 +96,7 @@ export function PasswordGeneratorDialog() {
     <Sheet open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <SheetContent
         side="right"
-        className="w-full gap-0 overflow-hidden border-l border-border bg-background p-0 sm:max-w-[420px] [&>button[data-slot=dialog-close]]:hidden"
+        className="w-full gap-0 overflow-hidden border-l border-border bg-background p-0 sm:max-w-[441px] [&>button[data-slot=dialog-close]]:hidden"
       >
         {/* Header — title only. No close X, no copy/use button (those live in
             the footer now). The radix Sheet's built-in close button is hidden

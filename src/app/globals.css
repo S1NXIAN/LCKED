@@ -535,7 +535,7 @@
 */
 .lcked-active-glow {
   background-color: color-mix(in oklab, var(--accent) 60%, transparent);
-  border-radius: var(--radius);
+  border-radius: 0.5rem;
 }
 
 /*

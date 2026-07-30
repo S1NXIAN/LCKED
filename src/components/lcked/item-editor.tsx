@@ -193,13 +193,18 @@ function FieldRowInput({
 const flatInputCls =
   "w-full border-0 bg-transparent dark:bg-transparent px-0 py-0.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:outline-none";
 
-/** Flat borderless input WITH a leading icon (left-padded). */
+/** Flat borderless input WITH a leading icon (left-padded).
+ *  Icon is 14px (h-3.5 w-3.5) at left-0; pl-5 (20px) was too much gap.
+ *  pl-4 (16px) = 14px icon + 2px gap — tight and clean. */
 const flatIconInputCls =
-  "w-full border-0 bg-transparent dark:bg-transparent pl-5 py-0.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:outline-none";
+  "w-full border-0 bg-transparent dark:bg-transparent pl-4 py-0.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:outline-none";
 
-/** Flat borderless variant for PasswordField — keeps right padding for action buttons. */
+/** Flat borderless variant for PasswordField — keeps right padding for action buttons.
+ *  No explicit pl-* here — the PasswordField component adds pl-9 when an icon
+ *  is present (via cn(..., Icon && "pl-9", inputClassName)). Previously this
+ *  had pl-0 which overrode the icon padding, causing dots to overlap the key icon. */
 const flatPasswordInputCls =
-  "w-full border-0 bg-transparent dark:bg-transparent pl-0 py-0.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:outline-none";
+  "w-full border-0 bg-transparent dark:bg-transparent py-0.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:outline-none";
 
 /** Flat borderless textarea used inside FieldCluster rows. */
 const flatTextareaCls =
@@ -420,7 +425,7 @@ export function ItemEditor() {
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent
         side="right"
-        className="w-full gap-0 overflow-hidden border-l border-border bg-background p-0 sm:max-w-[420px] [&>button:last-child]:hidden"
+        className="w-full gap-0 overflow-hidden border-l border-border bg-background p-0 sm:max-w-[441px] [&>button:last-child]:hidden"
       >
         {/* Header — type icon + title (left); vault selector + Save (right) */}
         <SheetHeader className="flex-row items-center justify-between gap-2 border-b border-border px-4 py-3">
@@ -688,7 +693,7 @@ export function ItemEditor() {
                       }}
                       list="lcked-known-urls"
                       placeholder="example.com"
-                      className={cn(flatInputCls, "pl-5 font-secret")}
+                      className={cn(flatInputCls, "pl-4 font-secret")}
                       autoComplete="off"
                     />
                     {urls.length > 1 && (
@@ -783,10 +788,18 @@ export function ItemEditor() {
                     <IconInput
                       icon={Calendar}
                       value={form.details.expiry}
-                      onChange={(e) => updateDetails({ expiry: e.target.value })}
+                      onChange={(e) => {
+                        // Auto-format as MM/YY: strip non-digits, max 4 digits,
+                        // insert slash after the 2nd digit.
+                        let v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                        if (v.length >= 3) v = v.slice(0, 2) + "/" + v.slice(2);
+                        updateDetails({ expiry: v });
+                      }}
                       placeholder="08/27"
                       className="font-secret"
                       autoComplete="off"
+                      inputMode="numeric"
+                      maxLength={5}
                     />
                   </FieldRowInput>
                 </div>

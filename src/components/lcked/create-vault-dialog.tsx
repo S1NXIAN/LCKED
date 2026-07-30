@@ -155,7 +155,7 @@ export function CreateVaultDialog() {
     <Sheet open={open} onOpenChange={(o) => (!o ? close() : undefined)}>
       <SheetContent
         side="right"
-        className="w-full gap-0 border-l border-border bg-background p-0 sm:max-w-[420px] [&>button:last-child]:hidden"
+        className="w-full gap-0 border-l border-border bg-background p-0 sm:max-w-[441px] [&>button:last-child]:hidden"
       >
         {/* Header — live type icon + title + Save/Create */}
         <SheetHeader className="flex-row items-center gap-2.5 border-b border-border px-4 py-3.5">
