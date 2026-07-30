@@ -155,9 +155,6 @@ export interface VaultMeta {
   vaults: VaultDef[];
 }
 
-/** How the vault can be unlocked on launch. */
-export type UnlockMethod = "master" | "pin" | "none";
-
 export interface VaultSettings {
   /** Auto-lock after N minutes of inactivity. 0 = never. */
   autoLockMinutes: number;
@@ -171,8 +168,6 @@ export interface VaultSettings {
   showFavicons: boolean;
   /** Whether favorite items sort to the top regardless of the active sort key. */
   sortFavoritesFirst: boolean;
-  /** Unlock method preference — which prompt to show on the lock screen. */
-  unlockMethod: UnlockMethod;
   /** Whether item action buttons (restore/delete in trash) only show on hover. */
   hoverItemActions: boolean;
   /** Privacy blur for email/username fields in lists and detail.
@@ -210,7 +205,6 @@ export const DEFAULT_VAULT_SETTINGS: VaultSettings = {
   sortFavoritesFirst: false,
   hoverItemActions: true,
   blurEmailMode: "off",
-  unlockMethod: "master",
 };
 
 /** UI filter applied over decrypted items. */

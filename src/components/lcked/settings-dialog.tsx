@@ -6,7 +6,7 @@
  * Replaces the old modal `SettingsDialog` with a full-page, 5-tab experience:
  *
  *   • General  — theme grid + favicon / sort-favorites-to-top toggles
- *   • Security — unlock-method cards + auto-lock slider + visibility lock
+ *   • Security — auto-lock slider + visibility lock + change password + reset
  *   • Account  — browser extension intro + OAuth connect / disconnect
  *   • Import   — 3-col grid of password-manager source cards (file picker)
  *   • Export   — PGP-encrypted / ZIP / CSV cards
@@ -44,7 +44,6 @@ import {
   X,
   Palette,
   KeyRound,
-  Pin,
   FileUp,
   User,
   Chrome,
@@ -77,7 +76,6 @@ import { PasswordStrengthMeter } from "./password-strength-meter";
 import { THEMES } from "@/lib/themes";
 import { detectFormat } from "@/lib/import-export";
 import { cn } from "@/lib/utils";
-import type { UnlockMethod } from "@/lib/types";
 
 /* --------------------------------- types --------------------------------- */
 
@@ -102,17 +100,6 @@ const TABS: TabDef[] = [
 // To add a new password manager, see src/lib/import-sources.ts.
 import { IMPORT_SOURCES } from "@/lib/import-sources";
 type ImportSource = (typeof IMPORT_SOURCES)[number];
-
-const UNLOCK_METHODS: {
-  id: UnlockMethod;
-  label: string;
-  caption: string;
-  icon: LucideIcon;
-}[] = [
-  { id: "master", label: "Master password", caption: "Full password required every time. Most secure.", icon: KeyRound },
-  { id: "pin", label: "PIN", caption: "Quick 6-digit code. Faster, slightly less secure.", icon: Pin },
-  { id: "none", label: "None", caption: "Master password only. No quick-unlock option.", icon: Globe },
-];
 
 // Google OAuth only (GitHub removed per spec).
 const OAUTH_PROVIDERS = [
@@ -285,8 +272,6 @@ export function SettingsView() {
 
             <TabsContent value="security" className="m-0 space-y-6 focus-visible:outline-none">
               <SecurityTab
-                unlockMethod={settings.unlockMethod}
-                onUnlockMethodChange={(m) => updateSettings({ unlockMethod: m })}
                 autoLockMinutes={settings.autoLockMinutes}
                 onAutoLockChange={(m) => updateSettings({ autoLockMinutes: m })}
                 lockOnVisibility={settings.lockOnVisibility}
@@ -481,8 +466,6 @@ function GeneralTab({
 /* ============================== Security tab ============================== */
 
 function SecurityTab({
-  unlockMethod,
-  onUnlockMethodChange,
   autoLockMinutes,
   onAutoLockChange,
   lockOnVisibility,
@@ -491,8 +474,6 @@ function SecurityTab({
   resetVault,
   itemCount,
 }: {
-  unlockMethod: UnlockMethod;
-  onUnlockMethodChange: (m: UnlockMethod) => void;
   autoLockMinutes: number;
   onAutoLockChange: (m: number) => void;
   lockOnVisibility: boolean;
@@ -540,57 +521,6 @@ function SecurityTab({
 
   return (
     <section className="space-y-6">
-      {/* Unlock with */}
-      <div className="space-y-3">
-        <header className="space-y-1">
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <KeyRound className="h-4 w-4 text-muted-foreground" />
-            Unlock with
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Choose how the vault unlocks after being locked.
-          </p>
-        </header>
-
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          {UNLOCK_METHODS.map((m) => {
-            const active = unlockMethod === m.id;
-            const Icon = m.icon;
-            return (
-              <button
-                key={m.id}
-                onClick={() => onUnlockMethodChange(m.id)}
-                className={cn(
-                  "flex flex-col items-start gap-2 rounded-xl border p-3 text-left transition duration-150",
-                  active
-                    ? "border-primary bg-primary/5 ring-1 ring-primary/30"
-                    : "border-border bg-muted/20 hover:bg-muted/40",
-                )}
-                aria-pressed={active}
-              >
-                <span
-                  className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-lg",
-                    active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-medium">{m.label}</span>
-                    {active && <Check className="h-3 w-3 text-primary" />}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground">{m.caption}</div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <Separator />
-
       {/* Auto-lock */}
       <div className="space-y-3">
         <header className="space-y-1">
