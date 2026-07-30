@@ -48,6 +48,7 @@ import {
   type LckedExport,
 } from "@/lib/import-export";
 import { clearAllClipboardTimers } from "@/lib/clipboard";
+import { patchItem, patchItems } from "@/lib/item-crud";
 
 export type VaultStatus = "loading" | "setup" | "locked" | "unlocked";
 
@@ -465,11 +466,31 @@ export const useVault = create<VaultState>()(
        * 30 days later on the next unlock.
        */
       trashItem: async (id) => {
-        await updateItemFlags(id, { trashed: true, trashedAt: Date.now() }, get, set);
+        const { vaultKey } = get();
+        if (!vaultKey) throw new Error("Vault is locked");
+        const item = get().items.find((i) => i.id === id);
+        if (!item) return;
+        const updated = await patchItem(vaultKey, item, { trashed: true, trashedAt: Date.now() });
+        set((state) => ({
+          items: state.items
+            .map((i) => (i.id === id ? updated : i))
+            .sort((a, b) => b.updatedAt - a.updatedAt),
+        }));
+        notifyVaultMutation();
       },
 
       restoreItem: async (id) => {
-        await updateItemFlags(id, { trashed: false, trashedAt: null }, get, set);
+        const { vaultKey } = get();
+        if (!vaultKey) throw new Error("Vault is locked");
+        const item = get().items.find((i) => i.id === id);
+        if (!item) return;
+        const updated = await patchItem(vaultKey, item, { trashed: false, trashedAt: null });
+        set((state) => ({
+          items: state.items
+            .map((i) => (i.id === id ? updated : i))
+            .sort((a, b) => b.updatedAt - a.updatedAt),
+        }));
+        notifyVaultMutation();
       },
 
       permanentlyDeleteItem: async (id) => {
@@ -519,36 +540,43 @@ export const useVault = create<VaultState>()(
       },
 
       restoreAllTrash: async () => {
+        const { vaultKey } = get();
+        if (!vaultKey) throw new Error("Vault is locked");
         const trashed = get().items.filter((i) => i.trashed);
         if (trashed.length === 0) return { restored: 0, failed: 0 };
-        const outcomes = await Promise.allSettled(
-          trashed.map((it) => updateItemFlags(it.id, { trashed: false, trashedAt: null, updatedAt: Date.now() }, get, set)),
-        );
-        const restored = outcomes.filter((o) => o.status === "fulfilled").length;
-        const failed = outcomes.filter((o) => o.status === "rejected").length;
-        return { restored, failed };
+        const { updated, failed } = await patchItems(vaultKey, trashed, () => ({ trashed: false, trashedAt: null }));
+        if (updated.length > 0) {
+          const updatedMap = new Map(updated.map((u) => [u.id, u]));
+          set((state) => ({
+            items: state.items
+              .map((i) => updatedMap.get(i.id) ?? i)
+              .sort((a, b) => b.updatedAt - a.updatedAt),
+          }));
+        }
+        return { restored: updated.length, failed };
       },
 
       moveItemToVault: async (itemId, vaultId) => {
-        // Replace all memberships with the single target (or clear if null).
+        const { vaultKey } = get();
+        if (!vaultKey) throw new Error("Vault is locked");
+        const item = get().items.find((i) => i.id === itemId);
+        if (!item) return;
         const vaultIds = vaultId === null ? [] : [vaultId];
-        await updateItemFlags(itemId, { vaultIds, updatedAt: Date.now() }, get, set);
+        const updated = await patchItem(vaultKey, item, { vaultIds });
+        set((state) => ({
+          items: state.items
+            .map((i) => (i.id === itemId ? updated : i))
+            .sort((a, b) => b.updatedAt - a.updatedAt),
+        }));
+        notifyVaultMutation();
       },
 
       toggleFavorite: async (id) => {
         const { vaultKey } = get();
         if (!vaultKey) throw new Error("Vault is locked");
-        // Functional set: read the current item inside the updater so
-        // concurrent mutations don't clobber each other (B-11).
         const currentItem = get().items.find((i) => i.id === id);
         if (!currentItem) return;
-        const updated: VaultItem = {
-          ...currentItem,
-          favorite: !currentItem.favorite,
-          updatedAt: Date.now(),
-        } as VaultItem;
-        const { ciphertext, iv } = await encryptJson(updated, vaultKey);
-        await putStoredItem({ id, type: updated.type, ciphertext, iv, createdAt: updated.createdAt, updatedAt: updated.updatedAt });
+        const updated = await patchItem(vaultKey, currentItem, { favorite: !currentItem.favorite });
         set((state) => ({
           items: state.items
             .map((i) => (i.id === id ? updated : i))
@@ -562,13 +590,7 @@ export const useVault = create<VaultState>()(
         if (!vaultKey) throw new Error("Vault is locked");
         const currentItem = get().items.find((i) => i.id === id);
         if (!currentItem) return;
-        const updated: VaultItem = {
-          ...currentItem,
-          pinned: !currentItem.pinned,
-          updatedAt: Date.now(),
-        } as VaultItem;
-        const { ciphertext, iv } = await encryptJson(updated, vaultKey);
-        await putStoredItem({ id, type: updated.type, ciphertext, iv, createdAt: updated.createdAt, updatedAt: updated.updatedAt });
+        const updated = await patchItem(vaultKey, currentItem, { pinned: !currentItem.pinned });
         set((state) => ({
           items: state.items
             .map((i) => (i.id === id ? updated : i))
@@ -584,97 +606,55 @@ export const useVault = create<VaultState>()(
         if (!vaultKey) throw new Error("Vault is locked");
         const favs = get().items.filter((i) => i.favorite && !i.trashed);
         if (favs.length === 0) return { cleared: 0, failed: 0 };
-        const now = Date.now();
-        const outcomes = await Promise.allSettled(
-          favs.map(async (it) => {
-            const next: VaultItem = { ...it, favorite: false, updatedAt: now } as VaultItem;
-            const { ciphertext, iv } = await encryptJson(next, vaultKey);
-            await putStoredItem({ id: next.id, type: next.type, ciphertext, iv, createdAt: next.createdAt, updatedAt: now });
-            return next;
-          }),
-        );
-        const cleared: VaultItem[] = [];
-        let failed = 0;
-        for (let i = 0; i < outcomes.length; i++) {
-          if (outcomes[i].status === "fulfilled") cleared.push(favs[i]);
-          else failed++;
-        }
-        if (cleared.length > 0) {
-          const clearedIds = new Set(cleared.map((c) => c.id));
+        const { updated, failed } = await patchItems(vaultKey, favs, () => ({ favorite: false }));
+        if (updated.length > 0) {
+          const updatedMap = new Map(updated.map((u) => [u.id, u]));
           set((state) => ({
             items: state.items
-              .map((i) => (clearedIds.has(i.id) ? { ...i, favorite: false, updatedAt: now } as VaultItem : i))
+              .map((i) => updatedMap.get(i.id) ?? i)
               .sort((a, b) => b.updatedAt - a.updatedAt),
           }));
         }
-        return { cleared: cleared.length, failed };
+        return { cleared: updated.length, failed };
       },
 
       moveItemsToVault: async (itemIds, vaultId) => {
         const { vaultKey } = get();
         if (!vaultKey) throw new Error("Vault is locked");
-        const now = Date.now();
         const targets = get().items.filter((i) => itemIds.includes(i.id));
         const nextVaultIds = vaultId === null ? [] : [vaultId];
         // Filter out no-ops: items already in exactly the target membership.
         const toMove = targets.filter((i) => JSON.stringify(i.vaultIds) !== JSON.stringify(nextVaultIds));
         if (toMove.length === 0) return { moved: 0, failed: 0 };
-        const outcomes = await Promise.allSettled(
-          toMove.map(async (it) => {
-            const next: VaultItem = { ...it, vaultIds: nextVaultIds, updatedAt: now } as VaultItem;
-            const { ciphertext, iv } = await encryptJson(next, vaultKey);
-            await putStoredItem({ id: next.id, type: next.type, ciphertext, iv, createdAt: next.createdAt, updatedAt: now });
-            return next;
-          }),
-        );
-        const moved: VaultItem[] = [];
-        let failed = 0;
-        for (let i = 0; i < outcomes.length; i++) {
-          if (outcomes[i].status === "fulfilled") moved.push(toMove[i]);
-          else failed++;
-        }
-        if (moved.length > 0) {
-          const movedIds = new Set(moved.map((m) => m.id));
+        const { updated, failed } = await patchItems(vaultKey, toMove, () => ({ vaultIds: nextVaultIds }));
+        if (updated.length > 0) {
+          const updatedMap = new Map(updated.map((u) => [u.id, u]));
           set((state) => ({
             items: state.items
-              .map((i) => (movedIds.has(i.id) ? { ...i, vaultIds: nextVaultIds, updatedAt: now } as VaultItem : i))
+              .map((i) => updatedMap.get(i.id) ?? i)
               .sort((a, b) => b.updatedAt - a.updatedAt),
           }));
         }
-        return { moved: moved.length, failed };
+        return { moved: updated.length, failed };
       },
 
       trashItems: async (itemIds) => {
         const { vaultKey } = get();
         if (!vaultKey) throw new Error("Vault is locked");
-        const now = Date.now();
         const targets = get().items.filter((i) => itemIds.includes(i.id));
         // Filter out items already in trash.
         const toTrash = targets.filter((i) => !i.trashed);
         if (toTrash.length === 0) return { moved: 0, failed: 0 };
-        const outcomes = await Promise.allSettled(
-          toTrash.map(async (it) => {
-            const next: VaultItem = { ...it, trashed: true, trashedAt: now, updatedAt: now } as VaultItem;
-            const { ciphertext, iv } = await encryptJson(next, vaultKey);
-            await putStoredItem({ id: next.id, type: next.type, ciphertext, iv, createdAt: next.createdAt, updatedAt: now });
-            return next;
-          }),
-        );
-        const trashed: VaultItem[] = [];
-        let failed = 0;
-        for (let i = 0; i < outcomes.length; i++) {
-          if (outcomes[i].status === "fulfilled") trashed.push(toTrash[i]);
-          else failed++;
-        }
-        if (trashed.length > 0) {
-          const trashedIds = new Set(trashed.map((t) => t.id));
+        const { updated, failed } = await patchItems(vaultKey, toTrash, () => ({ trashed: true, trashedAt: Date.now() }));
+        if (updated.length > 0) {
+          const updatedMap = new Map(updated.map((u) => [u.id, u]));
           set((state) => ({
             items: state.items
-              .map((i) => (trashedIds.has(i.id) ? { ...i, trashed: true, trashedAt: now, updatedAt: now } as VaultItem : i))
+              .map((i) => updatedMap.get(i.id) ?? i)
               .sort((a, b) => b.updatedAt - a.updatedAt),
           }));
         }
-        return { moved: trashed.length, failed };
+        return { moved: updated.length, failed };
       },
 
       duplicateItem: async (id) => {
@@ -1157,46 +1137,6 @@ async function stopSyncEngine() {
 function notifyVaultMutation() {
   import("@/lib/cloud-sync").then(({ notifyVaultMutation: notify }) => notify());
 }
-
-/* --------------------------- clipboard helper ----------------------------- */
-
-/**
- * Patch one or more flags on an item (vaultIds / trashed / trashedAt / favorite)
- * and re-encrypt + persist it. Used by trashItem / restoreItem / moveItemToVault
- * so we have a single fault-tolerant code path.
- */
-async function updateItemFlags(
-  id: string,
-  patch: Partial<Pick<VaultItem, "vaultIds" | "trashed" | "trashedAt" | "updatedAt">>,
-  get: () => VaultState,
-  set: (partial: Partial<VaultState>) => void,
-): Promise<void> {
-  const { vaultKey } = get();
-  // Throw if locked so the mutation doesn't silently skip persistence (B-5).
-  // Without this, the in-memory state would update but IDB would not, and the
-  // change would vanish on the next unlock.
-  if (!vaultKey) throw new Error("Vault is locked");
-  const item = get().items.find((i) => i.id === id);
-  if (!item) return;
-  const now = patch.updatedAt ?? Date.now();
-  const updated: VaultItem = { ...item, ...patch, updatedAt: now } as VaultItem;
-  const { ciphertext, iv } = await encryptJson(updated, vaultKey);
-  await putStoredItem({
-    id,
-    type: updated.type,
-    ciphertext,
-    iv,
-    createdAt: updated.createdAt,
-    updatedAt: now,
-  });
-  set((state) => ({
-    items: state.items
-      .map((i) => (i.id === id ? updated : i))
-      .sort((a, b) => b.updatedAt - a.updatedAt),
-  }));
-  notifyVaultMutation();
-}
-
 
 /* ----------------------- encrypted export decrypt ------------------------- */
 
