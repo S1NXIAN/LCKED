@@ -13,7 +13,7 @@ interface DotFieldProps {
   scatterRadius?: number;
 }
 
-export function DotField({ className, linkDistance = 120, pointerRadius = 180, scatterRadius = 200 }: DotFieldProps) {
+function DotFieldInner({ className, linkDistance = 120, pointerRadius = 180, scatterRadius = 200 }: DotFieldProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const dotsRef = React.useRef<Dot[]>([]);
   const pointerRef = React.useRef<{ x: number; y: number; active: boolean }>({ x: -9999, y: -9999, active: false });
@@ -51,6 +51,7 @@ export function DotField({ className, linkDistance = 120, pointerRadius = 180, s
     const h = parent.clientHeight;
     if (w === 0 || h === 0) return; // parent is display:none — ResizeObserver will catch the re-show
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const prev = sizeRef.current;
     sizeRef.current = { w, h, dpr };
     canvas.width = w * dpr;
     canvas.height = h * dpr;
@@ -58,7 +59,13 @@ export function DotField({ className, linkDistance = 120, pointerRadius = 180, s
     canvas.style.height = `${h}px`;
     const ctx = canvas.getContext("2d");
     if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    initDots(w, h);
+    // Only reinitialize dots if the WIDTH changed significantly (>50px) or
+    // this is the first init. Height changes (from typing → strength meter
+    // appearing/disappearing) must NOT respawn dots — that's the re-render
+    // bug. Instead, dots stay in place and just clip naturally.
+    if (prev.w === 0 || Math.abs(w - prev.w) > 50) {
+      initDots(w, h);
+    }
     rectRef.current = canvas.getBoundingClientRect();
   }, [initDots]);
 
@@ -213,3 +220,9 @@ export function DotField({ className, linkDistance = 120, pointerRadius = 180, s
 
   return <canvas ref={canvasRef} className={className} aria-hidden="true" style={{ pointerEvents: "auto" }} />;
 }
+
+// Memoize so parent re-renders (e.g. typing in the setup form) don't re-run
+// this component's function body. The canvas animation is driven entirely by
+// refs + effects with stable deps, so skipping re-renders prevents any chance
+// of visual jitter.
+export const DotField = React.memo(DotFieldInner);

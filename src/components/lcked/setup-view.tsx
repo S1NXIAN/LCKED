@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Lock, ShieldCheck, Eye, EyeOff, AlertTriangle, Loader2, KeyRound, Upload, FileJson } from "lucide-react";
-import { motion } from "framer-motion";
+import { Lock, ShieldCheck, Eye, EyeOff, AlertTriangle, Loader2, KeyRound, Upload, FileJson, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { useVault } from "@/store/vault";
 import { PasswordStrengthMeter } from "./password-strength-meter";
 import { DiamondMark } from "./diamond-mark";
 import { DotField } from "./dot-field";
+import { cn } from "@/lib/utils";
 
 export function SetupView() {
   const setupVault = useVault((s) => s.setupVault);
@@ -21,16 +22,32 @@ export function SetupView() {
   const [busy, setBusy] = React.useState(false);
   const [agreed, setAgreed] = React.useState(false);
   const [importFile, setImportFile] = React.useState<File | null>(null);
-  const [exportPassword, setExportPassword] = React.useState("");
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
+  // When importing, the export password IS the master password — no separate
+  // confirm field needed. The user already knows the password from when they
+  // created the backup.
+  const isImporting = Boolean(importFile);
+
   const canSubmit =
-    password.length >= 8 && password === confirm && agreed && !busy &&
-    (!importFile || exportPassword.length > 0);
+    password.length >= 8 &&
+    (isImporting || password === confirm) &&
+    agreed &&
+    !busy;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setImportFile(file);
+    if (file) {
+      setImportFile(file);
+      // Clear the confirm field — it's not needed when importing.
+      setConfirm("");
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setImportFile(null);
+    // Reset the file input so the same file can be re-selected.
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -42,7 +59,7 @@ export function SetupView() {
       await setupVault(password);
 
       // If importing, decrypt the export and import the items.
-      if (importFile && exportPassword) {
+      if (importFile) {
         const text = await importFile.text();
         const result = await importItems(importFile.name, text);
         if (result.imported > 0) {
@@ -94,15 +111,23 @@ export function SetupView() {
 
         <div className="rounded-2xl border border-border/60 bg-card/40 p-6 shadow-2xl backdrop-blur-xl md:p-8">
           <div className="mb-6 flex flex-col items-center text-center">
-            <h1 className="text-xl font-semibold tracking-tight">Create your vault</h1>
+            <h1 className="text-xl font-semibold tracking-tight">
+              {isImporting ? "Restore your vault" : "Create your vault"}
+            </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Choose a master password to encrypt everything on this device.
+              {isImporting
+                ? "Enter the password used to create this backup."
+                : "Choose a master password to encrypt everything on this device."}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Master password — always shown. When importing, this IS the
+                export password (no confirm needed). */}
             <div className="space-y-1.5">
-              <Label htmlFor="master">Master password</Label>
+              <Label htmlFor="master">
+                {isImporting ? "Vault password" : "Master password"}
+              </Label>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -110,7 +135,7 @@ export function SetupView() {
                   type={show ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 8 characters"
+                  placeholder={isImporting ? "Backup password" : "At least 8 characters"}
                   autoComplete="new-password"
                   className="font-secret pl-9 pr-10"
                   autoFocus
@@ -124,65 +149,83 @@ export function SetupView() {
                   {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              <PasswordStrengthMeter password={password} />
+              {/* Strength meter only for fresh vault creation — when importing,
+                  the password already exists, so showing strength is noise. */}
+              {!isImporting && <PasswordStrengthMeter password={password} />}
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="confirm">Confirm master password</Label>
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="confirm"
-                  type={show ? "text" : "password"}
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  placeholder="Re-enter your password"
-                  autoComplete="new-password"
-                  className="font-secret pl-9"
-                />
-              </div>
-              {confirm.length > 0 && confirm !== password && (
-                <p className="text-xs text-red-400">Passwords don&apos;t match</p>
+            {/* Confirm password — smoothly collapses when importing. */}
+            <AnimatePresence initial={false}>
+              {!isImporting && (
+                <motion.div
+                  key="confirm-field"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                  className="overflow-hidden"
+                >
+                  <div className="space-y-1.5">
+                    <Label htmlFor="confirm">Confirm master password</Label>
+                    <div className="relative">
+                      <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        id="confirm"
+                        type={show ? "text" : "password"}
+                        value={confirm}
+                        onChange={(e) => setConfirm(e.target.value)}
+                        placeholder="Re-enter your password"
+                        autoComplete="new-password"
+                        className="font-secret pl-9"
+                      />
+                    </div>
+                    {confirm.length > 0 && confirm !== password && (
+                      <p className="text-xs text-red-400">Passwords don&apos;t match</p>
+                    )}
+                  </div>
+                </motion.div>
               )}
-            </div>
+            </AnimatePresence>
 
             {/* Import existing vault (optional) */}
             <div className="space-y-2 pt-1">
-              {!importFile ? (
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border px-3 py-2.5 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
-                >
-                  <Upload className="h-3.5 w-3.5" />
-                  Import existing LCKED vault
-                </button>
-              ) : (
-                <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
-                  <div className="flex items-center gap-2">
+              <AnimatePresence mode="wait" initial={false}>
+                {!importFile ? (
+                  <motion.button
+                    key="import-button"
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border px-3 py-2.5 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                  >
+                    <Upload className="h-3.5 w-3.5" />
+                    Import existing LCKED vault
+                  </motion.button>
+                ) : (
+                  <motion.div
+                    key="import-info"
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                    className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5"
+                  >
                     <FileJson className="h-4 w-4 shrink-0 text-primary" />
                     <span className="min-w-0 flex-1 truncate text-sm font-medium">{importFile.name}</span>
                     <button
                       type="button"
-                      onClick={() => { setImportFile(null); setExportPassword(""); }}
-                      className="text-xs text-muted-foreground hover:text-foreground"
+                      onClick={handleRemoveFile}
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      aria-label="Remove file"
                     >
-                      Remove
+                      <X className="h-3.5 w-3.5" />
                     </button>
-                  </div>
-                  <Input
-                    type={show ? "text" : "password"}
-                    value={exportPassword}
-                    onChange={(e) => setExportPassword(e.target.value)}
-                    placeholder="Export password"
-                    className="font-secret h-8 text-sm"
-                    autoComplete="off"
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    Enter the password used when this backup was created.
-                  </p>
-                </div>
-              )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -217,7 +260,7 @@ export function SetupView() {
               ) : (
                 <ShieldCheck className="mr-2 h-4 w-4" />
               )}
-              {importFile ? "Create vault & import" : "Create encrypted vault"}
+              {isImporting ? "Restore vault" : "Create encrypted vault"}
             </Button>
           </form>
         </div>
