@@ -151,7 +151,20 @@ function DotFieldInner({ className, linkDistance = 120, pointerRadius = 180, sca
     const handleResize = () => { resize(); rectRef.current = canvas.getBoundingClientRect(); };
     // ResizeObserver (D-27): catches parent display:none → visible transitions
     // that window.resize misses (e.g. loading → vault view).
-    const ro = new ResizeObserver(() => { resize(); rectRef.current = canvas.getBoundingClientRect(); });
+    // DEBOUNCED: the setup form changes height on every keystroke (strength
+    // meter, error text). Without debouncing, ResizeObserver fires dozens of
+    // times per second, causing the dots to flicker. We wait 150ms after the
+    // last resize event before calling resize(), which filters out all the
+    // intermediate height changes. The canvas just clips naturally in the
+    // meantime — no visual jump.
+    let roTimer: ReturnType<typeof setTimeout> | null = null;
+    const ro = new ResizeObserver(() => {
+      if (roTimer) clearTimeout(roTimer);
+      roTimer = setTimeout(() => {
+        resize();
+        rectRef.current = canvas.getBoundingClientRect();
+      }, 150);
+    });
     if (canvas.parentElement) ro.observe(canvas.parentElement);
 
     const handleMove = (e: PointerEvent) => {
@@ -207,6 +220,7 @@ function DotFieldInner({ className, linkDistance = 120, pointerRadius = 180, sca
     document.addEventListener("visibilitychange", handleVisibility);
     return () => {
       cancelAnimationFrame(rafRef.current);
+      if (roTimer) clearTimeout(roTimer);
       ro.disconnect();
       themeObserver.disconnect();
       window.removeEventListener("resize", handleResize);

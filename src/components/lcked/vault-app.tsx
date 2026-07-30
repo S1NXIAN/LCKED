@@ -26,7 +26,7 @@ export function VaultApp() {
 
   if (status === "loading") {
     return (
-      <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden gap-6">
+      <div className="relative flex h-dvh w-full flex-col items-center justify-center overflow-hidden gap-6">
         {/* Dot field backdrop */}
         <DotField className="pointer-events-auto absolute inset-0 h-full w-full" />
 

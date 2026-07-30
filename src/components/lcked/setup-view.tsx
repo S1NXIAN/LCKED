@@ -7,7 +7,8 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { useVault } from "@/store/vault";
+import { useVault, decryptLckedExport } from "@/store/vault";
+import type { LckedExport } from "@/lib/import-export";
 import { PasswordStrengthMeter } from "./password-strength-meter";
 import { DiamondMark } from "./diamond-mark";
 import { DotField } from "./dot-field";
@@ -16,6 +17,8 @@ import { cn } from "@/lib/utils";
 export function SetupView() {
   const setupVault = useVault((s) => s.setupVault);
   const importItems = useVault((s) => s.importItems);
+  const saveItem = useVault((s) => s.saveItem);
+  const createVault = useVault((s) => s.createVault);
   const [password, setPassword] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
   const [show, setShow] = React.useState(false);
@@ -55,16 +58,98 @@ export function SetupView() {
     if (!canSubmit) return;
     setBusy(true);
     try {
-      // Create the vault first.
+      // Read the file text once (if importing).
+      const fileText = importFile ? await importFile.text() : null;
+
+      // If importing an encrypted LCKED export, decrypt it FIRST (before
+      // creating the vault) so we can fail early on a wrong password without
+      // leaving an empty vault behind. The export password IS the master
+      // password the user just entered.
+      let decryptedPayload: { items: import("@/lib/types").VaultItem[]; vaults: import("@/lib/types").VaultDef[] } | null = null;
+      let isLckedExport = false;
+      if (importFile && fileText) {
+        try {
+          const parsed = JSON.parse(fileText);
+          if (parsed?.format === "lcked-encrypted-v1") {
+            isLckedExport = true;
+            decryptedPayload = await decryptLckedExport(parsed as LckedExport, password);
+            if (!decryptedPayload) {
+              toast.error("Wrong password", {
+                description: "The password doesn't match this backup file.",
+              });
+              setBusy(false);
+              return;
+            }
+          }
+        } catch {
+          // Not JSON → it's a CSV/other format; fall through to importItems.
+        }
+      }
+
+      // Create the vault with the master password.
       await setupVault(password);
 
-      // If importing, decrypt the export and import the items.
-      if (importFile) {
-        const text = await importFile.text();
-        const result = await importItems(importFile.name, text);
+      if (isLckedExport && decryptedPayload) {
+        // LCKED encrypted export: import decrypted items + recreate vaults.
+        // Re-encrypt each item with the NEW vault key (already created by
+        // setupVault) via saveItem, and recreate custom vaults.
+        const { items: decryptedItems, vaults: decryptedVaults } = decryptedPayload;
+
+        // Recreate custom vaults first (so items can reference them).
+        for (const v of decryptedVaults) {
+          try {
+            await createVault(v.name, v.color, v.icon);
+          } catch {
+            // best-effort — if a vault fails, items still import
+          }
+        }
+
+        // Build a map from old vault id → new vault id (createVault generated
+        // fresh ids). Match by name+color+icon since those are preserved.
+        const currentVaults = useVault.getState().vaults;
+        const vaultIdMap = new Map<string, string>();
+        for (const oldV of decryptedVaults) {
+          const newV = currentVaults.find(
+            (nv) => nv.name === oldV.name && nv.color === oldV.color && nv.icon === oldV.icon,
+          );
+          if (newV) vaultIdMap.set(oldV.id, newV.id);
+        }
+
+        // Import each item, remapping vaultIds to the new vault ids.
+        let imported = 0;
+        for (const item of decryptedItems) {
+          try {
+            const remappedVaultIds = item.vaultIds
+              ?.map((oldId) => vaultIdMap.get(oldId))
+              .filter((id): id is string => Boolean(id)) ?? [];
+            const { id: _id, createdAt: _c, updatedAt: _u, trashed: _t, trashedAt: _ta, ...rest } = item;
+            await saveItem({
+              ...rest,
+              vaultIds: remappedVaultIds,
+              trashed: false,
+              trashedAt: null,
+            } as import("@/lib/types").NewItemInput);
+            imported++;
+          } catch {
+            // best-effort per item
+          }
+        }
+
+        if (imported > 0) {
+          toast.success("Vault restored", {
+            description: `Imported ${imported} item${imported === 1 ? "" : "s"} from your backup.`,
+          });
+        } else {
+          toast.success("Vault created", {
+            description: "Your vault is ready but no items could be imported.",
+          });
+        }
+      } else if (importFile && fileText) {
+        // Non-LCKED file (Bitwarden/1Password/ProtonPass/KeePassXC CSV/XML).
+        const result = await importItems(importFile.name, fileText);
         if (result.imported > 0) {
           toast.success("Vault created", {
-            description: `Imported ${result.imported} item${result.imported === 1 ? "" : "s"} from your backup.`,
+            description: `Imported ${result.imported} item${result.imported === 1 ? "" : "s"} from your file.`,
           });
         } else {
           toast.success("Vault created", {
@@ -87,7 +172,7 @@ export function SetupView() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-10">
+    <div className="relative flex h-dvh w-full flex-col items-center justify-center overflow-hidden px-4 py-4 sm:py-6">
       <DotField className="pointer-events-auto absolute inset-0 h-full w-full" />
       <div className="lcked-glow pointer-events-none absolute inset-0" aria-hidden="true" />
 
@@ -95,13 +180,14 @@ export function SetupView() {
         initial={{ opacity: 0, y: 12, filter: "blur(8px)" }}
         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full max-w-md"
+        className="relative flex w-full max-w-md flex-col"
       >
-        <div className="mb-8 flex flex-col items-center gap-2 text-center">
+        {/* Brand — compact, scales down on short screens */}
+        <div className="mb-4 flex shrink-0 flex-col items-center gap-1 text-center sm:mb-6 sm:gap-2">
           <div className="text-primary">
-            <DiamondMark size={36} glow className="lcked-pulse" />
+            <DiamondMark size={32} glow className="lcked-pulse" />
           </div>
-          <div className="text-2xl font-bold tracking-tight">
+          <div className="text-xl font-bold tracking-tight sm:text-2xl">
             LCK<span className="text-primary">ED</span>
           </div>
           <div className="text-[9px] uppercase tracking-[0.3em] text-muted-foreground">
@@ -109,19 +195,21 @@ export function SetupView() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border/60 bg-card/40 p-6 shadow-2xl backdrop-blur-xl md:p-8">
-          <div className="mb-6 flex flex-col items-center text-center">
-            <h1 className="text-xl font-semibold tracking-tight">
+        {/* Card — flex-1 so it fills available height; max-h + overflow-y-auto
+            for extreme small screens (landscape phones) */}
+        <div className="flex max-h-[75vh] w-full flex-col overflow-y-auto rounded-2xl border border-border/60 bg-card/40 p-5 shadow-2xl backdrop-blur-xl sm:p-6 md:p-7">
+          <div className="mb-4 flex shrink-0 flex-col items-center text-center sm:mb-5">
+            <h1 className="text-lg font-semibold tracking-tight sm:text-xl">
               {isImporting ? "Restore your vault" : "Create your vault"}
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
               {isImporting
                 ? "Enter the password used to create this backup."
                 : "Choose a master password to encrypt everything on this device."}
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="flex flex-1 flex-col gap-3.5 sm:gap-4">
             {/* Master password — always shown. When importing, this IS the
                 export password (no confirm needed). */}
             <div className="space-y-1.5">
@@ -229,7 +317,7 @@ export function SetupView() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".json"
+                accept=".json,.csv,.xml"
                 className="hidden"
                 onChange={handleFileSelect}
               />
@@ -252,7 +340,7 @@ export function SetupView() {
             <Button
               type="submit"
               disabled={!canSubmit}
-              className="w-full"
+              className="mt-auto w-full"
               size="lg"
             >
               {busy ? (
@@ -265,7 +353,7 @@ export function SetupView() {
           </form>
         </div>
 
-        <p className="mt-6 text-center text-xs text-muted-foreground">
+        <p className="mt-3 shrink-0 text-center text-[11px] text-muted-foreground sm:mt-4 sm:text-xs">
           Your data never leaves this device.
         </p>
       </motion.div>

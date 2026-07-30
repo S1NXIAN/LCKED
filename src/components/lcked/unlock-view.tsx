@@ -61,7 +61,7 @@ export function UnlockView() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-10">
+    <div className="relative flex h-dvh w-full flex-col items-center justify-center overflow-hidden px-4 py-4 sm:py-6">
       {/* Animated dot field */}
       <DotField className="pointer-events-auto absolute inset-0 h-full w-full" />
 
@@ -72,14 +72,14 @@ export function UnlockView() {
         initial={{ opacity: 0, y: 12, filter: "blur(8px)" }}
         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full max-w-md"
+        className="relative flex w-full max-w-md flex-col"
       >
         {/* Centered brand header */}
-        <div className="mb-8 flex flex-col items-center gap-2 text-center">
+        <div className="mb-4 flex shrink-0 flex-col items-center gap-1 text-center sm:mb-6 sm:gap-2">
           <div className="text-primary">
-            <DiamondMark size={36} glow className="lcked-pulse" />
+            <DiamondMark size={32} glow className="lcked-pulse" />
           </div>
-          <div className="text-2xl font-bold tracking-tight">
+          <div className="text-xl font-bold tracking-tight sm:text-2xl">
             LCK<span className="text-primary">ED</span>
           </div>
           <div className="text-[9px] uppercase tracking-[0.3em] text-muted-foreground">
@@ -87,15 +87,15 @@ export function UnlockView() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border/60 bg-card/40 p-6 shadow-2xl backdrop-blur-xl md:p-8">
-          <div className="mb-6 flex flex-col items-center text-center">
-            <h1 className="text-xl font-semibold tracking-tight">Unlock your vault</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+        <div className="flex max-h-[75vh] w-full flex-col overflow-y-auto rounded-2xl border border-border/60 bg-card/40 p-5 shadow-2xl backdrop-blur-xl sm:p-6 md:p-7">
+          <div className="mb-4 flex shrink-0 flex-col items-center text-center sm:mb-5">
+            <h1 className="text-lg font-semibold tracking-tight sm:text-xl">Unlock your vault</h1>
+            <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
               Enter your master password to decrypt your items locally.
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="flex flex-1 flex-col gap-3.5 sm:gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="master">Master password</Label>
               <div className="relative">
@@ -127,7 +127,7 @@ export function UnlockView() {
               )}
             </div>
 
-            <Button type="submit" disabled={!password || busy} className="w-full" size="lg">
+            <Button type="submit" disabled={!password || busy} className="mt-auto w-full" size="lg">
               {busy ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -137,7 +137,7 @@ export function UnlockView() {
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-4 shrink-0 text-center sm:mt-5">
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <button className="text-xs text-muted-foreground underline-offset-2 hover:text-red-400 hover:underline">
@@ -170,7 +170,7 @@ export function UnlockView() {
           </div>
         </div>
 
-        <p className="mt-6 text-center text-xs text-muted-foreground">
+        <p className="mt-3 shrink-0 text-center text-[11px] text-muted-foreground sm:mt-4 sm:text-xs">
           Your data never leaves this device.
         </p>
       </motion.div>
