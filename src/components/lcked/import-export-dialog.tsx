@@ -27,7 +27,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useVault } from "@/store/vault";
 import { detectFormat } from "@/lib/import-export";
 import { download } from "@/lib/browser-utils";
-import { cn } from "@/lib/utils";
 
 export function ImportExportDialog() {
   const open = useVault((s) => s.importExportOpen);

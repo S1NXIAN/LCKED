@@ -20,12 +20,10 @@ export type { LckedExport } from "./lcked";
 export { parseBitwardenJson, parseBitwardenCsv } from "./bitwarden";
 export { parseOnePasswordCsv } from "./onepassword";
 export { parseProtonPassCsv } from "./protonpass";
-export { parseKeePassXcXml, readKeePassXcEntry } from "./keepassxc";
+export { parseKeePassXcXml } from "./keepassxc";
 export { parseLckedJson } from "./lcked";
 export { parseCsv, rowToObject, csvEscape } from "./csv";
 export { exportToCsv, detectCardBrand } from "./export";
-// readKeePassXcEntry isn't normally tested from outside, but exporting
-// it helps when it needs a direct unit test.
 
 export type { ImportFormat } from "@/lib/types";
 

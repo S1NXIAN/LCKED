@@ -12,7 +12,6 @@ import { importFromText } from "@/lib/import-export";
 import { PasswordStrengthMeter } from "./password-strength-meter";
 import { DiamondMark } from "./diamond-mark";
 import { DotField } from "./dot-field";
-import { cn } from "@/lib/utils";
 
 export function SetupView() {
   const setupVault = useVault((s) => s.setupVault);

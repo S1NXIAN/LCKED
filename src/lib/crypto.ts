@@ -15,7 +15,6 @@
  */
 
 const PBKDF2_ITERATIONS = 600_000;
-const SALT_LENGTH = 16; // bytes
 const IV_LENGTH = 12; // bytes (AES-GCM recommended)
 const VERIFIER_TOKEN = "LCKED_VAULT_VALID";
 
@@ -229,4 +228,4 @@ export async function decryptJson<T = unknown>(
   return JSON.parse(new TextDecoder().decode(decrypted)) as T;
 }
 
-export { PBKDF2_ITERATIONS, SALT_LENGTH, IV_LENGTH, VERIFIER_TOKEN };
+export { PBKDF2_ITERATIONS, IV_LENGTH, VERIFIER_TOKEN };

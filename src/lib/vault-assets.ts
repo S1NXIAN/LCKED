@@ -6,9 +6,8 @@
  * the single source of truth that maps those ids to actual values.
  *
  * Colors are the 10 Proton Pass vault colors (named after the closest CSS color
- * name to keep the variable names stable). Icons are 30 Lucide icon names so
- * the UI can render them via the dynamic <LucideIcon> shim without shipping
- * every icon bundle.
+ * name to keep the variable names stable). Icons are 30 ids; the matching
+ * Lucide components live in `vault-lucide-icons.ts` (`VAULT_LUCIDE_BY_ID`).
  */
 
 export interface VaultColor {
@@ -23,8 +22,6 @@ export interface VaultColor {
 export interface VaultIcon {
   /** Stable id — persisted on the VaultDef. Never rename. */
   id: string;
-  /** Lucide icon name (matches the export name in lucide-react). */
-  lucide: string;
   /** Picker label. */
   label: string;
 }
@@ -46,38 +43,38 @@ export const VAULT_COLORS: VaultColor[] = [
   { id: "water-leaf", label: "Water Leaf", hex: "#9EE2E6" },
 ];
 
-/** 30 Lucide icon names that cover the common vault use-cases. */
+/** 30 vault icon ids that cover the common vault use-cases. */
 export const VAULT_ICONS: VaultIcon[] = [
-  { id: "home", lucide: "Home", label: "Home" },
-  { id: "briefcase", lucide: "Briefcase", label: "Work" },
-  { id: "gift", lucide: "Gift", label: "Gifts" },
-  { id: "shopping-cart", lucide: "ShoppingCart", label: "Shopping" },
-  { id: "heart", lucide: "Heart", label: "Personal" },
-  { id: "star", lucide: "Star", label: "Favorites" },
-  { id: "shield", lucide: "Shield", label: "Security" },
-  { id: "lock", lucide: "Lock", label: "Private" },
-  { id: "key", lucide: "Key", label: "Keys" },
-  { id: "eye", lucide: "Eye", label: "Watch" },
-  { id: "user", lucide: "User", label: "Identity" },
-  { id: "users", lucide: "Users", label: "Family" },
-  { id: "building", lucide: "Building", label: "Business" },
-  { id: "bank", lucide: "Banknote", label: "Banking" },
-  { id: "credit-card", lucide: "CreditCard", label: "Cards" },
-  { id: "wallet", lucide: "Wallet", label: "Wallet" },
-  { id: "plane", lucide: "Plane", label: "Travel" },
-  { id: "car", lucide: "Car", label: "Vehicle" },
-  { id: "fuel", lucide: "Fuel", label: "Fuel" },
-  { id: "globe", lucide: "Globe", label: "Web" },
-  { id: "mail", lucide: "Mail", label: "Email" },
-  { id: "phone", lucide: "Phone", label: "Phone" },
-  { id: "smartphone", lucide: "Smartphone", label: "Mobile" },
-  { id: "laptop", lucide: "Laptop", label: "Devices" },
-  { id: "server", lucide: "Server", label: "Servers" },
-  { id: "cloud", lucide: "Cloud", label: "Cloud" },
-  { id: "database", lucide: "Database", label: "Data" },
-  { id: "hard-drive", lucide: "HardDrive", label: "Storage" },
-  { id: "cpu", lucide: "Cpu", label: "Systems" },
-  { id: "network", lucide: "Network", label: "Network" },
+  { id: "home", label: "Home" },
+  { id: "briefcase", label: "Work" },
+  { id: "gift", label: "Gifts" },
+  { id: "shopping-cart", label: "Shopping" },
+  { id: "heart", label: "Personal" },
+  { id: "star", label: "Favorites" },
+  { id: "shield", label: "Security" },
+  { id: "lock", label: "Private" },
+  { id: "key", label: "Keys" },
+  { id: "eye", label: "Watch" },
+  { id: "user", label: "Identity" },
+  { id: "users", label: "Family" },
+  { id: "building", label: "Business" },
+  { id: "bank", label: "Banking" },
+  { id: "credit-card", label: "Cards" },
+  { id: "wallet", label: "Wallet" },
+  { id: "plane", label: "Travel" },
+  { id: "car", label: "Vehicle" },
+  { id: "fuel", label: "Fuel" },
+  { id: "globe", label: "Web" },
+  { id: "mail", label: "Email" },
+  { id: "phone", label: "Phone" },
+  { id: "smartphone", label: "Mobile" },
+  { id: "laptop", label: "Devices" },
+  { id: "server", label: "Servers" },
+  { id: "cloud", label: "Cloud" },
+  { id: "database", label: "Data" },
+  { id: "hard-drive", label: "Storage" },
+  { id: "cpu", label: "Systems" },
+  { id: "network", label: "Network" },
 ];
 
 /** Default color + icon used when creating a vault without explicit choices. */
@@ -92,28 +89,4 @@ export function vaultColorHex(id: string | null | undefined): string {
   if (!id) return VAULT_COLORS[0].hex;
   const c = VAULT_COLORS.find((v) => v.id === id);
   return c ? c.hex : VAULT_COLORS[0].hex;
-}
-
-/** Resolve a vault color label. */
-export function vaultColorLabel(id: string | null | undefined): string {
-  if (!id) return VAULT_COLORS[0].label;
-  const c = VAULT_COLORS.find((v) => v.id === id);
-  return c ? c.label : VAULT_COLORS[0].label;
-}
-
-/**
- * Resolve a vault icon id to a Lucide icon name. Falls back to "Home" so a
- * stale id never crashes the dynamic <LucideIcon> renderer.
- */
-export function vaultIconName(id: string | null | undefined): string {
-  if (!id) return VAULT_ICONS[0].lucide;
-  const i = VAULT_ICONS.find((v) => v.id === id);
-  return i ? i.lucide : VAULT_ICONS[0].lucide;
-}
-
-/** Resolve a vault icon label. */
-export function vaultIconLabel(id: string | null | undefined): string {
-  if (!id) return VAULT_ICONS[0].label;
-  const i = VAULT_ICONS.find((v) => v.id === id);
-  return i ? i.label : VAULT_ICONS[0].label;
 }

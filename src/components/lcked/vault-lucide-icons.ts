@@ -38,7 +38,6 @@ import {
   HardDrive,
   Cpu,
   Network,
-  type LucideIcon,
 } from "lucide-react";
 
 export const VAULT_LUCIDE_BY_ID: Record<string, LucideIcon> = {
@@ -73,12 +72,3 @@ export const VAULT_LUCIDE_BY_ID: Record<string, LucideIcon> = {
   cpu: Cpu,
   network: Network,
 };
-
-/**
- * Resolve a vault-icon id to its Lucide component. Falls back to `Home` so a
- * stale id from an older LCKED version never crashes the renderer.
- */
-export function getVaultLucideIcon(id: string | null | undefined): LucideIcon {
-  if (!id) return Home;
-  return VAULT_LUCIDE_BY_ID[id] ?? Home;
-}

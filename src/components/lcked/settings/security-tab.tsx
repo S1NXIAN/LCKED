@@ -29,7 +29,6 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useVault } from "@/store/vault";
 import { PasswordStrengthMeter } from "../password-strength-meter";
-import { cn } from "@/lib/utils";
 
 export function SecurityTab() {
   const settings = useVault((s) => s.settings);

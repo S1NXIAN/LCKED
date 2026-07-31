@@ -32,7 +32,7 @@ let _db: LckedDB | null = null;
  * Lazily instantiate the DB. The vault code only ever runs in the browser
  * (all entry points are client components), so `indexedDB` is available.
  */
-export function getDB(): LckedDB {
+function getDB(): LckedDB {
   if (_db) return _db;
   _db = new LckedDB();
   return _db;
@@ -75,13 +75,4 @@ export async function wipeVault(): Promise<void> {
     await db.meta.clear();
     await db.items.clear();
   });
-}
-
-/** Approximate storage usage so we can warn before hitting quota. */
-export async function estimateStorage(): Promise<{ usage: number; quota: number }> {
-  if (navigator.storage?.estimate) {
-    const est = await navigator.storage.estimate();
-    return { usage: est.usage ?? 0, quota: est.quota ?? 0 };
-  }
-  return { usage: 0, quota: 0 };
 }
