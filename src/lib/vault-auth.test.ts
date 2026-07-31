@@ -296,7 +296,7 @@ describe("exportEncrypted", () => {
 /* ─── decryptLckedExport ────────────────────────────────── */
 
 describe("decryptLckedExport", () => {
-  it("returns null for wrong password", async () => {
+  it("returns wrong-password when the verifier check fails", async () => {
     const { checkVerifier } = await import("@/lib/crypto");
     vi.mocked(checkVerifier).mockResolvedValueOnce(false);
 
@@ -315,13 +315,64 @@ describe("decryptLckedExport", () => {
     };
 
     const result = await decryptLckedExport(envelope, "wrong-pw");
-    expect(result).toBeNull();
+    expect(result).toEqual({ ok: false, reason: "wrong-password" });
   });
 
-  it("returns null for unknown format", async () => {
+  it("returns corrupt for unknown format", async () => {
     const envelope = { format: "unknown" } as unknown as LckedExport;
 
     const result = await decryptLckedExport(envelope, "pw");
-    expect(result).toBeNull();
+    expect(result).toEqual({ ok: false, reason: "corrupt" });
+  });
+
+  it("returns corrupt when the payload fails to decrypt", async () => {
+    const { decryptJson } = await import("@/lib/crypto");
+    vi.mocked(decryptJson).mockRejectedValueOnce(new Error("bad ciphertext"));
+
+    const envelope: LckedExport = {
+      format: "lcked-encrypted-v1",
+      version: 1,
+      exportedAt: Date.now(),
+      salt: "salt",
+      iterations: 600_000,
+      verifier: "v",
+      verifierIv: "vi",
+      wrappedVaultKey: "wvk",
+      wrappedVaultKeyIv: "wvk-iv",
+      data: "garbage",
+      dataIv: "data-iv",
+    };
+
+    const result = await decryptLckedExport(envelope, "pw");
+    expect(result).toEqual({ ok: false, reason: "corrupt" });
+  });
+
+  it("returns the decrypted payload on success", async () => {
+    const { decryptJson } = await import("@/lib/crypto");
+    vi.mocked(decryptJson).mockResolvedValueOnce({
+      items: [{ id: "i1" }],
+      vaults: [{ id: "v1" }],
+    });
+
+    const envelope: LckedExport = {
+      format: "lcked-encrypted-v1",
+      version: 1,
+      exportedAt: Date.now(),
+      salt: "salt",
+      iterations: 600_000,
+      verifier: "v",
+      verifierIv: "vi",
+      wrappedVaultKey: "wvk",
+      wrappedVaultKeyIv: "wvk-iv",
+      data: "data",
+      dataIv: "data-iv",
+    };
+
+    const result = await decryptLckedExport(envelope, "pw");
+    expect(result).toEqual({
+      ok: true,
+      items: [{ id: "i1" }],
+      vaults: [{ id: "v1" }],
+    });
   });
 });

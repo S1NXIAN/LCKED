@@ -68,9 +68,15 @@ export function SetupView() {
         fileText,
       });
       if (!result.ok) {
-        toast.error("Wrong password", {
-          description: "The password doesn't match this backup file.",
-        });
+        if (result.reason === "wrong-password") {
+          toast.error("Wrong password", {
+            description: "The password doesn't match this backup file.",
+          });
+        } else {
+          toast.error("Invalid backup file", {
+            description: "This file is damaged or isn't an LCKED backup.",
+          });
+        }
         return;
       }
       if (result.imported > 0) {

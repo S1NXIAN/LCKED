@@ -269,47 +269,45 @@ export async function exportEncrypted(
   return JSON.stringify(envelope, null, 2);
 }
 
+/** Result of decrypting an LCKED encrypted-export envelope: the decrypted
+ *  payload, or a failure that distinguishes a wrong password from a
+ *  damaged/foreign file (so callers can say exactly which one failed). */
+export type LckedDecryptResult =
+  | { ok: true; items: VaultItem[]; vaults: VaultDef[] }
+  | { ok: false; reason: "wrong-password" | "corrupt" };
+
 /**
  * Decrypt an LCKED encrypted-export envelope (produced by `exportEncrypted`).
- * Returns the items + custom vaults, or null if the password is wrong.
+ * A failed verifier check means the password is wrong; any throw during key
+ * derivation / unwrap / data decryption means the envelope is corrupt.
  */
 export async function decryptLckedExport(
   envelope: LckedExport,
   password: string,
-): Promise<{ items: VaultItem[]; vaults: VaultDef[] } | null> {
-  if (envelope.format !== "lcked-encrypted-v1") return null;
-  const exportMasterKey = await deriveMasterKey(password, envelope.salt, envelope.iterations);
-  const ok = await checkVerifier(
-    exportMasterKey,
-    envelope.verifier,
-    envelope.verifierIv,
-    VERIFIER_TOKEN,
-  );
-  if (!ok) {
-    console.warn("decryptLckedExport: verifier check failed (wrong password or corrupted envelope)");
-    return null;
-  }
-  let exportVaultKey: CryptoKey;
+): Promise<LckedDecryptResult> {
+  if (envelope.format !== "lcked-encrypted-v1") return { ok: false, reason: "corrupt" };
   try {
-    exportVaultKey = await unwrapVaultKey(
+    const exportMasterKey = await deriveMasterKey(password, envelope.salt, envelope.iterations);
+    const ok = await checkVerifier(
+      exportMasterKey,
+      envelope.verifier,
+      envelope.verifierIv,
+      VERIFIER_TOKEN,
+    );
+    if (!ok) return { ok: false, reason: "wrong-password" };
+    const exportVaultKey = await unwrapVaultKey(
       envelope.wrappedVaultKey,
       envelope.wrappedVaultKeyIv,
       exportMasterKey,
     );
-  } catch (err) {
-    console.error("decryptLckedExport: unwrapVaultKey failed", err);
-    return null;
-  }
-  let payload: { items: VaultItem[]; vaults: VaultDef[] };
-  try {
-    payload = await decryptJson<{ items: VaultItem[]; vaults: VaultDef[] }>(
+    const payload = await decryptJson<{ items: VaultItem[]; vaults: VaultDef[] }>(
       envelope.data,
       envelope.dataIv,
       exportVaultKey,
     );
+    return { ok: true, items: payload.items, vaults: payload.vaults };
   } catch (err) {
-    console.error("decryptLckedExport: decryptJson failed", err);
-    return null;
+    console.error("decryptLckedExport: corrupted envelope", err);
+    return { ok: false, reason: "corrupt" };
   }
-  return payload;
 }

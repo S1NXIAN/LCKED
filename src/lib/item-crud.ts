@@ -162,6 +162,12 @@ export async function writeItem(
     id: randomId(),
     createdAt: now,
     updatedAt: now,
+    // Create always starts as an active, untrashed item: input may not sneak
+    // in trashed state or a `vaultIds: undefined` that would crash the list
+    // (`item.vaultIds.includes`). Real membership arrays survive.
+    trashed: ITEM_DEFAULTS.trashed,
+    trashedAt: ITEM_DEFAULTS.trashedAt,
+    vaultIds: (input as VaultItem).vaultIds ?? ITEM_DEFAULTS.vaultIds,
   } as VaultItem;
 
   await encryptAndPersist(item, vaultKey);
@@ -190,6 +196,9 @@ export async function writeItems(
     id: randomId(),
     createdAt: now,
     updatedAt: now,
+    trashed: ITEM_DEFAULTS.trashed,
+    trashedAt: ITEM_DEFAULTS.trashedAt,
+    vaultIds: (input as VaultItem).vaultIds ?? ITEM_DEFAULTS.vaultIds,
   })) as VaultItem[];
 
   const outcomes = await Promise.allSettled(

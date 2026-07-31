@@ -153,6 +153,36 @@ describe("writeItem", () => {
     expect(result.vaultIds).toEqual([]);
   });
 
+  it("forces create defaults over input trashed/vaultIds", async () => {
+    // The create path must never let an input smuggle in a trashed item or a
+    // `vaultIds: undefined` that would crash the list (`item.vaultIds.includes`).
+    const input = {
+      type: "login",
+      name: "new-item",
+      trashed: true,
+      trashedAt: 999,
+      vaultIds: undefined,
+    } as unknown as NewItemInput;
+
+    const result = await writeItem(mockVaultKey, input);
+
+    expect(result.trashed).toBe(false);
+    expect(result.trashedAt).toBe(null);
+    expect(result.vaultIds).toEqual([]);
+  });
+
+  it("keeps a real vault membership array on create", async () => {
+    const input = {
+      type: "login",
+      name: "member",
+      vaultIds: ["vault-1"],
+    } as unknown as NewItemInput;
+
+    const result = await writeItem(mockVaultKey, input);
+
+    expect(result.vaultIds).toEqual(["vault-1"]);
+  });
+
   it("persists the new item to IndexedDB", async () => {
     const { putStoredItem } = await import("@/lib/vault-db");
     const input = {
