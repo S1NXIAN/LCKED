@@ -7,8 +7,8 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { useVault, decryptLckedExport } from "@/store/vault";
-import type { LckedExport } from "@/lib/import-export";
+import { useVault, importLckedExport } from "@/store/vault";
+import { importFromText } from "@/lib/import-export";
 import { PasswordStrengthMeter } from "./password-strength-meter";
 import { DiamondMark } from "./diamond-mark";
 import { DotField } from "./dot-field";
@@ -68,25 +68,17 @@ export function SetupView() {
       let decryptedPayload: { items: import("@/lib/types").VaultItem[]; vaults: import("@/lib/types").VaultDef[] } | null = null;
       let isLckedExport = false;
       if (importFile && fileText) {
-        try {
-          const parsed = JSON.parse(fileText);
-          if (parsed?.format === "lcked-encrypted-v1") {
-            isLckedExport = true;
-            // decryptLckedExport returns null on wrong password OR decryption
-            // failure. It logs the specific cause to the console.
-            decryptedPayload = await decryptLckedExport(parsed as LckedExport, password);
-            if (!decryptedPayload) {
-              toast.error("Wrong password", {
-                description: "The password doesn't match this backup file.",
-              });
-              setBusy(false);
-              return;
-            }
+        const parsed = importFromText(importFile.name, fileText);
+        if (parsed.result.format === "lcked-json") {
+          isLckedExport = true;
+          decryptedPayload = await importLckedExport(parsed.result.raw, password);
+          if (!decryptedPayload) {
+            toast.error("Wrong password", {
+              description: "The password doesn't match this backup file.",
+            });
+            setBusy(false);
+            return;
           }
-        } catch (parseErr) {
-          // JSON.parse failed → not a JSON file → CSV/other format.
-          // Fall through to importItems.
-          console.warn("Import file is not JSON, trying as CSV/other format", parseErr);
         }
       }
 

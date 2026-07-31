@@ -1,0 +1,3 @@
+name,type,folder,favorite,pinned,login_username,login_password,login_uri,login_totp,notes
+example.com,login,Work,1,0,alice,p@ssw0rd,https://example.com,JBSWY3DPEHPK3PXP,Primary work account
+"Meeting Notes",note,,0,0,,,,,"Remember to bring up Q3 projections."

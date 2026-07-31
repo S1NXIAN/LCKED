@@ -504,7 +504,7 @@ export const useVault = create<VaultState>()(
 
         // Encrypted LCKED imports require the export's password — handled by a
         // dedicated UI flow. Here we surface a clear hint instead of failing.
-        if ((result as any).__raw) {
+        if (result.format === "lcked-json") {
           return {
             imported: 0,
             skipped: 0,
@@ -662,4 +662,4 @@ export const useVault = create<VaultState>()(
   ),
 );
 
-export { decryptLckedExport } from "@/lib/vault-auth";
+export { decryptLckedExport, importLckedExport } from "@/lib/vault-auth";

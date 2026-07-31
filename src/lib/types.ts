@@ -220,4 +220,18 @@ export interface ImportResult {
   imported: number;
   skipped: number;
   warnings: string[];
+  /** Set for formats that need follow-up (e.g. "lcked-json" for encrypted imports). */
+  format?: ImportFormat;
+  /** Raw envelope data for deferred processing (e.g. encrypted LCKED export). */
+  raw?: any;
+  /** Parsed items (internal — populated by parsers, exposed through importFromText). */
+  items?: NewItemInput[];
 }
+
+export type ImportFormat =
+  | "bitwarden-json"
+  | "bitwarden-csv"
+  | "1password-csv"
+  | "protonpass-csv"
+  | "keepassxc-xml"
+  | "lcked-json";

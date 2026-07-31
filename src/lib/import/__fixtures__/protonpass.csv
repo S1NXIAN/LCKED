@@ -1,0 +1,2 @@
+item_type,name,login_username,login_password,login_urls,login_totp,favorite,note_content
+login,example.com,alice,p@ssw0rd,https://example.com,JBSWY3DPEHPK3PXP,1,Primary work account

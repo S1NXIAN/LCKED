@@ -1,0 +1,59 @@
+{
+  "encrypted": false,
+  "items": [
+    {
+      "type": 1,
+      "name": "example.com",
+      "login": {
+        "username": "alice",
+        "password": "p@ssw0rd",
+        "uris": [
+          { "uri": "https://example.com" },
+          { "uri": "https://login.example.com" }
+        ],
+        "totp": "JBSWY3DPEHPK3PXP"
+      },
+      "folder": "Work",
+      "favorite": true,
+      "notes": "Primary work account"
+    },
+    {
+      "type": 2,
+      "name": "Meeting Notes",
+      "notes": "Remember to bring up the Q3 projections.",
+      "folder": "",
+      "favorite": false
+    },
+    {
+      "type": 3,
+      "name": "Visa Platinum",
+      "card": {
+        "cardholderName": "Alice Smith",
+        "number": "4111111111111111",
+        "code": "123",
+        "expMonth": "12",
+        "expYear": "2028"
+      },
+      "folder": "Finance",
+      "favorite": false
+    },
+    {
+      "type": 4,
+      "name": "My Identity",
+      "identity": {
+        "firstName": "Alice",
+        "lastName": "Smith",
+        "email": "alice@example.com",
+        "phone": "+15551234567",
+        "company": "Acme Corp",
+        "address1": "123 Main St",
+        "city": "Springfield",
+        "state": "IL",
+        "postalCode": "62701",
+        "country": "US"
+      },
+      "folder": "Personal",
+      "favorite": true
+    }
+  ]
+}

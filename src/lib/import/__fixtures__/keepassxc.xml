@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<KeePassFile>
+  <Root>
+    <Group>
+      <Name>Root</Name>
+      <Entry>
+        <String>
+          <Key>Title</Key>
+          <Value>example.com</Value>
+        </String>
+        <String>
+          <Key>UserName</Key>
+          <Value>alice</Value>
+        </String>
+        <String>
+          <Key>Password</Key>
+          <Value>p@ssw0rd</Value>
+        </String>
+        <String>
+          <Key>URL</Key>
+          <Value>https://example.com</Value>
+        </String>
+        <String>
+          <Key>Notes</Key>
+          <Value>Primary work account</Value>
+        </String>
+        <String>
+          <Key>otp</Key>
+          <Value>JBSWY3DPEHPK3PXP</Value>
+        </String>
+      </Entry>
+      <Entry>
+        <String>
+          <Key>Title</Key>
+          <Value>My Note</Value>
+        </String>
+        <String>
+          <Key>Notes</Key>
+          <Value>Remember to bring up Q3 projections.</Value>
+        </String>
+      </Entry>
+    </Group>
+  </Root>
+</KeePassFile>

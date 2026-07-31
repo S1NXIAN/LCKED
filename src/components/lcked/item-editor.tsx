@@ -19,7 +19,7 @@
  *     identity), URLs, TOTP, notes, custom fields are preserved.
  *   • Footer: a single Cancel button (left). Save/Create lives in the header.
  *
- * All existing functionality is preserved: blankItem(), itemToInput(),
+ * All existing functionality is preserved: blankItem(), toItemInput(),
  * saveItem(), custom-field add/update/remove, login URL list helpers,
  * favourite toggle, folder, and card-brand detection.
  */
@@ -73,7 +73,7 @@ import {
   type NewItemInput,
   type VaultItem,
 } from "@/lib/types";
-import { detectCardBrand } from "@/lib/import-export";
+import { detectCardBrand, toItemInput } from "@/lib/import-export";
 import { PasswordField } from "./password-field";
 import { ItemTypeIcon, ITEM_TYPE_LABELS } from "./item-icons";
 import { consumeNewItemType } from "./new-item-stash";
@@ -114,11 +114,6 @@ function blankItem(type: ItemType): NewItemInput {
       address1: "", address2: "", city: "", state: "", zip: "", country: "", notes: "",
     },
   };
-}
-
-function itemToInput(item: VaultItem): NewItemInput {
-  const { id: _id, createdAt: _c, updatedAt: _u, ...rest } = item;
-  return rest as NewItemInput;
 }
 
 /* -------------------- Field cluster (matches item-detail) -------------------- */
@@ -252,7 +247,7 @@ export function ItemEditor() {
       // Read via getState() so we don't depend on the items array.
       const existing = useVault.getState().items.find((i) => i.id === editorItemId);
       if (existing) {
-        const input = itemToInput(existing);
+        const input = toItemInput(existing);
         setForm(input);
         setUrlKeys((existing.details as { urls?: string[] }).urls?.map(() => nextKey()) ?? []);
         setCfKeys(existing.customFields.map(() => nextKey()));

@@ -321,3 +321,13 @@ export async function decryptLckedExport(
   }
   return payload;
 }
+
+/** Higher-level import helper: takes the raw envelope from importFromText,
+ *  decrypts it, and returns the items + vaults.
+ *  Returns null on wrong password or corrupted data. */
+export async function importLckedExport(
+  raw: any,
+  password: string,
+): Promise<{ items: import("@/lib/types").VaultItem[]; vaults: import("@/lib/types").VaultDef[] } | null> {
+  return decryptLckedExport(raw as LckedExport, password);
+}
