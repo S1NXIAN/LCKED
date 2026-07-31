@@ -182,6 +182,10 @@ export function ItemList({
   const permanentlyDeleteItem = useVault((s) => s.permanentlyDeleteItem);
   const moveItemToVault = useVault((s) => s.moveItemToVault);
   const copyItemToVault = useVault((s) => s.copyItemToVault);
+  const trashItems = useVault((s) => s.trashItems);
+  const moveItemsToVault = useVault((s) => s.moveItemsToVault);
+  const restoreItems = useVault((s) => s.restoreItems);
+  const permanentlyDeleteItems = useVault((s) => s.permanentlyDeleteItems);
   const toggleFavorite = useVault((s) => s.toggleFavorite);
   const togglePin = useVault((s) => s.togglePin);
   const sortFavoritesFirst = useVault((s) => s.settings.sortFavoritesFirst);
@@ -314,51 +318,53 @@ export function ItemList({
 
   const handleMultiTrash = async () => {
     if (selectedIds.size === 0) return;
-    const ids = Array.from(selectedIds);
     try {
-      await Promise.all(ids.map((id) => trashItem(id)));
-      toast.success(`Moved ${ids.length} to Trash`);
-      setMultiSelect(false);
+      const { moved, failed } = await trashItems(Array.from(selectedIds));
+      if (moved > 0 && failed === 0) toast.success(`Moved ${moved} to Trash`);
+      else if (moved > 0 && failed > 0) toast.warning(`Moved ${moved}, ${failed} failed`);
+      else if (failed > 0) toast.error(`Could not move ${failed} item${failed === 1 ? "" : "s"}`);
     } catch {
       toast.error("Could not move items");
     }
+    setMultiSelect(false);
   };
   const handleMultiMove = async (vaultId: string | null) => {
     if (selectedIds.size === 0) return;
-    const ids = Array.from(selectedIds);
+    const label =
+      vaultId === null ? "All Items" : vaults.find((v) => v.id === vaultId)?.name ?? "vault";
     try {
-      await Promise.all(ids.map((id) => moveItemToVault(id, vaultId)));
-      const label =
-        vaultId === null
-          ? "All Items"
-          : vaults.find((v) => v.id === vaultId)?.name ?? "vault";
-      toast.success(`Moved ${ids.length} to ${label}`);
-      setMultiSelect(false);
+      const { moved, failed } = await moveItemsToVault(Array.from(selectedIds), vaultId);
+      if (moved > 0 && failed === 0) toast.success(`Moved ${moved} to ${label}`);
+      else if (moved > 0 && failed > 0) toast.warning(`Moved ${moved}, ${failed} failed`);
+      else if (failed > 0) toast.error(`Could not move ${failed} item${failed === 1 ? "" : "s"}`);
     } catch {
       toast.error("Could not move items");
     }
+    setMultiSelect(false);
   };
   const handleMultiRestore = async () => {
     if (selectedIds.size === 0) return;
-    const ids = Array.from(selectedIds);
     try {
-      await Promise.all(ids.map((id) => restoreItem(id)));
-      toast.success(`Restored ${ids.length} item${ids.length === 1 ? "" : "s"}`);
-      setMultiSelect(false);
+      const { restored, failed } = await restoreItems(Array.from(selectedIds));
+      if (restored > 0 && failed === 0) toast.success(`Restored ${restored} item${restored === 1 ? "" : "s"}`);
+      else if (restored > 0 && failed > 0) toast.warning(`Restored ${restored}, ${failed} failed`);
+      else if (failed > 0) toast.error(`Could not restore ${failed} item${failed === 1 ? "" : "s"}`);
     } catch {
       toast.error("Could not restore items");
     }
+    setMultiSelect(false);
   };
   const handleMultiDelete = async () => {
     if (selectedIds.size === 0) return;
-    const ids = Array.from(selectedIds);
     try {
-      await Promise.all(ids.map((id) => permanentlyDeleteItem(id)));
-      toast.success(`Permanently deleted ${ids.length} item${ids.length === 1 ? "" : "s"}`);
-      setMultiSelect(false);
+      const { deleted, failed } = await permanentlyDeleteItems(Array.from(selectedIds));
+      if (deleted > 0 && failed === 0) toast.success(`Permanently deleted ${deleted} item${deleted === 1 ? "" : "s"}`);
+      else if (deleted > 0 && failed > 0) toast.warning(`Deleted ${deleted}, ${failed} failed`);
+      else if (failed > 0) toast.error(`Could not delete ${failed} item${failed === 1 ? "" : "s"}`);
     } catch {
       toast.error("Could not delete items");
     }
+    setMultiSelect(false);
   };
 
   /* ------------------------------- item helpers ------------------------------- */

@@ -7,17 +7,13 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { useVault, importLckedExport } from "@/store/vault";
-import { importFromText } from "@/lib/import-export";
+import { useVault } from "@/store/vault";
 import { PasswordStrengthMeter } from "./password-strength-meter";
 import { DiamondMark } from "./diamond-mark";
 import { DotField } from "./dot-field";
 
 export function SetupView() {
-  const setupVault = useVault((s) => s.setupVault);
-  const importItems = useVault((s) => s.importItems);
-  const saveItem = useVault((s) => s.saveItem);
-  const createVault = useVault((s) => s.createVault);
+  const restoreVault = useVault((s) => s.restoreVault);
   const [password, setPassword] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
   const [show, setShow] = React.useState(false);
@@ -63,75 +59,28 @@ export function SetupView() {
     setBusy(true);
     try {
       const fileText = importFile ? await importFile.text() : null;
-
-      let decryptedPayload: { items: import("@/lib/types").VaultItem[]; vaults: import("@/lib/types").VaultDef[] } | null = null;
-      let isLckedExport = false;
-      if (importFile && fileText) {
-        const parsed = importFromText(importFile.name, fileText);
-        if (parsed.result.format === "lcked-json") {
-          isLckedExport = true;
-          decryptedPayload = await importLckedExport(parsed.result.raw, password);
-          if (!decryptedPayload) {
-            toast.error("Wrong password", {
-              description: "The password doesn't match this backup file.",
-            });
-            setBusy(false);
-            return;
-          }
-        }
+      // Single restore entry point: decrypts before creating anything (a wrong
+      // backup password never leaves an empty vault), re-creates custom vaults,
+      // remaps vault ids, and imports items best-effort.
+      const result = await restoreVault({
+        masterPassword: password,
+        filename: importFile?.name ?? "",
+        fileText,
+      });
+      if (!result.ok) {
+        toast.error("Wrong password", {
+          description: "The password doesn't match this backup file.",
+        });
+        return;
       }
-
-      await setupVault(password);
-
-      if (isLckedExport && decryptedPayload) {
-        const { items: decryptedItems, vaults: decryptedVaults } = decryptedPayload;
-        for (const v of decryptedVaults) {
-          try { await createVault(v.name, v.color, v.icon); } catch { /* best-effort */ }
-        }
-        const currentVaults = useVault.getState().vaults;
-        const vaultIdMap = new Map<string, string>();
-        for (const oldV of decryptedVaults) {
-          const newV = currentVaults.find(
-            (nv) => nv.name === oldV.name && nv.color === oldV.color && nv.icon === oldV.icon,
-          );
-          if (newV) vaultIdMap.set(oldV.id, newV.id);
-        }
-        let imported = 0;
-        for (const item of decryptedItems) {
-          try {
-            const remappedVaultIds = item.vaultIds
-              ?.map((oldId) => vaultIdMap.get(oldId))
-              .filter((id): id is string => Boolean(id)) ?? [];
-            const { id: _id, createdAt: _c, updatedAt: _u, trashed: _t, trashedAt: _ta, ...rest } = item;
-            await saveItem({
-              ...rest,
-              vaultIds: remappedVaultIds,
-              trashed: false,
-              trashedAt: null,
-            } as import("@/lib/types").NewItemInput);
-            imported++;
-          } catch { /* best-effort per item */ }
-        }
-        if (imported > 0) {
-          toast.success("Vault restored", {
-            description: `Imported ${imported} item${imported === 1 ? "" : "s"} from your backup.`,
-          });
-        } else {
-          toast.success("Vault created", {
-            description: "Your vault is ready but no items could be imported.",
-          });
-        }
-      } else if (importFile && fileText) {
-        const result = await importItems(importFile.name, fileText);
-        if (result.imported > 0) {
-          toast.success("Vault created", {
-            description: `Imported ${result.imported} item${result.imported === 1 ? "" : "s"} from your file.`,
-          });
-        } else {
-          toast.success("Vault created", {
-            description: "Could not import items from the file. Your vault is ready.",
-          });
-        }
+      if (result.imported > 0) {
+        toast.success("Vault restored", {
+          description: `Imported ${result.imported} item${result.imported === 1 ? "" : "s"} from your backup.`,
+        });
+      } else if (importFile) {
+        toast.success("Vault created", {
+          description: "Your vault is ready but no items could be imported.",
+        });
       } else {
         toast.success("Vault created", {
           description: "Your data is encrypted and stored only on this device.",
@@ -145,7 +94,7 @@ export function SetupView() {
     } finally {
       setBusy(false);
     }
-  }, [busy, importFile, password, setupVault, createVault, saveItem, importItems]);
+  }, [busy, importFile, password, restoreVault]);
 
   // Advance through the flow. Called by the button AND by Enter key.
   // - Importing: go straight to vault creation (no agreement step — the user

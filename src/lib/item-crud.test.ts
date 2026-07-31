@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { patchItem, patchItems, writeItem, writeItems } from "@/lib/item-crud";
+import { patchItem, patchItems, sortItems, toItemInput, writeItem, writeItems } from "@/lib/item-crud";
 import type { NewItemInput, VaultItem } from "@/lib/types";
 
 // Mock the crypto and vault-db modules.
@@ -262,5 +262,63 @@ describe("writeItems", () => {
     expect(result.succeeded[0].vaultIds).toEqual([]);
     expect(result.succeeded[0].id).toBeTruthy();
     expect(result.succeeded[0].createdAt).toBeGreaterThan(0);
+  });
+
+  it("applies ITEM_DEFAULTS to fields missing from the input", async () => {
+    const input = {
+      type: "login",
+      name: "partial",
+    } as unknown as NewItemInput;
+
+    const result = await writeItem(mockVaultKey, input);
+
+    expect(result.favorite).toBe(false);
+    expect(result.pinned).toBe(false);
+    expect(result.folder).toBe("");
+    expect(result.customFields).toEqual([]);
+    expect(result.vaultIds).toEqual([]);
+    expect(result.trashed).toBe(false);
+    expect(result.trashedAt).toBeNull();
+  });
+});
+
+describe("toItemInput", () => {
+  it("drops id and timestamps, keeps everything else", () => {
+    const item = makeItem({ id: "drop-me", name: "keep-me", favorite: true, pinned: true, trashed: true, trashedAt: 5000, vaultIds: ["v1"] });
+
+    const input = toItemInput(item);
+
+    expect(input).not.toHaveProperty("id");
+    expect(input).not.toHaveProperty("createdAt");
+    expect(input).not.toHaveProperty("updatedAt");
+    expect(input.name).toBe("keep-me");
+    expect(input.favorite).toBe(true);
+    expect(input.pinned).toBe(true);
+    expect(input.trashed).toBe(true);
+    expect(input.trashedAt).toBe(5000);
+    expect(input.vaultIds).toEqual(["v1"]);
+    expect(input.type).toBe("login");
+    expect(input.details).toEqual(item.details);
+  });
+});
+
+describe("sortItems", () => {
+  it("orders by most-recently-updated, newest first", () => {
+    const old = makeItem({ id: "old", updatedAt: 1000 });
+    const mid = makeItem({ id: "mid", updatedAt: 2000 });
+    const recent = makeItem({ id: "recent", updatedAt: 3000 });
+
+    const sorted = sortItems([old, recent, mid]);
+
+    expect(sorted.map((i) => i.id)).toEqual(["recent", "mid", "old"]);
+  });
+
+  it("does not mutate the input array", () => {
+    const items = [makeItem({ id: "a", updatedAt: 1000 }), makeItem({ id: "b", updatedAt: 2000 })];
+    const copy = [...items];
+
+    sortItems(items);
+
+    expect(items).toEqual(copy);
   });
 });

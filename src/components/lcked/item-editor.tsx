@@ -73,7 +73,8 @@ import {
   type NewItemInput,
   type VaultItem,
 } from "@/lib/types";
-import { detectCardBrand, toItemInput } from "@/lib/import-export";
+import { detectCardBrand } from "@/lib/import-export";
+import { toItemInput } from "@/lib/item-crud";
 import { PasswordField } from "./password-field";
 import { ItemTypeIcon, ITEM_TYPE_LABELS } from "./item-icons";
 import { consumeNewItemType } from "./new-item-stash";

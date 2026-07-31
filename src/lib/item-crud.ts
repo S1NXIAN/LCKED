@@ -14,6 +14,58 @@ import { encryptJson, randomId } from "@/lib/crypto";
 import { putStoredItem } from "@/lib/vault-db";
 import type { NewItemInput, VaultItem } from "@/lib/types";
 
+/* ─── Item policy primitives ────────────────────────────── */
+
+/**
+ * Canonical defaults for a brand-new item. The single source of truth for
+ * the fields every empty item shares; both new-item creation and legacy-item
+ * migration reference it so the two can't drift. Timestamps are deliberately
+ * absent — they're always stamped fresh at write time.
+ *
+ * Frozen: the arrays are shared by reference into every item that inherits
+ * the defaults, so a future in-place mutation must crash loudly at the
+ * mutation site instead of silently corrupting every item in the vault.
+ */
+export const ITEM_DEFAULTS = Object.freeze({
+  favorite: false,
+  pinned: false,
+  folder: "",
+  customFields: Object.freeze([]) as unknown as VaultItem["customFields"],
+  vaultIds: Object.freeze([]) as unknown as string[],
+  trashed: false,
+  trashedAt: null,
+});
+
+/** Order items by most-recently-updated. The one sort every list uses. */
+export function sortItems(items: VaultItem[]): VaultItem[] {
+  return [...items].sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+/** Downgrade a stored item to a NewItemInput — drops id + timestamps only. */
+export function toItemInput(item: VaultItem): NewItemInput {
+  const { id: _id, createdAt: _c, updatedAt: _u, ...rest } = item;
+  return rest as NewItemInput;
+}
+
+/**
+ * Encrypt an item and persist the ciphertext to IndexedDB. The shared body
+ * behind every item write (create, patch, bulk patch, migration, re-encrypt).
+ */
+export async function encryptAndPersist(
+  item: VaultItem,
+  vaultKey: CryptoKey,
+): Promise<void> {
+  const { ciphertext, iv } = await encryptJson(item, vaultKey);
+  await putStoredItem({
+    id: item.id,
+    type: item.type,
+    ciphertext,
+    iv,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  });
+}
+
 /**
  * Patch a single item: merge `patch` into `item`, re-encrypt, persist to
  * IndexedDB, and return the updated record.  Does NOT update in-memory state.
@@ -32,15 +84,7 @@ export async function patchItem(
   const now = Date.now();
   const updated: VaultItem = { ...item, ...patch, updatedAt: now } as VaultItem;
 
-  const { ciphertext, iv } = await encryptJson(updated, vaultKey);
-  await putStoredItem({
-    id: updated.id,
-    type: updated.type,
-    ciphertext,
-    iv,
-    createdAt: updated.createdAt,
-    updatedAt: now,
-  });
+  await encryptAndPersist(updated, vaultKey);
 
   return updated;
 }
@@ -66,15 +110,7 @@ export async function patchItems(
     items.map(async (item, i) => {
       const patch = patchFn(item);
       const updated: VaultItem = { ...item, ...patch, updatedAt: now } as VaultItem;
-      const { ciphertext, iv } = await encryptJson(updated, vaultKey);
-      await putStoredItem({
-        id: updated.id,
-        type: updated.type,
-        ciphertext,
-        iv,
-        createdAt: updated.createdAt,
-        updatedAt: now,
-      });
+      await encryptAndPersist(updated, vaultKey);
       return updated;
     }),
   );
@@ -116,39 +152,19 @@ export async function writeItem(
       vaultIds: input.vaultIds ?? existing.vaultIds,
     } as VaultItem;
 
-    const { ciphertext, iv } = await encryptJson(item, vaultKey);
-    await putStoredItem({
-      id: item.id,
-      type: item.type,
-      ciphertext,
-      iv,
-      createdAt: item.createdAt,
-      updatedAt: now,
-    });
-
+    await encryptAndPersist(item, vaultKey);
     return item;
   }
 
   const item: VaultItem = {
+    ...ITEM_DEFAULTS,
     ...(input as VaultItem),
     id: randomId(),
     createdAt: now,
     updatedAt: now,
-    trashed: false,
-    trashedAt: null,
-    vaultIds: (input as VaultItem).vaultIds ?? [],
   } as VaultItem;
 
-  const { ciphertext, iv } = await encryptJson(item, vaultKey);
-  await putStoredItem({
-    id: item.id,
-    type: item.type,
-    ciphertext,
-    iv,
-    createdAt: item.createdAt,
-    updatedAt: now,
-  });
-
+  await encryptAndPersist(item, vaultKey);
   return item;
 }
 
@@ -169,26 +185,16 @@ export async function writeItems(
 
   const now = Date.now();
   const built: VaultItem[] = items.map((input) => ({
+    ...ITEM_DEFAULTS,
     ...(input as VaultItem),
     id: randomId(),
     createdAt: now,
     updatedAt: now,
-    trashed: false,
-    trashedAt: null,
-    vaultIds: (input as VaultItem).vaultIds ?? [],
   })) as VaultItem[];
 
   const outcomes = await Promise.allSettled(
     built.map(async (item) => {
-      const { ciphertext, iv } = await encryptJson(item, vaultKey);
-      await putStoredItem({
-        id: item.id,
-        type: item.type,
-        ciphertext,
-        iv,
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt,
-      });
+      await encryptAndPersist(item, vaultKey);
       return item;
     }),
   );

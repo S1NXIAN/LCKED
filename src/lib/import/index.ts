@@ -5,11 +5,11 @@
  * existing `@/lib/import-export` import paths continue to work (via the
  * barrel re-export in import-export.ts).
  *
- * Also hosts the shared dispatch logic: format detection, import orchestration,
- * and the VaultItem→NewItemInput downgrade helper.
+ * Also hosts the shared dispatch logic: format detection and import
+ * orchestration.
  */
 
-import type { ImportFormat, ImportResult, NewItemInput, VaultItem } from "@/lib/types";
+import type { ImportFormat, ImportResult, NewItemInput } from "@/lib/types";
 import { parseBitwardenJson, parseBitwardenCsv } from "./bitwarden";
 import { parseOnePasswordCsv } from "./onepassword";
 import { parseProtonPassCsv } from "./protonpass";
@@ -82,10 +82,4 @@ export function importFromText(filename: string, text: string): {
   }
   const items: NewItemInput[] = result.items ?? [];
   return { result, items };
-}
-
-/** Downgrade a stored item to a NewItemInput (drops id/timestamps). */
-export function toItemInput(item: VaultItem): NewItemInput {
-  const { id: _id, createdAt: _c, updatedAt: _u, ...rest } = item;
-  return rest as NewItemInput;
 }

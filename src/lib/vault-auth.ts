@@ -26,12 +26,12 @@ import {
   deleteStoredItem,
   loadAllStoredItems,
   loadVaultMeta,
-  putStoredItem,
   saveVaultMeta,
 } from "@/lib/vault-db";
 import type { VaultDef, VaultItem, VaultMeta, VaultSettings } from "@/lib/types";
 import { DEFAULT_VAULT_SETTINGS } from "@/lib/types";
 import type { LckedExport } from "@/lib/import-export";
+import { encryptAndPersist, ITEM_DEFAULTS, sortItems } from "@/lib/item-crud";
 
 /* ─── Types ─────────────────────────────────────────────── */
 
@@ -136,13 +136,15 @@ export async function unlockVault(masterPassword: string): Promise<UnlockResult>
       try {
         const item = await decryptJson<VaultItem>(s.ciphertext, s.iv, vaultKey);
         let migrated = false;
-        if (item.vaultIds === undefined) { (item as any).vaultIds = []; migrated = true; }
-        if (item.trashed === undefined) { (item as any).trashed = false; migrated = true; }
-        if (item.trashedAt === undefined) { (item as any).trashedAt = null; migrated = true; }
-        if (item.customFields === undefined) { (item as any).customFields = []; migrated = true; }
-        if (item.favorite === undefined) { (item as any).favorite = false; migrated = true; }
-        if (item.pinned === undefined) { (item as any).pinned = false; migrated = true; }
-        if (item.folder === undefined) { (item as any).folder = ""; migrated = true; }
+        // Missing newer fields inherit the canonical empty-item defaults so
+        // legacy records agree with freshly-created ones (ITEM_DEFAULTS).
+        if (item.vaultIds === undefined) { (item as any).vaultIds = ITEM_DEFAULTS.vaultIds; migrated = true; }
+        if (item.trashed === undefined) { (item as any).trashed = ITEM_DEFAULTS.trashed; migrated = true; }
+        if (item.trashedAt === undefined) { (item as any).trashedAt = ITEM_DEFAULTS.trashedAt; migrated = true; }
+        if (item.customFields === undefined) { (item as any).customFields = ITEM_DEFAULTS.customFields; migrated = true; }
+        if (item.favorite === undefined) { (item as any).favorite = ITEM_DEFAULTS.favorite; migrated = true; }
+        if (item.pinned === undefined) { (item as any).pinned = ITEM_DEFAULTS.pinned; migrated = true; }
+        if (item.folder === undefined) { (item as any).folder = ITEM_DEFAULTS.folder; migrated = true; }
         if (item.trashed && item.trashedAt && now - item.trashedAt > TRASH_TTL_MS) {
           return { kind: "expired", id: item.id };
         }
@@ -165,20 +167,10 @@ export async function unlockVault(masterPassword: string): Promise<UnlockResult>
   }
   if (toReencrypt.length > 0) {
     await Promise.all(
-      toReencrypt.map(async (it) => {
-        const { ciphertext, iv } = await encryptJson(it, vaultKey);
-        await putStoredItem({
-          id: it.id,
-          type: it.type,
-          ciphertext,
-          iv,
-          createdAt: it.createdAt,
-          updatedAt: it.updatedAt,
-        });
-      }),
+      toReencrypt.map(async (it) => encryptAndPersist(it, vaultKey)),
     );
   }
-  items.sort((a, b) => b.updatedAt - a.updatedAt);
+  const sortedItems = sortItems(items);
 
   const vaults: VaultDef[] = Array.isArray(meta.vaults) ? meta.vaults : [];
 
@@ -187,7 +179,7 @@ export async function unlockVault(masterPassword: string): Promise<UnlockResult>
     masterKey,
     vaultKey,
     masterPassword,
-    items,
+    items: sortedItems,
     vaults,
     settings: { ...DEFAULT_VAULT_SETTINGS, ...meta.settings },
   };
@@ -320,14 +312,4 @@ export async function decryptLckedExport(
     return null;
   }
   return payload;
-}
-
-/** Higher-level import helper: takes the raw envelope from importFromText,
- *  decrypts it, and returns the items + vaults.
- *  Returns null on wrong password or corrupted data. */
-export async function importLckedExport(
-  raw: any,
-  password: string,
-): Promise<{ items: import("@/lib/types").VaultItem[]; vaults: import("@/lib/types").VaultDef[] } | null> {
-  return decryptLckedExport(raw as LckedExport, password);
 }

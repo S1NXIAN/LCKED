@@ -10,9 +10,10 @@
  * wires result to UI state (dialogs, notifications).
  */
 
-import { encryptJson, randomId } from "@/lib/crypto";
-import { loadVaultMeta, putStoredItem, saveVaultMeta } from "@/lib/vault-db";
+import { randomId } from "@/lib/crypto";
+import { loadVaultMeta, saveVaultMeta } from "@/lib/vault-db";
 import type { VaultDef, VaultItem } from "@/lib/types";
+import { encryptAndPersist } from "@/lib/item-crud";
 
 /* ─── Types ─────────────────────────────────────────────── */
 
@@ -115,15 +116,7 @@ export async function deleteVault(
           vaultIds: it.vaultIds.filter((v) => v !== id),
           updatedAt: Date.now(),
         } as VaultItem;
-        const { ciphertext, iv } = await encryptJson(next, vaultKey);
-        await putStoredItem({
-          id: next.id,
-          type: next.type,
-          ciphertext,
-          iv,
-          createdAt: next.createdAt,
-          updatedAt: next.updatedAt,
-        });
+        await encryptAndPersist(next, vaultKey);
         return next;
       }),
     );

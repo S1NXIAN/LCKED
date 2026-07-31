@@ -30,7 +30,9 @@ import {
 } from "@/lib/import-export";
 import { clearAllClipboardTimers } from "@/lib/clipboard";
 import * as vaultManager from "@/lib/vault-manager";
-import { patchItem, patchItems, writeItem, writeItems } from "@/lib/item-crud";
+import { patchItem, patchItems, sortItems, toItemInput, writeItem, writeItems } from "@/lib/item-crud";
+import * as vaultRestore from "@/lib/vault-restore";
+import type { RestoreResult } from "@/lib/vault-restore";
 import {
   createVault,
   unlockVault,
@@ -91,6 +93,10 @@ interface VaultState {
   /** Replace vault memberships for multiple items (drag-and-drop move). */
   moveItemsToVault: (itemIds: string[], vaultId: string | null) => Promise<{ moved: number; failed: number }>;
   trashItems: (itemIds: string[]) => Promise<{ moved: number; failed: number }>;
+  /** Restore the selected trashed items (bulk counterpart of restoreItem). */
+  restoreItems: (itemIds: string[]) => Promise<{ restored: number; failed: number }>;
+  /** Permanently delete the selected items (bulk counterpart of permanentlyDeleteItem). */
+  permanentlyDeleteItems: (itemIds: string[]) => Promise<{ deleted: number; failed: number }>;
   duplicateItem: (id: string) => Promise<void>;
   /** Duplicate an item into a specific vault. The copy is a fully independent
    *  record (new ID) assigned to the target vault — deleting the original or
@@ -98,6 +104,12 @@ interface VaultState {
    *  membership approach which symlinked one item across vaults. */
   copyItemToVault: (itemId: string, vaultId: string) => Promise<void>;
   importItems: (filename: string, text: string) => Promise<ImportResult>;
+  /** Restore an LCKED backup (or plain import) during setup. See vault-restore.ts. */
+  restoreVault: (params: {
+    masterPassword: string;
+    filename: string;
+    fileText: string | null;
+  }) => Promise<RestoreResult>;
 
   // vault (custom containers) CRUD
   createVault: (name: string, color: string, icon: string) => Promise<VaultDef>;
@@ -136,9 +148,7 @@ export const useVault = create<VaultState>()(
         set((state) => {
           const updatedMap = new Map(updated.map((u) => [u.id, u]));
           return {
-            items: state.items
-              .map((i) => updatedMap.get(i.id) ?? i)
-              .sort((a, b) => b.updatedAt - a.updatedAt),
+            items: sortItems(state.items.map((i) => updatedMap.get(i.id) ?? i)),
           };
         });
       };
@@ -258,7 +268,7 @@ export const useVault = create<VaultState>()(
 
         set((state) => {
           const others = state.items.filter((i) => i.id !== item.id);
-          const next = [item, ...others].sort((a, b) => b.updatedAt - a.updatedAt);
+          const next = sortItems([item, ...others]);
           return { items: next, selectedId: item.id };
         });
         return item;
@@ -325,9 +335,7 @@ export const useVault = create<VaultState>()(
         );
         if (failedIds.size > 0) {
           set((state) => ({
-            items: [...state.items, ...prev.filter((i) => failedIds.has(i.id))].sort(
-              (a, b) => b.updatedAt - a.updatedAt,
-            ),
+            items: sortItems([...state.items, ...prev.filter((i) => failedIds.has(i.id))]),
           }));
           throw new Error(`Could not delete ${failedIds.size} item(s)`);
         }
@@ -408,13 +416,54 @@ export const useVault = create<VaultState>()(
         return { moved: updated.length, failed };
       },
 
+      restoreItems: async (itemIds) => {
+        const { vaultKey } = get();
+        if (!vaultKey) throw new Error("Vault is locked");
+        const targets = get().items.filter((i) => itemIds.includes(i.id));
+        // Filter out items not in trash (no-ops).
+        const toRestore = targets.filter((i) => i.trashed);
+        if (toRestore.length === 0) return { restored: 0, failed: 0 };
+        const { updated, failed } = await patchItems(vaultKey, toRestore, () => ({ trashed: false, trashedAt: null }));
+        applyItems(updated);
+        return { restored: updated.length, failed };
+      },
+
+      permanentlyDeleteItems: async (itemIds) => {
+        const targets = get().items.filter((i) => itemIds.includes(i.id));
+        if (targets.length === 0) return { deleted: 0, failed: 0 };
+        const prev = get().items;
+        const targetIds = new Set(targets.map((i) => i.id));
+        // Optimistic: drop the targets from UI; roll back only the rows whose
+        // IndexedDB delete actually failed.
+        set((state) => ({
+          items: state.items.filter((i) => !targetIds.has(i.id)),
+          selectedId:
+            state.selectedId && targetIds.has(state.selectedId) ? null : state.selectedId,
+        }));
+        const outcomes = await Promise.allSettled(targets.map((t) => deleteStoredItem(t.id)));
+        const failedIds = new Set(
+          targets.filter((_, i) => outcomes[i].status === "rejected").map((t) => t.id),
+        );
+        if (failedIds.size > 0) {
+          set((state) => ({
+            items: sortItems([...state.items, ...prev.filter((i) => failedIds.has(i.id))]),
+          }));
+        }
+        return { deleted: targets.length - failedIds.size, failed: failedIds.size };
+      },
+
       duplicateItem: async (id) => {
         const item = get().items.find((i) => i.id === id);
         if (!item) return;
         // Duplicates never inherit trashed or pinned state — they land in the
-        // active view, unpinned, ready for the user to customize.
-        const { id: _id, createdAt: _c, updatedAt: _u, trashed: _t, trashedAt: _ta, pinned: _p, ...rest } = item;
-        await get().saveItem(rest as NewItemInput);
+        // active view, unpinned, ready for the user to customize. Favorite and
+        // vault membership are intentionally kept.
+        await get().saveItem({
+          ...toItemInput(item),
+          pinned: false,
+          trashed: false,
+          trashedAt: null,
+        } as NewItemInput);
       },
 
       copyItemToVault: async (itemId, vaultId) => {
@@ -423,9 +472,9 @@ export const useVault = create<VaultState>()(
         // Create a fully independent copy assigned to the target vault.
         // The copy gets a fresh ID, so deleting it never affects the original
         // (and vice versa). This replaces the old "symlink" membership model.
-        const { id: _id, createdAt: _c, updatedAt: _u, trashed: _t, trashedAt: _ta, pinned: _p, ...rest } = item;
+        // The copy is single-vault, unfavorited, unpinned and untrashed.
         await get().saveItem({
-          ...rest,
+          ...toItemInput(item),
           vaultIds: [vaultId],
           favorite: false,
           pinned: false,
@@ -453,12 +502,26 @@ export const useVault = create<VaultState>()(
 
         if (succeeded.length > 0) {
           set((state) => ({
-            items: [...succeeded, ...state.items].sort((a, b) => b.updatedAt - a.updatedAt),
+            items: sortItems([...succeeded, ...state.items]),
           }));
         }
         result.imported = succeeded.length;
         result.skipped += failed;
         return result;
+      },
+
+      restoreVault: async ({ masterPassword, filename, fileText }) => {
+        return vaultRestore.restoreVault({
+          masterPassword,
+          filename,
+          fileText,
+          deps: {
+            setupVault: (pw) => get().setupVault(pw),
+            createCustomVault: (name, color, icon) => get().createVault(name, color, icon),
+            saveItem: (input) => get().saveItem(input),
+            importItems: (fname, text) => get().importItems(fname, text),
+          },
+        });
       },
 
       /* --------------------------- vaults (containers) ---------------------- */
@@ -563,4 +626,4 @@ export const useVault = create<VaultState>()(
   ),
 );
 
-export { decryptLckedExport, importLckedExport } from "@/lib/vault-auth";
+export { decryptLckedExport } from "@/lib/vault-auth";

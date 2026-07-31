@@ -540,7 +540,6 @@ export function VaultsSidebar() {
   const setCreateVaultDialogOpen = useVault((s) => s.setCreateVaultDialogOpen);
   const setVaultEditorOpen = useVault((s) => s.setVaultEditorOpen);
   const deleteVault = useVault((s) => s.deleteVault);
-  const moveItemToVault = useVault((s) => s.moveItemToVault);
   const clearFavorites = useVault((s) => s.clearFavorites);
   const emptyTrash = useVault((s) => s.emptyTrash);
   const restoreAllTrash = useVault((s) => s.restoreAllTrash);
@@ -603,16 +602,13 @@ export function VaultsSidebar() {
       toast.info(`“${source.name}” has no items to move`);
       return;
     }
-    try {
-      await Promise.all(targets.map((i) => moveItemToVault(i.id, target)));
-      const label =
-        target === null
-          ? "All Items"
-          : vaults.find((v) => v.id === target)?.name ?? "target vault";
-      toast.success(`Moved ${targets.length} item${targets.length === 1 ? "" : "s"} to ${label}`);
-    } catch {
-      toast.error("Could not move items");
-    }
+    const label =
+      target === null ? "All Items" : vaults.find((v) => v.id === target)?.name ?? "target vault";
+    const { moveItemsToVault } = useVault.getState();
+    const { moved, failed } = await moveItemsToVault(targets.map((i) => i.id), target);
+    if (moved > 0 && failed === 0) toast.success(`Moved ${moved} item${moved === 1 ? "" : "s"} to ${label}`);
+    else if (moved > 0 && failed > 0) toast.warning(`Moved ${moved}, ${failed} failed`);
+    else if (failed > 0) toast.error(`Could not move ${failed} item${failed === 1 ? "" : "s"}`);
   };
 
   const renderCustomVault = (v: VaultDef) => (
