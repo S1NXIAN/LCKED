@@ -83,7 +83,6 @@ interface VaultState {
   generatorOpen: boolean;
   importExportOpen: boolean;
   settingsOpen: boolean;
-  commandOpen: boolean;
 
   // lifecycle
   init: () => Promise<void>;
@@ -145,7 +144,6 @@ interface VaultState {
   setGeneratorOpen: (open: boolean) => void;
   setImportExportOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
-  setCommandOpen: (open: boolean) => void;
 
   // Cloud sync (automatic, debounced)
   oauthConnected: boolean;
@@ -190,7 +188,6 @@ export const useVault = create<VaultState>()(
       generatorOpen: false,
       importExportOpen: false,
       settingsOpen: false,
-      commandOpen: false,
 
       // Cloud sync state
       oauthConnected: false,
@@ -267,7 +264,6 @@ export const useVault = create<VaultState>()(
           editorOpen: false,
           generatorOpen: false,
           settingsOpen: false,
-          commandOpen: false,
           importExportOpen: false,
           vaultEditorOpen: false,
           editingVaultId: null,
@@ -292,7 +288,6 @@ export const useVault = create<VaultState>()(
           editorOpen: false,
           generatorOpen: false,
           settingsOpen: false,
-          commandOpen: false,
           importExportOpen: false,
           vaultEditorOpen: false,
           editingVaultId: null,
@@ -616,7 +611,6 @@ export const useVault = create<VaultState>()(
       // vaults-sidebar hides the indicator when `settingsOpen` is true, and
       // the user's active vault is preserved for when settings closes.
       setSettingsOpen: (open) => set({ settingsOpen: open }),
-      setCommandOpen: (open) => set({ commandOpen: open }),
 
       /* --------------------------- cloud sync --------------------------- */
 

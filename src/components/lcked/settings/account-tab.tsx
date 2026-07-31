@@ -143,7 +143,7 @@ export function AccountTab() {
         <ul className="grid gap-2 text-xs">
           {([
             { icon: KeyRound, text: "Autofill credentials on any website" },
-            { icon: ShieldCheck, text: "On-page password generator (⌘G)" },
+            { icon: ShieldCheck, text: "On-page password generator" },
             { icon: AlertTriangle, text: "Weak / reused password audit" },
             { icon: Globe, text: "TOTP autofill for 2FA logins" },
           ] as const).map((f, i) => (

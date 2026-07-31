@@ -162,7 +162,7 @@ export function VaultView() {
                     <Dice5 className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="right">Generator <kbd className="ml-1 opacity-60">⌘G</kbd></TooltipContent>
+                <TooltipContent side="right">Generator</TooltipContent>
               </Tooltip>
               <Button
                 variant="ghost"
@@ -215,7 +215,7 @@ export function VaultView() {
                     <Lock className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="right">Lock vault <kbd className="ml-1 opacity-60">⌘⇧L</kbd></TooltipContent>
+                <TooltipContent side="right">Lock vault</TooltipContent>
               </Tooltip>
               <Button
                 variant="ghost"
