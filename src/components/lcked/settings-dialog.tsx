@@ -7,7 +7,6 @@
  *
  *   • General  — theme grid + favicon / sort-favorites-to-top toggles
  *   • Security — auto-lock slider + visibility lock + change password + reset
- *   • Account  — browser extension intro + OAuth connect / disconnect
  *   • Import   — 3-col grid of password-manager source cards (file picker)
  *   • Export   — PGP-encrypted / ZIP / CSV cards
  *
@@ -19,7 +18,7 @@
  * damping 38) instead of the standard TabsList/TabsTrigger.
  *
  * Each tab component lives in its own file under ./settings/:
- *   general-tab.tsx  security-tab.tsx  account-tab.tsx
+ *   general-tab.tsx  security-tab.tsx
  *   import-tab.tsx   export-tab.tsx
  */
 
@@ -29,7 +28,6 @@ import {
   ArrowLeft,
   Palette,
   ShieldCheck,
-  User,
   Upload,
   Download,
   type LucideIcon,
@@ -42,13 +40,12 @@ import { cn } from "@/lib/utils";
 
 import { GeneralTab } from "./settings/general-tab";
 import { SecurityTab } from "./settings/security-tab";
-import { AccountTab } from "./settings/account-tab";
 import { ImportTab } from "./settings/import-tab";
 import { ExportTab } from "./settings/export-tab";
 
 /* --------------------------------- types --------------------------------- */
 
-type TabId = "general" | "security" | "account" | "import" | "export";
+type TabId = "general" | "security" | "import" | "export";
 
 interface TabDef {
   id: TabId;
@@ -59,7 +56,6 @@ interface TabDef {
 const TABS: TabDef[] = [
   { id: "general", label: "General", icon: Palette },
   { id: "security", label: "Security", icon: ShieldCheck },
-  { id: "account", label: "Account", icon: User },
   { id: "import", label: "Import", icon: Upload },
   { id: "export", label: "Export", icon: Download },
 ];
@@ -140,10 +136,6 @@ export function SettingsView() {
 
             <TabsContent value="security" className="m-0 space-y-6 focus-visible:outline-none">
               <SecurityTab />
-            </TabsContent>
-
-            <TabsContent value="account" className="m-0 space-y-6 focus-visible:outline-none">
-              <AccountTab />
             </TabsContent>
 
             <TabsContent value="import" className="m-0 space-y-6 focus-visible:outline-none">

@@ -1,68 +1,8 @@
 /**
  * LCKED — Browser-side shared utilities
  * ---------------------------------------------------------------------------
- * Shared browser/DOM helpers extracted from the monolithic settings-dialog.
+ * Shared browser/DOM helpers.
  */
-
-/**
- * Dynamically load the Google Identity Services (GIS) script.
- * Returns a token client that can request an access token.
- * The GIS script is loaded from Google's CDN on demand.
- */
-export function loadGoogleIdentity(): Promise<{
-  requestAccessToken: (opts: {
-    prompt: string;
-    callback: (resp: { access_token: string; error?: string }) => void;
-  }) => void;
-}> {
-  return new Promise((resolve, reject) => {
-    if (typeof window === "undefined") return reject(new Error("SSR"));
-    const w = window as unknown as {
-      google?: {
-        accounts?: {
-          oauth2?: {
-            initTokenClient: (config: {
-              client_id: string;
-              scope: string;
-              callback: (resp: {
-                access_token: string;
-                error?: string;
-              }) => void;
-            }) => {
-              requestAccessToken: (opts: { prompt: string }) => void;
-            };
-          };
-        };
-      };
-    };
-    if (w.google?.accounts?.oauth2) {
-      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
-      const client = w.google.accounts.oauth2.initTokenClient({
-        client_id: clientId,
-        scope: "email profile",
-        callback: () => {},
-      });
-      return resolve(client);
-    }
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
-      if (!w.google?.accounts?.oauth2)
-        return reject(new Error("GIS failed to load"));
-      const client = w.google.accounts.oauth2.initTokenClient({
-        client_id: clientId,
-        scope: "email profile",
-        callback: () => {},
-      });
-      resolve(client);
-    };
-    script.onerror = () => reject(new Error("Failed to load GIS script"));
-    document.head.appendChild(script);
-  });
-}
 
 /**
  * Trigger a browser file download.

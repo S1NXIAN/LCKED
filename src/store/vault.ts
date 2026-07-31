@@ -38,24 +38,6 @@ import {
   changeMasterPassword as changeMasterPasswordAuth,
   exportEncrypted as exportEncryptedPayload,
 } from "@/lib/vault-auth";
-import {
-  setMasterPassword,
-  clearMasterPassword,
-  markPendingCloudDeletion,
-  startSync,
-  stopSyncEngine,
-  notifyVaultMutation,
-  hashEmailClient,
-  setStoredToken,
-  getStoredToken,
-  clearStoredToken,
-  deleteCloudData,
-  clearPendingCloudDeletion,
-  hasPendingCloudDeletion,
-  isOnline,
-  executePendingDeletion,
-  checkCloudExists,
-} from "@/lib/cloud-sync";
 
 export type VaultStatus = "loading" | "setup" | "locked" | "unlocked";
 
@@ -144,15 +126,6 @@ interface VaultState {
   setGeneratorOpen: (open: boolean) => void;
   setImportExportOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
-
-  // Cloud sync (automatic, debounced)
-  oauthConnected: boolean;
-  oauthEmail: string | null;
-  cloudLastSync: number | null;
-  cloudSyncing: boolean;
-  connectOAuth: (idToken: string, email: string) => Promise<{ exists: boolean; updatedAt: number | null }>;
-  disconnectOAuth: (deleteCloud: boolean) => Promise<void>;
-  checkPendingDeletion: () => Promise<void>;
 }
 
 export const useVault = create<VaultState>()(
@@ -168,7 +141,6 @@ export const useVault = create<VaultState>()(
               .sort((a, b) => b.updatedAt - a.updatedAt),
           };
         });
-        notifyVaultMutation();
       };
       return {
       status: "loading",
@@ -189,12 +161,6 @@ export const useVault = create<VaultState>()(
       importExportOpen: false,
       settingsOpen: false,
 
-      // Cloud sync state
-      oauthConnected: false,
-      oauthEmail: null,
-      cloudLastSync: null,
-      cloudSyncing: false,
-
       /* ------------------------------ lifecycle ------------------------------ */
 
       init: async () => {
@@ -202,12 +168,6 @@ export const useVault = create<VaultState>()(
           if (typeof window === "undefined") return;
           const exists = await vaultExists();
           set({ status: exists ? "locked" : "setup" });
-          // Check for pending cloud deletion (edge case: vault was reset
-          // while offline). If online + has a stored OAuth token, execute
-          // the deletion now.
-          try {
-            await get().checkPendingDeletion();
-          } catch { /* best-effort */ }
         } catch (err) {
           console.error("init failed", err);
           set({ status: "setup" });
@@ -216,7 +176,6 @@ export const useVault = create<VaultState>()(
 
       setupVault: async (masterPassword) => {
         const result = await createVault(masterPassword);
-        setMasterPassword(masterPassword);
         set({
           status: "unlocked",
           masterKey: result.masterKey,
@@ -227,13 +186,11 @@ export const useVault = create<VaultState>()(
           activeVault: "all",
           selectedId: null,
         });
-        await startSync(get, set);
       },
 
       unlock: async (masterPassword) => {
         const result = await unlockVault(masterPassword);
         if (!result.ok) return false;
-        setMasterPassword(result.masterPassword);
         set({
           status: "unlocked",
           masterKey: result.masterKey,
@@ -244,14 +201,11 @@ export const useVault = create<VaultState>()(
           settings: result.settings,
           selectedId: null,
         });
-        await startSync(get, set);
         return true;
       },
 
       lock: () => {
         clearAllClipboardTimers();
-        clearMasterPassword();
-        stopSyncEngine();
         const session = clearSession();
         set({
           ...session,
@@ -273,8 +227,6 @@ export const useVault = create<VaultState>()(
 
       resetVault: async () => {
         clearAllClipboardTimers();
-        clearMasterPassword();
-        await stopSyncEngine();
         await wipeVault();
         const session = clearSession();
         set({
@@ -292,16 +244,7 @@ export const useVault = create<VaultState>()(
           vaultEditorOpen: false,
           editingVaultId: null,
           createVaultDialogOpen: false,
-          oauthConnected: false,
-          oauthEmail: null,
-          cloudLastSync: null,
         });
-        // Mark pending cloud deletion (edge case: reset while offline).
-        if (typeof window !== "undefined") {
-          try {
-            markPendingCloudDeletion();
-          } catch { /* best-effort */ }
-        }
       },
 
       /* ------------------------------- CRUD -------------------------------- */
@@ -318,7 +261,6 @@ export const useVault = create<VaultState>()(
           const next = [item, ...others].sort((a, b) => b.updatedAt - a.updatedAt);
           return { items: next, selectedId: item.id };
         });
-        notifyVaultMutation();
         return item;
       },
 
@@ -540,7 +482,6 @@ export const useVault = create<VaultState>()(
           vaultEditorOpen: state.editingVaultId === id ? false : state.vaultEditorOpen,
           editingVaultId: state.editingVaultId === id ? null : state.editingVaultId,
         }));
-        notifyVaultMutation();
       },
 
       renameVault: async (id, name) => {
@@ -578,7 +519,6 @@ export const useVault = create<VaultState>()(
         set((state) => ({
           settings: { ...state.settings, generator: { ...state.settings.generator, ...patch } },
         }));
-        notifyVaultMutation();
       },
 
       changeMasterPassword: async (current, next) => {
@@ -611,39 +551,6 @@ export const useVault = create<VaultState>()(
       // vaults-sidebar hides the indicator when `settingsOpen` is true, and
       // the user's active vault is preserved for when settings closes.
       setSettingsOpen: (open) => set({ settingsOpen: open }),
-
-      /* --------------------------- cloud sync --------------------------- */
-
-      connectOAuth: async (idToken, email) => {
-        setStoredToken(idToken, email);
-        const emailHash = await hashEmailClient(email);
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem("lcked-oauth-email-hash", emailHash);
-        }
-        const result = await checkCloudExists(idToken);
-        set({ oauthConnected: true, oauthEmail: email });
-        await startSync(get, set);
-        return result;
-      },
-
-      disconnectOAuth: async (deleteCloud) => {
-        await stopSyncEngine();
-        const token = getStoredToken();
-        if (deleteCloud && token) {
-          try { await deleteCloudData(token); } catch { /* best-effort */ }
-          clearPendingCloudDeletion();
-        }
-        clearStoredToken();
-        set({ oauthConnected: false, oauthEmail: null, cloudLastSync: null });
-      },
-
-      checkPendingDeletion: async () => {
-        if (!hasPendingCloudDeletion()) return;
-        if (!isOnline()) return;
-        const token = getStoredToken();
-        if (!token) return;
-        try { await executePendingDeletion(); } catch { /* retry later */ }
-      },
       };
     },
     {
