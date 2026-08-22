@@ -6,7 +6,7 @@ import {
   changeMasterPassword,
   exportEncrypted,
   decryptLckedExport,
-} from "@/lib/vault-auth";
+} from "@/lib/vault/vault-auth";
 import type {
   VaultItem,
   VaultDef,
@@ -46,8 +46,8 @@ vi.mock("@/lib/crypto", () => ({
   VERIFIER_TOKEN: "LCKED_VAULT_VALID",
 }));
 
-vi.mock("@/lib/vault-db", () => ({
-  saveVaultMeta: vi.fn(async () => {}),
+vi.mock("@/lib/vault/vault-db", () => ({
+  saveVaultMeta: vi.fn(async () => { }),
   loadVaultMeta: vi.fn(async (): Promise<VaultMeta | undefined> => ({
     id: "singleton",
     salt: "test-salt",
@@ -78,9 +78,9 @@ vi.mock("@/lib/vault-db", () => ({
     vaults: [],
   })),
   loadAllStoredItems: vi.fn(async () => []),
-  putStoredItem: vi.fn(async () => {}),
-  deleteStoredItem: vi.fn(async () => {}),
-  wipeVault: vi.fn(async () => {}),
+  putStoredItem: vi.fn(async () => { }),
+  deleteStoredItem: vi.fn(async () => { }),
+  wipeVault: vi.fn(async () => { }),
 }));
 
 beforeEach(() => {
@@ -112,7 +112,7 @@ function makeItem(overrides: Partial<VaultItem> = {}): VaultItem {
 
 describe("createVault", () => {
   it("saves vault meta to IndexedDB", async () => {
-    const { saveVaultMeta } = await import("@/lib/vault-db");
+    const { saveVaultMeta } = await import("@/lib/vault/vault-db");
 
     await createVault("test-password");
 
@@ -161,7 +161,7 @@ describe("unlockVault", () => {
   });
 
   it("returns ok:false when no vault meta exists", async () => {
-    const { loadVaultMeta } = await import("@/lib/vault-db");
+    const { loadVaultMeta } = await import("@/lib/vault/vault-db");
     vi.mocked(loadVaultMeta).mockResolvedValueOnce(undefined);
 
     const result = await unlockVault("pw");
@@ -170,7 +170,7 @@ describe("unlockVault", () => {
   });
 
   it("loads and decrypts stored items", async () => {
-    const { loadAllStoredItems } = await import("@/lib/vault-db");
+    const { loadAllStoredItems } = await import("@/lib/vault/vault-db");
     const { decryptJson } = await import("@/lib/crypto");
     const item = makeItem({ id: "stored-1" });
     vi.mocked(loadAllStoredItems).mockResolvedValueOnce([
@@ -188,7 +188,7 @@ describe("unlockVault", () => {
   });
 
   it("deletes expired trashed items", async () => {
-    const { loadAllStoredItems, deleteStoredItem } = await import("@/lib/vault-db");
+    const { loadAllStoredItems, deleteStoredItem } = await import("@/lib/vault/vault-db");
     const { decryptJson } = await import("@/lib/crypto");
     const expired = makeItem({
       id: "expired",
@@ -206,7 +206,7 @@ describe("unlockVault", () => {
   });
 
   it("migrates items missing newer fields", async () => {
-    const { loadAllStoredItems, putStoredItem } = await import("@/lib/vault-db");
+    const { loadAllStoredItems, putStoredItem } = await import("@/lib/vault/vault-db");
     const { decryptJson } = await import("@/lib/crypto");
     // Simulate an item without vaultIds (pre-migration).
     const partial = makeItem({ id: "migrate-me" });
@@ -243,7 +243,7 @@ describe("clearSession", () => {
 
 describe("changeMasterPassword", () => {
   it("saves updated meta with new salt and master key", async () => {
-    const { saveVaultMeta } = await import("@/lib/vault-db");
+    const { saveVaultMeta } = await import("@/lib/vault/vault-db");
 
     const result = await changeMasterPassword("old-pw", "new-pw", mockVaultKey);
 
@@ -266,7 +266,7 @@ describe("changeMasterPassword", () => {
   });
 
   it("returns null when no vault meta exists", async () => {
-    const { loadVaultMeta } = await import("@/lib/vault-db");
+    const { loadVaultMeta } = await import("@/lib/vault/vault-db");
     vi.mocked(loadVaultMeta).mockResolvedValueOnce(undefined);
 
     const result = await changeMasterPassword("pw", "new-pw", mockVaultKey);

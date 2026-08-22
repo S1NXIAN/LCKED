@@ -52,7 +52,7 @@ import {
   DEFAULT_VAULT_COLOR,
   DEFAULT_VAULT_ICON,
   vaultColorHex,
-} from "@/lib/vault-assets";
+} from "@/lib/vault/vault-assets";
 import { VaultIcon } from "./vaults-sidebar";
 import { VAULT_LUCIDE_BY_ID } from "./vault-lucide-icons";
 

@@ -47,7 +47,7 @@ vi.mock("@/lib/crypto", () => ({
 // custom-vault creation depends on that round-trip.
 const metaStore = vi.hoisted(() => ({ current: null as unknown }));
 
-vi.mock("@/lib/vault-db", () => ({
+vi.mock("@/lib/vault/vault-db", () => ({
   saveVaultMeta: vi.fn(async (m: unknown) => {
     metaStore.current = m;
   }),
@@ -68,9 +68,9 @@ vi.mock("@/lib/vault-db", () => ({
     };
   }),
   loadAllStoredItems: vi.fn(async () => []),
-  putStoredItem: vi.fn(async () => {}),
-  deleteStoredItem: vi.fn(async () => {}),
-  wipeVault: vi.fn(async () => {}),
+  putStoredItem: vi.fn(async () => { }),
+  deleteStoredItem: vi.fn(async () => { }),
+  wipeVault: vi.fn(async () => { }),
   vaultExists: vi.fn(async () => true),
 }));
 
@@ -189,7 +189,7 @@ describe("bulk actions — partial-failure counts", () => {
 describe("permanentlyDeleteItems — optimistic removal + rollback", () => {
   it("rolls back only the rows whose IndexedDB delete failed", async () => {
     seed({ items: [makeItem({ id: "a" }), makeItem({ id: "b" }), makeItem({ id: "c" })] });
-    const { deleteStoredItem } = await import("@/lib/vault-db");
+    const { deleteStoredItem } = await import("@/lib/vault/vault-db");
     vi.mocked(deleteStoredItem).mockRejectedValueOnce(new Error("idb fail"));
 
     const result = await useVault.getState().permanentlyDeleteItems(["a", "b", "c"]);
@@ -236,7 +236,7 @@ describe("restoreVault — wrong backup password", () => {
   it("returns wrong-password and creates NO vault", async () => {
     seed({ status: "setup" });
     const { checkVerifier } = await import("@/lib/crypto");
-    const { saveVaultMeta } = await import("@/lib/vault-db");
+    const { saveVaultMeta } = await import("@/lib/vault/vault-db");
     vi.mocked(checkVerifier).mockResolvedValueOnce(false);
 
     const result = await useVault.getState().restoreVault({

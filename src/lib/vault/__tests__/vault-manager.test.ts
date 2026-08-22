@@ -5,7 +5,7 @@ import {
   renameVault,
   deleteVault,
   reorderVaults,
-} from "@/lib/vault-manager";
+} from "@/lib/vault/vault-manager";
 import type { VaultDef, VaultItem, VaultMeta, VaultSettings } from "@/lib/types";
 
 /* ─── Mocks ─────────────────────────────────────────────── */
@@ -20,7 +20,7 @@ vi.mock("@/lib/crypto", () => ({
   randomId: vi.fn(() => "vault-new"),
 }));
 
-vi.mock("@/lib/vault-db", () => ({
+vi.mock("@/lib/vault/vault-db", () => ({
   loadVaultMeta: vi.fn(async (): Promise<VaultMeta | undefined> => ({
     id: "singleton",
     salt: "salt",
@@ -50,8 +50,8 @@ vi.mock("@/lib/vault-db", () => ({
     } as VaultSettings,
     vaults: [],
   })),
-  saveVaultMeta: vi.fn(async () => {}),
-  putStoredItem: vi.fn(async () => {}),
+  saveVaultMeta: vi.fn(async () => { }),
+  putStoredItem: vi.fn(async () => { }),
 }));
 
 beforeEach(() => {
@@ -127,7 +127,7 @@ function makeVaultMeta(overrides: Partial<VaultMeta> = {}): VaultMeta {
 
 describe("createVault", () => {
   it("saves meta with new vault and returns vaults array including it", async () => {
-    const { saveVaultMeta } = await import("@/lib/vault-db");
+    const { saveVaultMeta } = await import("@/lib/vault/vault-db");
 
     const result = await createVault("Personal", "blue", "lock");
 
@@ -149,7 +149,7 @@ describe("createVault", () => {
   });
 
   it("trims empty name to Untitled vault", async () => {
-    const { saveVaultMeta } = await import("@/lib/vault-db");
+    const { saveVaultMeta } = await import("@/lib/vault/vault-db");
 
     const result = await createVault("   ", "green", "folder");
 
@@ -162,7 +162,7 @@ describe("createVault", () => {
   });
 
   it("throws when vault meta is missing", async () => {
-    const { loadVaultMeta } = await import("@/lib/vault-db");
+    const { loadVaultMeta } = await import("@/lib/vault/vault-db");
     vi.mocked(loadVaultMeta).mockResolvedValueOnce(undefined);
 
     await expect(createVault("Personal", "blue", "lock")).rejects.toThrow(
@@ -175,7 +175,7 @@ describe("createVault", () => {
 
 describe("updateVault", () => {
   it("patches the correct vault and returns updated vaults", async () => {
-    const { loadVaultMeta, saveVaultMeta } = await import("@/lib/vault-db");
+    const { loadVaultMeta, saveVaultMeta } = await import("@/lib/vault/vault-db");
     vi.mocked(loadVaultMeta).mockResolvedValueOnce(
       makeVaultMeta({ vaults: [makeVaultDef({ id: "v1", name: "Old" })] }),
     );
@@ -192,7 +192,7 @@ describe("updateVault", () => {
   });
 
   it("no-ops when vault id is not found", async () => {
-    const { loadVaultMeta } = await import("@/lib/vault-db");
+    const { loadVaultMeta } = await import("@/lib/vault/vault-db");
     vi.mocked(loadVaultMeta).mockResolvedValueOnce(
       makeVaultMeta({ vaults: [makeVaultDef({ id: "v1", name: "Original" })] }),
     );
@@ -208,7 +208,7 @@ describe("updateVault", () => {
 
 describe("renameVault", () => {
   it("delegates to updateVault and changes the name", async () => {
-    const { loadVaultMeta, saveVaultMeta } = await import("@/lib/vault-db");
+    const { loadVaultMeta, saveVaultMeta } = await import("@/lib/vault/vault-db");
     vi.mocked(loadVaultMeta).mockResolvedValueOnce(
       makeVaultMeta({ vaults: [makeVaultDef({ id: "v1", name: "Old" })] }),
     );
@@ -230,7 +230,7 @@ describe("renameVault", () => {
 describe("deleteVault", () => {
   it("removes vault, orphans items that belonged to it, re-encrypts", async () => {
     const { loadVaultMeta, saveVaultMeta, putStoredItem } =
-      await import("@/lib/vault-db");
+      await import("@/lib/vault/vault-db");
     vi.mocked(loadVaultMeta).mockResolvedValueOnce(
       makeVaultMeta({
         vaults: [
@@ -273,7 +273,7 @@ describe("deleteVault", () => {
 
   it("removes vault when no items belong to it", async () => {
     const { loadVaultMeta, saveVaultMeta, putStoredItem } =
-      await import("@/lib/vault-db");
+      await import("@/lib/vault/vault-db");
     vi.mocked(loadVaultMeta).mockResolvedValueOnce(
       makeVaultMeta({ vaults: [makeVaultDef({ id: "v1" })] }),
     );
@@ -287,7 +287,7 @@ describe("deleteVault", () => {
   });
 
   it("silent no-op when vault meta is missing", async () => {
-    const { loadVaultMeta, saveVaultMeta } = await import("@/lib/vault-db");
+    const { loadVaultMeta, saveVaultMeta } = await import("@/lib/vault/vault-db");
     vi.mocked(loadVaultMeta).mockResolvedValueOnce(undefined);
 
     const result = await deleteVault("v1", mockVaultKey, []);
@@ -298,7 +298,7 @@ describe("deleteVault", () => {
 
   it("throws and does not save meta when re-encryption fails", async () => {
     const { encryptJson } = await import("@/lib/crypto");
-    const { loadVaultMeta, saveVaultMeta } = await import("@/lib/vault-db");
+    const { loadVaultMeta, saveVaultMeta } = await import("@/lib/vault/vault-db");
 
     vi.mocked(loadVaultMeta).mockResolvedValueOnce(
       makeVaultMeta({ vaults: [makeVaultDef()] }),
@@ -320,7 +320,7 @@ describe("deleteVault", () => {
 
 describe("reorderVaults", () => {
   it("saves meta with the new order", async () => {
-    const { loadVaultMeta, saveVaultMeta } = await import("@/lib/vault-db");
+    const { loadVaultMeta, saveVaultMeta } = await import("@/lib/vault/vault-db");
 
     const v1 = makeVaultDef({ id: "v1", name: "A" });
     const v2 = makeVaultDef({ id: "v2", name: "B" });

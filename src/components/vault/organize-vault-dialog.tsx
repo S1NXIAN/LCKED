@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/sheet";
 import { useVault } from "@/store/vault";
 import type { VaultDef } from "@/lib/types";
-import { vaultColorHex } from "@/lib/vault-assets";
+import { vaultColorHex } from "@/lib/vault/vault-assets";
 import { VAULT_LUCIDE_BY_ID } from "./vault-lucide-icons";
 import { cn } from "@/lib/utils";
 

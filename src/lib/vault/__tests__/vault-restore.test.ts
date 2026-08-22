@@ -4,12 +4,12 @@ import {
   remapVaultIds,
   restoreVault,
   type RestoreDeps,
-} from "@/lib/vault-restore";
+} from "@/lib/vault/vault-restore";
 import type { VaultDef, VaultItem } from "@/lib/types";
 
 // Mock the decryptor and format detector; the restore module's own
 // choreography is what's under test.
-vi.mock("@/lib/vault-auth", () => ({
+vi.mock("@/lib/vault/vault-auth", () => ({
   decryptLckedExport: vi.fn(),
 }));
 
@@ -17,7 +17,7 @@ vi.mock("@/lib/import-export", () => ({
   importFromText: vi.fn(),
 }));
 
-const { decryptLckedExport } = await import("@/lib/vault-auth");
+const { decryptLckedExport } = await import("@/lib/vault/vault-auth");
 const { importFromText } = await import("@/lib/import-export");
 
 function makeItem(overrides: Partial<VaultItem> = {}): VaultItem {
@@ -45,9 +45,9 @@ function makeVault(id: string, name: string): VaultDef {
 
 function makeDeps(overrides: Partial<RestoreDeps> = {}): RestoreDeps {
   return {
-    setupVault: vi.fn(async () => {}),
+    setupVault: vi.fn(async () => { }),
     createCustomVault: vi.fn(async (name: string) => makeVault(`new-${name}`, name)),
-    saveItem: vi.fn(async () => {}),
+    saveItem: vi.fn(async () => { }),
     importItems: vi.fn(async () => ({ imported: 0 })),
     ...overrides,
   };

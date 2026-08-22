@@ -27,7 +27,7 @@ import {
   loadAllStoredItems,
   loadVaultMeta,
   saveVaultMeta,
-} from "@/lib/vault-db";
+} from "@/lib/vault/vault-db";
 import type { VaultDef, VaultItem, VaultMeta, VaultSettings } from "@/lib/types";
 import { DEFAULT_VAULT_SETTINGS } from "@/lib/types";
 import type { LckedExport } from "@/lib/import-export";

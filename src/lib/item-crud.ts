@@ -11,7 +11,7 @@
  */
 
 import { encryptJson, randomId } from "@/lib/crypto";
-import { putStoredItem } from "@/lib/vault-db";
+import { putStoredItem } from "@/lib/vault/vault-db";
 import type { NewItemInput, VaultItem } from "@/lib/types";
 
 /* ─── Item policy primitives ────────────────────────────── */

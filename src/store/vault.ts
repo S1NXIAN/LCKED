@@ -14,7 +14,7 @@ import {
   saveVaultMeta,
   vaultExists,
   wipeVault,
-} from "@/lib/vault-db";
+} from "@/lib/vault/vault-db";
 import {
   DEFAULT_VAULT_SETTINGS,
   type GeneratorOptions,
@@ -29,17 +29,17 @@ import {
   importFromText,
 } from "@/lib/import-export";
 import { clearAllClipboardTimers } from "@/lib/clipboard";
-import * as vaultManager from "@/lib/vault-manager";
+import * as vaultManager from "@/lib/vault/vault-manager";
 import { patchItem, patchItems, sortItems, toItemInput, writeItem, writeItems } from "@/lib/item-crud";
-import * as vaultRestore from "@/lib/vault-restore";
-import type { RestoreResult } from "@/lib/vault-restore";
+import * as vaultRestore from "@/lib/vault/vault-restore";
+import type { RestoreResult } from "@/lib/vault/vault-restore";
 import {
   createVault,
   unlockVault,
   clearSession,
   changeMasterPassword as changeMasterPasswordAuth,
   exportEncrypted as exportEncryptedPayload,
-} from "@/lib/vault-auth";
+} from "@/lib/vault/vault-auth";
 
 export type VaultStatus = "loading" | "setup" | "locked" | "unlocked";
 
@@ -626,4 +626,4 @@ export const useVault = create<VaultState>()(
   ),
 );
 
-export { decryptLckedExport } from "@/lib/vault-auth";
+export { decryptLckedExport } from "@/lib/vault/vault-auth";

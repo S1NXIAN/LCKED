@@ -11,8 +11,8 @@ vi.mock("@/lib/crypto", () => ({
   randomId: vi.fn(() => "mock-id"),
 }));
 
-vi.mock("@/lib/vault-db", () => ({
-  putStoredItem: vi.fn(async () => {}),
+vi.mock("@/lib/vault/vault-db", () => ({
+  putStoredItem: vi.fn(async () => { }),
 }));
 
 function makeItem(overrides: Partial<VaultItem> = {}): VaultItem {
@@ -63,7 +63,7 @@ describe("patchItem", () => {
   });
 
   it("persists the updated item to IndexedDB", async () => {
-    const { putStoredItem } = await import("@/lib/vault-db");
+    const { putStoredItem } = await import("@/lib/vault/vault-db");
     const item = makeItem();
 
     await patchItem(mockVaultKey, item, { pinned: true });
@@ -184,7 +184,7 @@ describe("writeItem", () => {
   });
 
   it("persists the new item to IndexedDB", async () => {
-    const { putStoredItem } = await import("@/lib/vault-db");
+    const { putStoredItem } = await import("@/lib/vault/vault-db");
     const input = {
       type: "login",
       name: "persist-test",
