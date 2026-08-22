@@ -25,7 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useVault } from "@/store/vault";
-import { detectFormat } from "@/lib/import-export";
+import { detectFormat } from "@/lib/import";
 import { download } from "@/lib/browser-utils";
 
 export function ImportExportDialog() {

@@ -13,12 +13,12 @@ vi.mock("@/lib/vault/vault-auth", () => ({
   decryptLckedExport: vi.fn(),
 }));
 
-vi.mock("@/lib/import-export", () => ({
+vi.mock("@/lib/import", () => ({
   importFromText: vi.fn(),
 }));
 
 const { decryptLckedExport } = await import("@/lib/vault/vault-auth");
-const { importFromText } = await import("@/lib/import-export");
+const { importFromText } = await import("@/lib/import");
 
 function makeItem(overrides: Partial<VaultItem> = {}): VaultItem {
   return {

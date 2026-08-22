@@ -13,7 +13,7 @@ import type {
   VaultMeta,
   VaultSettings,
 } from "@/lib/types";
-import type { LckedExport } from "@/lib/import-export";
+import type { LckedExport } from "@/lib/import";
 
 /* ─── Mocks ─────────────────────────────────────────────── */
 

@@ -6,8 +6,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useVault } from "@/store/vault";
-import { IMPORT_SOURCES } from "@/lib/import-sources";
-import { detectFormat } from "@/lib/import-export";
+import { IMPORT_SOURCES } from "@/lib/import/sources";
+import { detectFormat } from "@/lib/import";
 import { cn } from "@/lib/utils";
 
 export function ImportTab() {
@@ -104,7 +104,7 @@ export function ImportTab() {
             className={cn(
               "group flex flex-col items-center gap-2 rounded-xl border border-border bg-muted/20 p-3 text-center transition duration-150 hover:border-primary/50 hover:bg-muted/40",
               pendingSource?.id === src.id &&
-                "border-primary ring-1 ring-primary/30",
+              "border-primary ring-1 ring-primary/30",
             )}
             aria-label={`Import from ${src.label}`}
           >
