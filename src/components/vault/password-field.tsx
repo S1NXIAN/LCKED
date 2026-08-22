@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { copyWithAutoClear } from "@/lib/clipboard";
 import { useVault } from "@/store/vault";
-import { setGeneratorCallback } from "@/lib/generator-bridge";
+import { setGeneratorCallback } from "@/lib/generator/generator-bridge";
 import type { GeneratorOptions } from "@/lib/types";
 import { PasswordStrengthMeter } from "./password-strength-meter";
 

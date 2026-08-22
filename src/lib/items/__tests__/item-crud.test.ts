@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { patchItem, patchItems, sortItems, toItemInput, writeItem, writeItems } from "@/lib/item-crud";
+import { patchItem, patchItems, sortItems, toItemInput, writeItem, writeItems } from "@/lib/items/item-crud";
 import type { NewItemInput, VaultItem } from "@/lib/types";
 
 // Mock the crypto and vault-db modules.

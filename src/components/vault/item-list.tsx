@@ -65,7 +65,7 @@ import {
 import { cn, isEmail } from "@/lib/utils";
 import { copyWithAutoClear } from "@/lib/clipboard";
 import { useVault } from "@/store/vault";
-import { searchItems } from "@/lib/fuzzy-search";
+import { searchItems } from "@/lib/search/fuzzy-search";
 import { ActiveHighlight } from "./active-highlight";
 import { toast } from "sonner";
 import type { FilterType, ItemType, VaultItem } from "@/lib/types";

@@ -25,8 +25,8 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { copyWithAutoClear } from "@/lib/clipboard";
 import { useVault } from "@/store/vault";
-import { consumeGeneratorCallback, clearGeneratorCallback, getGeneratorCallback } from "@/lib/generator-bridge";
-import { generatePassword, generatePassphrase } from "@/lib/generator";
+import { consumeGeneratorCallback, clearGeneratorCallback, getGeneratorCallback } from "@/lib/generator/generator-bridge";
+import { generatePassword, generatePassphrase } from "@/lib/generator/generator";
 import { PasswordStrengthMeter } from "./password-strength-meter";
 import { cn } from "@/lib/utils";
 

@@ -13,7 +13,7 @@
 import { randomId } from "@/lib/crypto";
 import { loadVaultMeta, saveVaultMeta } from "@/lib/vault/vault-db";
 import type { VaultDef, VaultItem } from "@/lib/types";
-import { encryptAndPersist } from "@/lib/item-crud";
+import { encryptAndPersist } from "@/lib/items/item-crud";
 
 /* ─── Types ─────────────────────────────────────────────── */
 

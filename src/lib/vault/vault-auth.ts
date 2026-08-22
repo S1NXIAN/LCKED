@@ -31,7 +31,7 @@ import {
 import type { VaultDef, VaultItem, VaultMeta, VaultSettings } from "@/lib/types";
 import { DEFAULT_VAULT_SETTINGS } from "@/lib/types";
 import type { LckedExport } from "@/lib/import-export";
-import { encryptAndPersist, ITEM_DEFAULTS, sortItems } from "@/lib/item-crud";
+import { encryptAndPersist, ITEM_DEFAULTS, sortItems } from "@/lib/items/item-crud";
 
 /* ─── Types ─────────────────────────────────────────────── */
 

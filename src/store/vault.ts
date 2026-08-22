@@ -30,7 +30,7 @@ import {
 } from "@/lib/import-export";
 import { clearAllClipboardTimers } from "@/lib/clipboard";
 import * as vaultManager from "@/lib/vault/vault-manager";
-import { patchItem, patchItems, sortItems, toItemInput, writeItem, writeItems } from "@/lib/item-crud";
+import { patchItem, patchItems, sortItems, toItemInput, writeItem, writeItems } from "@/lib/items/item-crud";
 import * as vaultRestore from "@/lib/vault/vault-restore";
 import type { RestoreResult } from "@/lib/vault/vault-restore";
 import {

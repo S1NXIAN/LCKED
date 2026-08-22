@@ -6,7 +6,7 @@
  */
 
 import type { NewItemInput } from "@/lib/types";
-import { ITEM_DEFAULTS } from "@/lib/item-crud";
+import { ITEM_DEFAULTS } from "@/lib/items/item-crud";
 import { detectCardBrand } from "./export";
 
 export function makeLogin(o: {

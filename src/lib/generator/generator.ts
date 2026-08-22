@@ -7,7 +7,7 @@
  */
 
 import type { GeneratorOptions } from "@/lib/types";
-import { WORDLIST } from "@/lib/wordlist-eff";
+import { WORDLIST } from "@/lib/generator/wordlist-eff";
 
 const SETS = {
   uppercase: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",

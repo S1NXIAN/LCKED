@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { estimateStrength } from "@/lib/generator";
+import { estimateStrength } from "@/lib/generator/generator";
 import { cn } from "@/lib/utils";
 
 const LABEL_COLORS = [

@@ -4,7 +4,7 @@ import {
   getGeneratorCallback,
   consumeGeneratorCallback,
   clearGeneratorCallback,
-} from "@/lib/generator-bridge";
+} from "@/lib/generator/generator-bridge";
 
 describe("generator-bridge", () => {
   beforeEach(() => {
