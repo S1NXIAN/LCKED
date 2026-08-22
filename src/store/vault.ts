@@ -83,9 +83,6 @@ interface VaultState {
  permanentlyDeleteItem: (id: string) => Promise<void>;
  emptyTrash: () => Promise<void>;
  restoreAllTrash: () => Promise<{ restored: number; failed: number }>;
- /** Replace an item's vault memberships with a single target vault.
-  *  Pass `null` to clear all vault memberships (item lives only in All Items). */
- moveItemToVault: (itemId: string, vaultId: string | null) => Promise<void>;
  toggleFavorite: (id: string) => Promise<void>;
  togglePin: (id: string) => Promise<void>;
  /** Unfavorite ALL favorited items at once. */
@@ -349,16 +346,6 @@ export const useVault = create<VaultState>()(
      const { updated, failed } = await patchItems(vaultKey, trashed, () => ({ trashed: false, trashedAt: null }));
      applyItems(updated);
      return { restored: updated.length, failed };
-    },
-
-    moveItemToVault: async (itemId, vaultId) => {
-     const { vaultKey } = get();
-     if (!vaultKey) throw new Error("Vault is locked");
-     const item = get().items.find((i) => i.id === itemId);
-     if (!item) return;
-     const vaultIds = vaultId === null ? [] : [vaultId];
-     const updated = await patchItem(vaultKey, item, { vaultIds });
-     applyItems([updated]);
     },
 
     toggleFavorite: async (id) => {
