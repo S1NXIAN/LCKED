@@ -180,7 +180,6 @@ export function ItemList({
  const trashItem = useVault((s) => s.trashItem);
  const restoreItem = useVault((s) => s.restoreItem);
  const permanentlyDeleteItem = useVault((s) => s.permanentlyDeleteItem);
- const moveItemToVault = useVault((s) => s.moveItemToVault);
  const copyItemToVault = useVault((s) => s.copyItemToVault);
  const trashItems = useVault((s) => s.trashItems);
  const moveItemsToVault = useVault((s) => s.moveItemsToVault);

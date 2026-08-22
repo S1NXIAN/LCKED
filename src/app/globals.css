@@ -568,22 +568,6 @@
     radial-gradient(30% 30% at 0% 80%, oklch(0.68 0.24 330 / 0.06) 0%, transparent 70%);
 }
 
-/*
-  Engineering grid — Vercel "blueprint" aesthetic. Used ONLY on lock screen,
-  setup, and empty states. Never on the main vault (tires the eye). 1px dots
-  at 24px intervals, 6% white opacity.
-*/
-.lcked-grid {
-  background-image:
-    radial-gradient(circle at 1px 1px, oklch(1 0 0 / 0.06) 1px, transparent 0);
-  background-size: 24px 24px;
-  background-position: 0 0;
-}
-:root:not(.dark):not(.nord):not(.proton) .lcked-grid {
-  background-image:
-    radial-gradient(circle at 1px 1px, oklch(0 0 0 / 0.05) 1px, transparent 0);
-}
-
 /* Animated vault-lock icon pulse */
 @keyframes lcked-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
