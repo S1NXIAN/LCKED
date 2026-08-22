@@ -2,7 +2,7 @@
  * LCKED — Shared vault-icon → Lucide component map
  * ---------------------------------------------------------------------------
  * Single source of truth for the vault-icon id → Lucide component lookup.
- * Mirrors `VAULT_ICONS` in `src/lib/vault-assets.ts` 1:1 — keep both in sync
+ * Mirrors `VAULT_ICONS` in `src/lib/vault/vault-assets.ts` 1:1 — keep both in sync
  * when adding a new vault icon. Consumed by `VaultsSidebar` (rendered inside
  * the colored swatch) and `CreateVaultDialog` (rendered as a raw glyph in the
  * picker grid).

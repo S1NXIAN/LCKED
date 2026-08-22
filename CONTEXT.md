@@ -32,11 +32,11 @@ glossary's vocabulary — don't drift to synonyms.
   payload for its type plus shared fields: `favorite`, `pinned`, `folder`,
   `customFields`, `vaultIds` (membership), `trashed`/`trashedAt`, and
   created/updated timestamps. New items inherit the canonical empty defaults
-  (`ITEM_DEFAULTS` in `src/lib/item-crud.ts`), and legacy records are migrated
+  (`ITEM_DEFAULTS` in `src/lib/items/item-crud.ts`), and legacy records are migrated
   onto the same defaults at unlock.
 
 - **Export** — producing a file from the current items: a plain CSV
-  (`exportToCsv`) or an encrypted **Backup**. `src/lib/import-export/` owns the
+  (`exportToCsv`) or an encrypted **Backup**. `src/lib/import/` owns the
   parsers and exporters.
 
 - **Backup** — the LCKED encrypted export envelope (`lcked-encrypted-v1`), the
@@ -47,7 +47,7 @@ glossary's vocabulary — don't drift to synonyms.
 
 - **Restore** — the setup-time path that brings a Backup (or a plain import)
   into a freshly created vault. Implemented by the store-free `restoreVault`
-  in `src/lib/vault-restore.ts`: for a Backup it decrypts *before* creating
+  in `src/lib/vault/vault-restore.ts`: for a Backup it decrypts *before* creating
   anything (a wrong password returns `{ ok: false, reason: "wrong-password" }`
   and never leaves an empty vault), re-creates custom vaults, remaps item
   vault memberships by name+color+icon (unmatched ids are dropped), and saves
@@ -83,7 +83,7 @@ glossary's vocabulary — don't drift to synonyms.
   duplicate, copy-to-vault) target the active view.
 - **Item policy** — sorting (most-recently-updated), the downgrade
   `VaultItem → NewItemInput`, encrypt-and-persist, and the canonical empty
-  item all live in `src/lib/item-crud.ts`; use them rather than re-implementing
+  item all live in `src/lib/items/item-crud.ts`; use them rather than re-implementing
   the shape.
 - **Bulk actions** (trash, move, restore, permanently delete) live on the
   store, filter no-ops, batch through the item module, and return
