@@ -74,7 +74,7 @@ import {
  type VaultItem,
 } from "@/lib/types";
 import { detectCardBrand } from "@/lib/import";
-import { toItemInput } from "@/lib/items/item-crud";
+import { toItemInput, ITEM_DEFAULTS } from "@/lib/items/item-crud";
 import { PasswordField } from "./password-field";
 import { ItemTypeIcon, ITEM_TYPE_LABELS } from "./item-icons";
 import { consumeNewItemType } from "./new-item-stash";
@@ -84,15 +84,9 @@ import { cn, isEmail } from "@/lib/utils";
 function blankItem(type: ItemType): NewItemInput {
  const base = {
   name: "",
-  favorite: false,
-  pinned: false,
-  folder: "",
-  customFields: [],
+  ...ITEM_DEFAULTS,
   createdAt: Date.now(),
   updatedAt: Date.now(),
-  vaultIds: [] as string[],
-  trashed: false,
-  trashedAt: null as number | null,
  };
  if (type === "login") {
   return { ...base, type, details: { username: "", password: "", urls: [""], totp: "", notes: "" } };
