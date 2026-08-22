@@ -1,4 +1,4 @@
-import { VaultApp } from "@/components/lcked/vault-app";
+import { VaultApp } from "@/components/vault/vault-app";
 
 export default function Page() {
   return <VaultApp />;
