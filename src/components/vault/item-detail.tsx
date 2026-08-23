@@ -398,7 +398,7 @@ export function ItemDetail() {
                     </>
                   ) : (
                     <>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => toggleFavorite(item.id)} aria-label="Toggle favorite" title="Favorite (F)">
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => toggleFavorite(item.id)} aria-label="Toggle favorite">
                         <Star className={cn("h-4 w-4", item.favorite ? "fill-amber-400 text-amber-400" : "text-muted-foreground")} />
                       </Button>
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => togglePin(item.id)} aria-label="Toggle pin" title={item.pinned ? "Unpin" : "Pin to top"}>
@@ -407,12 +407,12 @@ export function ItemDetail() {
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditorOpen(true, item.id)} aria-label="Edit" title="Edit">
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleDuplicate} aria-label="Duplicate" title="Duplicate (D)">
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleDuplicate} aria-label="Duplicate">
                         <CopyPlus className="h-4 w-4" />
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-red-400" aria-label="Move to trash" title="Move to trash (⌫)">
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-red-400" aria-label="Move to trash">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </AlertDialogTrigger>
