@@ -131,6 +131,8 @@ export async function patchItems(
  *
  * @param vaultKey  Decrypted vault CryptoKey.
  * @param input     Desired item fields (NewItemInput or partial VaultItem).
+ *                  On create, `createdAt`/`updatedAt` are restore-only
+ *                  overrides: present → preserved, absent → stamped now.
  * @param existing  If present, inherit trashed/trashedAt/vaultIds/createdAt
  *                  from this item. Overrides in `input` win after inheritance.
  */
@@ -160,8 +162,8 @@ export async function writeItem(
     ...ITEM_DEFAULTS,
     ...(input as VaultItem),
     id: randomId(),
-    createdAt: now,
-    updatedAt: now,
+    createdAt: input.createdAt ?? now,
+    updatedAt: input.updatedAt ?? now,
     // Create always starts as an active, untrashed item: input may not sneak
     // in trashed state or a `vaultIds: undefined` that would crash the list
     // (`item.vaultIds.includes`). Real membership arrays survive.
@@ -179,7 +181,8 @@ export async function writeItem(
  * Each item is encrypted and persisted independently via allSettled.
  *
  * @param vaultKey  Decrypted vault CryptoKey.
- * @param items     Raw parsed items (no IDs/timestamps yet).
+ * @param items     Raw parsed items (no IDs; timestamps, if any, are
+ *                  deliberately discarded — every import is stamped fresh).
  * @returns         `{ succeeded, failed }` — succeeded are the fully-built
  *                  VaultItem instances (with id, createdAt, updatedAt set).
  */

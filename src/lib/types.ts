@@ -121,8 +121,14 @@ export type VaultItem = LoginItem | NoteItem | CardItem | IdentityItem;
 type DistributedOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
 /** A vault item as accepted for create/save — union preserved via
-  * DistributedOmit, so `form.type === "login"` narrows `.details`. */
-export type NewItemInput = DistributedOmit<VaultItem, "id" | "createdAt" | "updatedAt">;
+ *  DistributedOmit, so `form.type === "login"` narrows `.details`.
+ *  `createdAt`/`updatedAt` are restore-only overrides: when present,
+ *  writeItem preserves them instead of stamping now. Ordinary creates and
+ *  third-party imports leave them off and get fresh stamps. */
+export type NewItemInput = DistributedOmit<VaultItem, "id" | "createdAt" | "updatedAt"> & {
+  createdAt?: number;
+  updatedAt?: number;
+};
 
 /** What gets written to disk — ciphertext + non-sensitive metadata. */
 export interface StoredItem {

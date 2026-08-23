@@ -19,8 +19,6 @@ function blankItem(type: ItemType): NewItemInput {
   const base = {
     name: "",
     ...ITEM_DEFAULTS,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
   };
   if (type === "login") {
     return { ...base, type, details: { username: "", password: "", urls: [""], totp: "", notes: "" } };

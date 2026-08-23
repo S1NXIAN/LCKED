@@ -153,6 +153,20 @@ describe("writeItem", () => {
     expect(result.vaultIds).toEqual([]);
   });
 
+  it("honors createdAt/updatedAt overrides on create (restore path)", async () => {
+    const input = {
+      type: "login",
+      name: "restored",
+      createdAt: 1111,
+      updatedAt: 2222,
+    } as unknown as NewItemInput;
+
+    const result = await writeItem(mockVaultKey, input);
+
+    expect(result.createdAt).toBe(1111);
+    expect(result.updatedAt).toBe(2222);
+  });
+
   it("forces create defaults over input trashed/vaultIds", async () => {
     // The create path must never let an input smuggle in a trashed item or a
     // `vaultIds: undefined` that would crash the list (`item.vaultIds.includes`).
@@ -250,6 +264,16 @@ describe("writeItems", () => {
     expect(result.succeeded[1].name).toBe("b");
   });
 
+  it("stamps fresh timestamps even when input carries them (third-party imports)", async () => {
+    const items = [
+      { type: "login", name: "imported", createdAt: 1111, updatedAt: 2222, details: { username: "u", password: "p", urls: [], totp: "", notes: "" } },
+    ] as unknown as NewItemInput[];
+
+    const result = await writeItems(mockVaultKey, items);
+
+    expect(result.succeeded[0].createdAt).not.toBe(1111);
+    expect(result.succeeded[0].updatedAt).not.toBe(2222);
+  });
   it("partial failure does not lose successes", async () => {
     const { encryptJson } = await import("@/lib/crypto");
     vi.mocked(encryptJson).mockRejectedValueOnce(new Error("crypto fail"));

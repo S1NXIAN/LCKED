@@ -131,6 +131,10 @@ export async function restoreVault(options: RestoreOptions): Promise<RestoreResu
    try {
     await deps.saveItem({
      ...toItemInput(item),
+     // Preserve the backup's original timestamps — a restored vault keeps
+     // its created/updated history (writeItem honors these overrides).
+     createdAt: item.createdAt,
+     updatedAt: item.updatedAt,
      vaultIds: remapVaultIds(item.vaultIds, map),
      trashed: false,
      trashedAt: null,

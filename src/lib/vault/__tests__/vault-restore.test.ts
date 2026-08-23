@@ -150,7 +150,7 @@ describe("restoreVault — encrypted backup", () => {
   it("creates the vault before custom vaults, remaps memberships, and counts imports", async () => {
     const vaults = [makeVault("old-1", "Work"), makeVault("old-2", "Personal")];
     const items = [
-      makeItem({ id: "i1", vaultIds: ["old-1"] }),
+      makeItem({ id: "i1", vaultIds: ["old-1"], createdAt: 1111, updatedAt: 2222 }),
       makeItem({ id: "i2", vaultIds: ["old-2", "ghost"] }),
     ];
     vi.mocked(importFromText).mockReturnValue({ result: { format: "lcked-json" }, items: [] } as never);
@@ -175,10 +175,10 @@ describe("restoreVault — encrypted backup", () => {
     expect(inputs[1].vaultIds).toEqual(["new-Personal"]);
     expect(inputs[0].trashed).toBe(false);
     expect(inputs[0].trashedAt).toBeNull();
-    // Downgrade drops id + timestamps.
+    // Downgrade drops id; original timestamps survive the restore.
     expect(inputs[0]).not.toHaveProperty("id");
-    expect(inputs[0]).not.toHaveProperty("createdAt");
-    expect(inputs[0]).not.toHaveProperty("updatedAt");
+    expect(inputs[0].createdAt).toBe(1111);
+    expect(inputs[0].updatedAt).toBe(2222);
   });
 
   it("keeps importing best-effort when one item write fails", async () => {
