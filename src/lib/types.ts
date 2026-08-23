@@ -116,8 +116,13 @@ export interface IdentityItem extends BaseItem {
 
 export type VaultItem = LoginItem | NoteItem | CardItem | IdentityItem;
 
-/** Factory: produce a blank item of a given type with a fresh id. */
-export type NewItemInput = Omit<VaultItem, "id" | "createdAt" | "updatedAt">;
+/** Omit that distributes over unions — plain Omit collapses a union to its
+  * common keys, erasing the `type` discriminant (and with it all narrowing). */
+type DistributedOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
+/** A vault item as accepted for create/save — union preserved via
+  * DistributedOmit, so `form.type === "login"` narrows `.details`. */
+export type NewItemInput = DistributedOmit<VaultItem, "id" | "createdAt" | "updatedAt">;
 
 /** What gets written to disk — ciphertext + non-sensitive metadata. */
 export interface StoredItem {

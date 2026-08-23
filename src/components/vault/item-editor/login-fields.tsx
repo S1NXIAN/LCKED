@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { PasswordField } from "../password-field";
-import { type LoginDetails, type NewItemInput, type VaultSettings } from "@/lib/types";
+import { type LoginDetails, type VaultSettings } from "@/lib/types";
 import { cn, isEmail } from "@/lib/utils";
 import {
   FieldCluster,
@@ -23,7 +23,7 @@ import {
 } from "../field-cluster";
 
 export function LoginFields({
-  form,
+  details,
   settings,
   knownUrls,
   urlKeys,
@@ -32,17 +32,17 @@ export function LoginFields({
   addUrl,
   removeUrl,
 }: {
-  form: NewItemInput;
+  /** Login draft narrowed at the caller's `form.type === "login"` guard. */
+  details: LoginDetails;
   settings: VaultSettings;
   /** Existing URLs across all non-trashed items — datalist autofill suggestions. */
   knownUrls: string[];
   urlKeys: string[];
-  updateDetails: (patch: Record<string, unknown>) => void;
+  updateDetails: (patch: Partial<LoginDetails>) => void;
   setUrl: (idx: number, val: string) => void;
   addUrl: () => void;
   removeUrl: (idx: number) => void;
 }) {
-  const details = form.details as LoginDetails;
   const urls = details.urls;
   return (
     <div className="space-y-4">

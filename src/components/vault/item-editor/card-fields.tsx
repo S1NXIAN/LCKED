@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PasswordField } from "../password-field";
 import { detectCardBrand } from "@/lib/import";
-import { type CardDetails, type NewItemInput } from "@/lib/types";
+import { type CardDetails } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
   FieldCluster,
@@ -22,13 +22,12 @@ import {
 } from "../field-cluster";
 
 export function CardFields({
-  form,
+  details,
   updateDetails,
 }: {
-  form: NewItemInput;
-  updateDetails: (patch: Record<string, unknown>) => void;
+  details: CardDetails;
+  updateDetails: (patch: Partial<CardDetails>) => void;
 }) {
-  const details = form.details as CardDetails;
   return (
     <div className="space-y-4">
       {/* Cardholder + Card number + CVV + Expiry + PIN */}

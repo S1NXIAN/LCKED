@@ -21,7 +21,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useVault } from "@/store/vault";
-import { type CustomField, type ItemType, type LoginDetails, type NewItemInput } from "@/lib/types";
+import { type BaseItem, type CustomField, type ItemType, type NewItemInput, type LoginDetails, type NoteDetails, type CardDetails, type IdentityDetails } from "@/lib/types";
 import { ItemTypeIcon, ITEM_TYPE_LABELS } from "../item-icons";
 import { VaultIcon } from "../vault-icon";
 import { cn } from "@/lib/utils";
@@ -68,12 +68,23 @@ export function ItemEditor() {
 
   const isDirty = JSON.stringify(form) !== initialForm;
 
-  const update = (patch: Partial<NewItemInput>) => setForm((f) => (f ? { ...f, ...patch } : f));
-  const updateDetails = (patch: Record<string, unknown>) =>
-    setForm(
-      (f) =>
-        f ? { ...f, details: { ...(f.details as object), ...patch } as unknown as NewItemInput["details"] } : f,
-    );
+  // Common-fields patch only — details go through the typed per-type
+  // patchers below. `patch` cannot touch `type`, so every spread result is
+  // still a valid union member — an invariant TS can't verify across the
+  // spread (same as switchType in ./use-item-form).
+  const update = (patch: Partial<Omit<BaseItem, "id" | "createdAt" | "updatedAt">>) =>
+    setForm((f) => (f ? ({ ...f, ...patch } as NewItemInput) : f));
+  // Per-type detail patchers. The setState callback sees the full union
+  // again, so each re-narrows via its `f?.type === …` guard — keeping every
+  // merge cast-free and keyed to the concrete details type.
+  const updateLoginDetails = (patch: Partial<LoginDetails>) =>
+    setForm((f) => (f?.type === "login" ? { ...f, details: { ...f.details, ...patch } } : f));
+  const updateNoteDetails = (patch: Partial<NoteDetails>) =>
+    setForm((f) => (f?.type === "note" ? { ...f, details: { ...f.details, ...patch } } : f));
+  const updateCardDetails = (patch: Partial<CardDetails>) =>
+    setForm((f) => (f?.type === "card" ? { ...f, details: { ...f.details, ...patch } } : f));
+  const updateIdentityDetails = (patch: Partial<IdentityDetails>) =>
+    setForm((f) => (f?.type === "identity" ? { ...f, details: { ...f.details, ...patch } } : f));
 
   const handleSave = async () => {
     if (!form) return;
@@ -120,17 +131,17 @@ export function ItemEditor() {
   };
 
   // Login URL list helpers.
-  const urls = form.type === "login" ? (form.details as LoginDetails).urls : [];
+  const urls = form.type === "login" ? form.details.urls : [];
   const setUrl = (idx: number, val: string) => {
     const next = urls.map((u, i) => (i === idx ? val : u));
-    updateDetails({ urls: next });
+    updateLoginDetails({ urls: next });
   };
   const addUrl = () => {
-    updateDetails({ urls: [...urls, ""] });
+    updateLoginDetails({ urls: [...urls, ""] });
     setUrlKeys((k) => [...k, nextKey()]);
   };
   const removeUrl = (idx: number) => {
-    updateDetails({ urls: urls.filter((_, i) => i !== idx) });
+    updateLoginDetails({ urls: urls.filter((_, i) => i !== idx) });
     setUrlKeys((k) => k.filter((_, i) => i !== idx));
   };
 
@@ -329,11 +340,11 @@ export function ItemEditor() {
             {/* Type-specific */}
             {form.type === "login" && (
               <LoginFields
-                form={form}
+                details={form.details}
                 settings={settings}
                 knownUrls={knownUrls}
                 urlKeys={urlKeys}
-                updateDetails={updateDetails}
+                updateDetails={updateLoginDetails}
                 setUrl={setUrl}
                 addUrl={addUrl}
                 removeUrl={removeUrl}
@@ -341,15 +352,15 @@ export function ItemEditor() {
             )}
 
             {form.type === "note" && (
-              <NoteFields form={form} updateDetails={updateDetails} />
+              <NoteFields details={form.details} updateDetails={updateNoteDetails} />
             )}
 
             {form.type === "card" && (
-              <CardFields form={form} updateDetails={updateDetails} />
+              <CardFields details={form.details} updateDetails={updateCardDetails} />
             )}
 
             {form.type === "identity" && (
-              <IdentityFields form={form} updateDetails={updateDetails} />
+              <IdentityFields details={form.details} updateDetails={updateIdentityDetails} />
             )}
 
             {/* Custom fields */}

@@ -8,7 +8,7 @@
 import { Mail, User, Phone, Building2, MapPin, Globe } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { type IdentityDetails, type NewItemInput } from "@/lib/types";
+import { type IdentityDetails } from "@/lib/types";
 import {
   FieldCluster,
   FieldClusterWithLabel,
@@ -18,13 +18,12 @@ import {
 } from "../field-cluster";
 
 export function IdentityFields({
-  form,
+  details,
   updateDetails,
 }: {
-  form: NewItemInput;
-  updateDetails: (patch: Record<string, unknown>) => void;
+  details: IdentityDetails;
+  updateDetails: (patch: Partial<IdentityDetails>) => void;
 }) {
-  const details = form.details as IdentityDetails;
   return (
     <div className="space-y-4">
       {/* First name + Last name */}

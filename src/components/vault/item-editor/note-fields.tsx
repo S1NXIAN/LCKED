@@ -4,17 +4,16 @@
 
 import { StickyNote } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { type NoteDetails, type NewItemInput } from "@/lib/types";
+import { type NoteDetails } from "@/lib/types";
 import { FieldCluster, FieldRowInput, flatTextareaCls } from "../field-cluster";
 
 export function NoteFields({
-  form,
+  details,
   updateDetails,
 }: {
-  form: NewItemInput;
-  updateDetails: (patch: Record<string, unknown>) => void;
+  details: NoteDetails;
+  updateDetails: (patch: Partial<NoteDetails>) => void;
 }) {
-  const details = form.details as NoteDetails;
   return (
     <FieldCluster>
       <FieldRowInput label="Content" icon={StickyNote} first>
