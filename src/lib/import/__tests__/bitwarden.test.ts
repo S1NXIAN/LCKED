@@ -1,8 +1,9 @@
-import { describe, it, expect } from "vitest";
-import { parseBitwardenJson, parseBitwardenCsv } from "@/lib/import/bitwarden";
-import { importFromText } from "@/lib/import/index";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+import { parseBitwardenCsv, parseBitwardenJson } from "@/lib/import/bitwarden";
+import { importFromText } from "@/lib/import/index";
 
 function fixture(name: string): string {
   return readFileSync(resolve(__dirname, "../__fixtures__", name), "utf-8");

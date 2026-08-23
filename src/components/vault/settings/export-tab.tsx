@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
   Check,
@@ -12,13 +12,14 @@ import {
   Lock,
   type LucideIcon,
 } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
+import * as React from "react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useVault } from "@/store/vault";
 import { downloadCsvExport, downloadEncryptedExport } from "@/lib/import/flows";
 import { cn } from "@/lib/utils";
+import { useVault } from "@/store/vault";
 
 const TRANSITION = { duration: 0.12, ease: [0.16, 1, 0.3, 1] } as const;
 
@@ -44,8 +45,7 @@ const FORMATS: {
   {
     id: "zip",
     label: "Encrypted ZIP",
-    caption:
-      "Same encrypted payload packaged as a single-file .zip archive.",
+    caption: "Same encrypted payload packaged as a single-file .zip archive.",
     icon: FileArchive,
     accent: "bg-violet-500/15 text-violet-400",
   },
@@ -71,8 +71,7 @@ export function ExportTab() {
   const [busy, setBusy] = React.useState(false);
   const [csvConfirm, setCsvConfirm] = React.useState(false);
 
-  const passphrasesMatch =
-    passphrase.length >= 8 && passphrase === confirm;
+  const passphrasesMatch = passphrase.length >= 8 && passphrase === confirm;
 
   const handleEncryptedExport = async (which: "pgp" | "zip") => {
     setBusy(true);
@@ -98,13 +97,13 @@ export function ExportTab() {
     <section className="space-y-5">
       <header className="space-y-1">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Download className="h-4 w-4 text-muted-foreground" />
+          <Download className="text-muted-foreground h-4 w-4" />
           Export your vault
         </h2>
-        <p className="text-xs text-muted-foreground">
-          {itemCount} item{itemCount === 1 ? "" : "s"} ready to back up.
-          Choose an encrypted format for safe storage, or plain CSV for
-          migration to another tool.
+        <p className="text-muted-foreground text-xs">
+          {itemCount} item{itemCount === 1 ? "" : "s"} ready to back up. Choose
+          an encrypted format for safe storage, or plain CSV for migration to
+          another tool.
         </p>
       </header>
 
@@ -119,7 +118,7 @@ export function ExportTab() {
               className={cn(
                 "relative flex flex-col items-start gap-2 rounded-xl border p-3 text-left transition duration-150",
                 active
-                  ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                  ? "border-primary bg-primary/5 ring-primary/30 ring-1"
                   : "border-border bg-muted/20 hover:bg-muted/40",
               )}
               aria-pressed={active}
@@ -134,7 +133,7 @@ export function ExportTab() {
                   <Icon className="h-4 w-4" />
                 </span>
                 {f.badge && (
-                  <span className="ml-auto rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">
+                  <span className="bg-primary/15 text-primary ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-semibold tracking-wide uppercase">
                     {f.badge}
                   </span>
                 )}
@@ -142,11 +141,9 @@ export function ExportTab() {
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-medium">{f.label}</span>
-                  {active && (
-                    <Check className="h-3 w-3 text-primary" />
-                  )}
+                  {active && <Check className="text-primary h-3 w-3" />}
                 </div>
-                <div className="text-[11px] text-muted-foreground">
+                <div className="text-muted-foreground text-[11px]">
                   {f.caption}
                 </div>
               </div>
@@ -168,8 +165,8 @@ export function ExportTab() {
             <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200/90">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <p>
-                The CSV will contain your passwords in plain text. Only do
-                this on a trusted device and delete the file after use.
+                The CSV will contain your passwords in plain text. Only do this
+                on a trusted device and delete the file after use.
               </p>
             </div>
             {!csvConfirm ? (
@@ -212,7 +209,7 @@ export function ExportTab() {
             <div className="space-y-1.5">
               <Label htmlFor="exp-pass">Passphrase</Label>
               <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Lock className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                 <Input
                   id="exp-pass"
                   type="password"
@@ -227,7 +224,7 @@ export function ExportTab() {
             <div className="space-y-1.5">
               <Label htmlFor="exp-confirm">Confirm passphrase</Label>
               <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Lock className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                 <Input
                   id="exp-confirm"
                   type="password"
@@ -244,15 +241,13 @@ export function ExportTab() {
                 </p>
               )}
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-muted-foreground text-[11px]">
               This passphrase is independent of your master password.
               You&apos;ll need it to restore.
             </p>
             <Button
               className="w-full"
-              disabled={
-                busy || !passphrasesMatch || itemCount === 0
-              }
+              disabled={busy || !passphrasesMatch || itemCount === 0}
               onClick={() => handleEncryptedExport(format)}
             >
               {busy ? (

@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useVault } from "@/store/vault";
+
 import { DiamondMark } from "../diamond-mark";
 
 export function EmptyList({
@@ -29,7 +30,7 @@ export function EmptyList({
             ? "No matches"
             : "Your vault is empty"}
       </h3>
-      <p className="mt-1.5 max-w-[16rem] text-xs leading-relaxed text-muted-foreground">
+      <p className="text-muted-foreground mt-1.5 max-w-[16rem] text-xs leading-relaxed">
         {isTrash
           ? "Deleted items land here. They auto-purge after 30 days."
           : hasItems
@@ -41,7 +42,11 @@ export function EmptyList({
           <Button size="sm" onClick={onCreate}>
             Add your first item
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => setImportExportOpen(true)}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setImportExportOpen(true)}
+          >
             Import from Bitwarden / 1Password / Proton Pass
           </Button>
         </div>

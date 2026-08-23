@@ -1,8 +1,9 @@
 "use client";
 
-import * as React from "react";
 import { Palette } from "lucide-react";
 import { useTheme } from "next-themes";
+import * as React from "react";
+
 import { Button } from "@/components/ui/button";
 
 const THEME_CYCLE: string[] = ["dark", "light", "nord", "proton"];
@@ -20,8 +21,9 @@ export function ThemeToggle() {
   React.useEffect(() => setMounted(true), []);
 
   const currentTheme = theme ?? "dark";
-  const nextTheme = THEME_CYCLE[(THEME_CYCLE.indexOf(currentTheme) + 1) % THEME_CYCLE.length];
-  const label = mounted ? THEME_LABELS[currentTheme] ?? "Theme" : "Theme";
+  const nextTheme =
+    THEME_CYCLE[(THEME_CYCLE.indexOf(currentTheme) + 1) % THEME_CYCLE.length];
+  const label = mounted ? (THEME_LABELS[currentTheme] ?? "Theme") : "Theme";
 
   return (
     <Button
@@ -29,7 +31,7 @@ export function ThemeToggle() {
       size="icon"
       aria-label={`Switch theme (current: ${label})`}
       onClick={() => setTheme(nextTheme)}
-      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+      className="text-muted-foreground hover:text-foreground h-8 w-8"
     >
       {mounted ? <Palette className="h-4 w-4" /> : null}
     </Button>

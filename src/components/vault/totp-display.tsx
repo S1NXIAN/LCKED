@@ -1,11 +1,17 @@
 "use client";
 
+import { Check, Copy } from "lucide-react";
 import * as React from "react";
-import { Copy, Check } from "lucide-react";
 import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
-import { generateTotp, resolveTotpParams, looksLikeTotp, type TotpParams } from "@/lib/totp";
 import { copyWithAutoClear } from "@/lib/clipboard";
+import {
+  generateTotp,
+  looksLikeTotp,
+  resolveTotpParams,
+  type TotpParams,
+} from "@/lib/totp";
 import { cn } from "@/lib/utils";
 
 interface TOTPDisplayProps {
@@ -18,7 +24,10 @@ interface TOTPDisplayProps {
  * and one-click copy. Falls back to a hint when the secret is malformed.
  */
 export function TOTPDisplay({ secret, compact = false }: TOTPDisplayProps) {
-  const params = React.useMemo<TotpParams | null>(() => resolveTotpParams(secret), [secret]);
+  const params = React.useMemo<TotpParams | null>(
+    () => resolveTotpParams(secret),
+    [secret],
+  );
 
   const [code, setCode] = React.useState<string>("");
   const [remaining, setRemaining] = React.useState(30);
@@ -46,8 +55,8 @@ export function TOTPDisplay({ secret, compact = false }: TOTPDisplayProps) {
       setCode(res.code);
       setRemaining(res.remaining);
     };
-    tick();
-    const interval = setInterval(tick, 1000);
+    void tick();
+    const interval = setInterval(() => void tick(), 1000);
     return () => {
       active = false;
       clearInterval(interval);
@@ -55,7 +64,12 @@ export function TOTPDisplay({ secret, compact = false }: TOTPDisplayProps) {
   }, [params]);
 
   // Cleanup the copied-state timer on unmount.
-  React.useEffect(() => () => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }, []);
+  React.useEffect(
+    () => () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    },
+    [],
+  );
 
   if (!params) return null;
 
@@ -87,15 +101,17 @@ export function TOTPDisplay({ secret, compact = false }: TOTPDisplayProps) {
       <button
         type="button"
         onClick={handleCopy}
-        className="inline-flex items-center gap-2 rounded-md bg-muted px-2 py-1 font-secret text-sm font-semibold tracking-wider hover:bg-accent"
+        className="bg-muted font-secret hover:bg-accent inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm font-semibold tracking-wider"
         title="Copy code (auto-clears in 30s)"
-        aria-label={code ? `Copy verification code ${code}` : "Copy verification code"}
+        aria-label={
+          code ? `Copy verification code ${code}` : "Copy verification code"
+        }
       >
         <span className="text-primary">{code || "••••••"}</span>
         {copied ? (
           <Check className="h-3 w-3 text-emerald-400" />
         ) : (
-          <Copy className="h-3 w-3 text-muted-foreground" />
+          <Copy className="text-muted-foreground h-3 w-3" />
         )}
       </button>
     );
@@ -106,10 +122,17 @@ export function TOTPDisplay({ secret, compact = false }: TOTPDisplayProps) {
       role="button"
       tabIndex={0}
       onClick={handleCopy}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleCopy(); } }}
-      className="group flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-muted/40 p-3 transition-colors hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          void handleCopy();
+        }
+      }}
+      className="group border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring/60 flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors focus:outline-none focus-visible:ring-2"
       title="Click to copy (auto-clears in 30s)"
-      aria-label={code ? `Copy verification code ${code}` : "Copy verification code"}
+      aria-label={
+        code ? `Copy verification code ${code}` : "Copy verification code"
+      }
     >
       <div className="relative h-11 w-11 shrink-0">
         <svg className="h-11 w-11 -rotate-90" viewBox="0 0 44 44">
@@ -136,7 +159,9 @@ export function TOTPDisplay({ secret, compact = false }: TOTPDisplayProps) {
             )}
             strokeDasharray={2 * Math.PI * 19}
             strokeDashoffset={2 * Math.PI * 19 * (1 - progress)}
-            style={{ transition: "stroke-dashoffset 1s linear, stroke 0.3s ease" }}
+            style={{
+              transition: "stroke-dashoffset 1s linear, stroke 0.3s ease",
+            }}
           />
         </svg>
         <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold tabular-nums">
@@ -144,10 +169,10 @@ export function TOTPDisplay({ secret, compact = false }: TOTPDisplayProps) {
         </span>
       </div>
       <div className="flex-1">
-        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        <div className="text-muted-foreground text-[10px] tracking-wide uppercase">
           Verification code
         </div>
-        <div className="font-secret text-2xl font-bold tracking-[0.2em] text-foreground">
+        <div className="font-secret text-foreground text-2xl font-bold tracking-[0.2em]">
           {code || "------"}
         </div>
       </div>
@@ -155,7 +180,10 @@ export function TOTPDisplay({ secret, compact = false }: TOTPDisplayProps) {
         type="button"
         size="icon"
         variant="ghost"
-        onClick={(e) => { e.stopPropagation(); handleCopy(); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          void handleCopy();
+        }}
         className="h-9 w-9"
         aria-label="Copy verification code"
       >

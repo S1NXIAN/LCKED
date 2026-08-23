@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import * as SelectPrimitive from "@radix-ui/react-select";
 import {
   ArrowDownAZ,
   ArrowUpAZ,
@@ -19,26 +19,32 @@ import {
   StickyNote,
   UserRound,
 } from "lucide-react";
-import * as SelectPrimitive from "@radix-ui/react-select";
+import * as React from "react";
+
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
 import type { FilterType, ItemType } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
 import type { SortKey } from "./use-item-sort";
 
-const TYPE_OPTIONS: { value: "all" | ItemType; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+const TYPE_OPTIONS: {
+  value: "all" | ItemType;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
   { value: "all", label: "All", icon: LayoutGrid },
   { value: "login", label: "Logins", icon: KeyRound },
   { value: "note", label: "Notes", icon: StickyNote },
@@ -46,7 +52,11 @@ const TYPE_OPTIONS: { value: "all" | ItemType; label: string; icon: React.Compon
   { value: "identity", label: "Identities", icon: UserRound },
 ];
 
-const SORT_OPTIONS: { value: SortKey; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+const SORT_OPTIONS: {
+  value: SortKey;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
   { value: "newest", label: "Newest", icon: Clock },
   { value: "oldest", label: "Oldest", icon: History },
   { value: "alphabetical", label: "A–Z", icon: ArrowDownAZ },
@@ -54,13 +64,13 @@ const SORT_OPTIONS: { value: SortKey; label: string; icon: React.ComponentType<{
 ];
 
 /**
-  * Custom SelectItem for the Type filter. Renders a leading type icon
-  * OUTSIDE the ItemText (so it does NOT get cloned into the trigger by
-  * radix SelectValue) + its own check indicator.
-  *
-  * Layout in the dropdown: [type-icon] [label] ……… [check]
-  * The trigger shows only the cloned text (label), centered.
-  */
+ * Custom SelectItem for the Type filter. Renders a leading type icon
+ * OUTSIDE the ItemText (so it does NOT get cloned into the trigger by
+ * radix SelectValue) + its own check indicator.
+ *
+ * Layout in the dropdown: [type-icon] [label] ……… [check]
+ * The trigger shows only the cloned text (label), centered.
+ */
 function TypeSelectItem({
   value,
   icon: Icon,
@@ -81,11 +91,11 @@ function TypeSelectItem({
       )}
     >
       {/* Icon is OUTSIDE ItemText so radix does NOT clone it into the trigger. */}
-      <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      <Icon className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
       <SelectPrimitive.ItemText>{label}</SelectPrimitive.ItemText>
       <span className="absolute right-2 flex size-4 items-center justify-center">
         <SelectPrimitive.ItemIndicator>
-          <Check className="h-3.5 w-3.5 text-primary" />
+          <Check className="text-primary h-3.5 w-3.5" />
         </SelectPrimitive.ItemIndicator>
       </span>
     </SelectPrimitive.Item>
@@ -95,11 +105,11 @@ function TypeSelectItem({
 /* ------------------------------- SortBar ------------------------------ */
 
 /**
-  * Filter/sort bar above the list: the type filter Select, the sort
-  * dropdown, and the 3-dots menu that toggles multi-select and selects or
-  * deselects all rows. Selection state lives in ItemList; this bar reads it
-  * and requests changes through props.
-  */
+ * Filter/sort bar above the list: the type filter Select, the sort
+ * dropdown, and the 3-dots menu that toggles multi-select and selects or
+ * deselects all rows. Selection state lives in ItemList; this bar reads it
+ * and requests changes through props.
+ */
 export function SortBar({
   filter,
   setFilter,
@@ -126,7 +136,7 @@ export function SortBar({
   onDeselectAll: () => void;
 }) {
   return (
-    <div className="border-b border-border bg-background px-3 py-2">
+    <div className="border-border bg-background border-b px-3 py-2">
       <div className="flex items-center gap-2">
         <Select
           value={typeof filter === "string" ? filter : "all"}
@@ -137,10 +147,19 @@ export function SortBar({
                               (which clones only the label text, NOT the icon) is flex-1 +
                               text-center so the label centers in the space between the icon
                               and the chevron. */}
-          <SelectTrigger size="sm" className="h-8 w-[142px] shrink-0 border-border bg-muted/40 dark:bg-secondary/20">
+          <SelectTrigger
+            size="sm"
+            className="border-border bg-muted/40 dark:bg-secondary/20 h-8 w-[142px] shrink-0"
+          >
             {(() => {
-              const ActiveIcon = TYPE_OPTIONS.find((o) => o.value === (typeof filter === "string" ? filter : "all"))?.icon ?? LayoutGrid;
-              return <ActiveIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />;
+              const ActiveIcon =
+                TYPE_OPTIONS.find(
+                  (o) =>
+                    o.value === (typeof filter === "string" ? filter : "all"),
+                )?.icon ?? LayoutGrid;
+              return (
+                <ActiveIcon className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
+              );
             })()}
             <SelectValue placeholder="Type" className="flex-1 text-center" />
           </SelectTrigger>
@@ -165,13 +184,19 @@ export function SortBar({
             <Button
               variant="outline"
               size="sm"
-              className="h-8 shrink-0 gap-1.5 border-border bg-muted/40 px-2.5 hover:bg-muted/60 dark:bg-secondary/20"
+              className="border-border bg-muted/40 hover:bg-muted/60 dark:bg-secondary/20 h-8 shrink-0 gap-1.5 px-2.5"
             >
               {(() => {
-                const TriggerIcon = SORT_OPTIONS.find((o) => o.value === sort)?.icon ?? ArrowUpDown;
-                return <TriggerIcon className="h-3.5 w-3.5 text-muted-foreground" />;
+                const TriggerIcon =
+                  SORT_OPTIONS.find((o) => o.value === sort)?.icon ??
+                  ArrowUpDown;
+                return (
+                  <TriggerIcon className="text-muted-foreground h-3.5 w-3.5" />
+                );
               })()}
-              <span className="text-xs">{SORT_OPTIONS.find((o) => o.value === sort)?.label ?? "Sort"}</span>
+              <span className="text-xs">
+                {SORT_OPTIONS.find((o) => o.value === sort)?.label ?? "Sort"}
+              </span>
               <ChevronDown className="h-3 w-3 opacity-50" />
             </Button>
           </DropdownMenuTrigger>
@@ -185,9 +210,11 @@ export function SortBar({
                   onSelect={() => setSort(opt.value)}
                   className="gap-2 text-xs"
                 >
-                  <OptIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                  <OptIcon className="text-muted-foreground h-3.5 w-3.5" />
                   {opt.label}
-                  {isActive && <Check className="ml-auto h-3.5 w-3.5 text-primary" />}
+                  {isActive && (
+                    <Check className="text-primary ml-auto h-3.5 w-3.5" />
+                  )}
                 </DropdownMenuItem>
               );
             })}
@@ -200,7 +227,7 @@ export function SortBar({
             <Button
               variant="ghost"
               size="icon"
-              className="ml-auto h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground ml-auto h-8 w-8 shrink-0"
               aria-label="List actions"
               aria-pressed={multiSelect}
             >
@@ -213,18 +240,23 @@ export function SortBar({
               {multiSelect ? "Exit multi-select" : "Multi-select"}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={onSelectAll} disabled={filteredCount === 0}>
+            <DropdownMenuItem
+              onSelect={onSelectAll}
+              disabled={filteredCount === 0}
+            >
               <ListChecks className="h-3.5 w-3.5" />
               Select all
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={onDeselectAll} disabled={selectedCount === 0}>
+            <DropdownMenuItem
+              onSelect={onDeselectAll}
+              disabled={selectedCount === 0}
+            >
               <Square className="h-3.5 w-3.5" />
               Deselect all
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-
     </div>
   );
 }

@@ -1,5 +1,13 @@
-import { describe, it, expect, vi } from "vitest";
-import { patchItem, patchItems, sortItems, toItemInput, writeItem, writeItems } from "@/lib/items/item-crud";
+import { describe, expect, it, vi } from "vitest";
+
+import {
+  patchItem,
+  patchItems,
+  sortItems,
+  toItemInput,
+  writeItem,
+  writeItems,
+} from "@/lib/items/item-crud";
 import type { NewItemInput, VaultItem } from "@/lib/types";
 
 // Mock the crypto and vault-db modules.
@@ -12,7 +20,7 @@ vi.mock("@/lib/crypto", () => ({
 }));
 
 vi.mock("@/lib/vault/vault-db", () => ({
-  putStoredItem: vi.fn(async () => { }),
+  putStoredItem: vi.fn(async () => {}),
 }));
 
 function makeItem(overrides: Partial<VaultItem> = {}): VaultItem {
@@ -35,22 +43,6 @@ function makeItem(overrides: Partial<VaultItem> = {}): VaultItem {
 }
 
 const mockVaultKey = {} as CryptoKey;
-
-function makeInput(overrides: Partial<NewItemInput> = {}): NewItemInput {
-  return {
-    type: "login",
-    name: "test",
-    favorite: false,
-    pinned: false,
-    folder: "",
-    customFields: [],
-    vaultIds: [],
-    trashed: false,
-    trashedAt: null,
-    details: { username: "u", password: "p", urls: [], totp: "", notes: "" },
-    ...overrides,
-  } as NewItemInput;
-}
 
 describe("patchItem", () => {
   it("merges the patch into the item", async () => {
@@ -107,10 +99,7 @@ describe("patchItems", () => {
     const { encryptJson } = await import("@/lib/crypto");
     vi.mocked(encryptJson).mockRejectedValueOnce(new Error("crypto fail"));
 
-    const items = [
-      makeItem({ id: "a" }),
-      makeItem({ id: "b" }),
-    ];
+    const items = [makeItem({ id: "a" }), makeItem({ id: "b" })];
 
     const result = await patchItems(mockVaultKey, items, () => ({ name: "x" }));
 
@@ -120,12 +109,10 @@ describe("patchItems", () => {
 
     // Restore mock for other tests.
     vi.mocked(encryptJson).mockReset();
-    vi.mocked(encryptJson).mockImplementation(
-      async (item: unknown) => ({
-        ciphertext: "enc:" + JSON.stringify(item),
-        iv: "mock-iv",
-      }),
-    );
+    vi.mocked(encryptJson).mockImplementation(async (item: unknown) => ({
+      ciphertext: "enc:" + JSON.stringify(item),
+      iv: "mock-iv",
+    }));
   });
 
   it("returns empty result for empty input", async () => {
@@ -216,7 +203,11 @@ describe("writeItem", () => {
   });
 
   it("preserves trashed state from existing item", async () => {
-    const existing = makeItem({ id: "existing-1", trashed: true, trashedAt: 5000 });
+    const existing = makeItem({
+      id: "existing-1",
+      trashed: true,
+      trashedAt: 5000,
+    });
     const input = {
       type: "login",
       name: "updated",
@@ -231,7 +222,12 @@ describe("writeItem", () => {
   });
 
   it("allows caller overrides to win over existing item defaults", async () => {
-    const existing = makeItem({ id: "override-test", trashed: true, trashedAt: 5000, vaultIds: ["vault-1"] });
+    const existing = makeItem({
+      id: "override-test",
+      trashed: true,
+      trashedAt: 5000,
+      vaultIds: ["vault-1"],
+    });
     const input = {
       type: "login",
       name: "override-item",
@@ -252,7 +248,17 @@ describe("writeItem", () => {
 describe("writeItems", () => {
   it("batch-creates and returns succeeded/failed counts", async () => {
     const items = [
-      { type: "login", name: "a", details: { username: "u", password: "p", urls: [], totp: "", notes: "" } },
+      {
+        type: "login",
+        name: "a",
+        details: {
+          username: "u",
+          password: "p",
+          urls: [],
+          totp: "",
+          notes: "",
+        },
+      },
       { type: "note", name: "b", details: { content: "hello" } },
     ] as unknown as NewItemInput[];
 
@@ -266,7 +272,19 @@ describe("writeItems", () => {
 
   it("stamps fresh timestamps even when input carries them (third-party imports)", async () => {
     const items = [
-      { type: "login", name: "imported", createdAt: 1111, updatedAt: 2222, details: { username: "u", password: "p", urls: [], totp: "", notes: "" } },
+      {
+        type: "login",
+        name: "imported",
+        createdAt: 1111,
+        updatedAt: 2222,
+        details: {
+          username: "u",
+          password: "p",
+          urls: [],
+          totp: "",
+          notes: "",
+        },
+      },
     ] as unknown as NewItemInput[];
 
     const result = await writeItems(mockVaultKey, items);
@@ -279,7 +297,17 @@ describe("writeItems", () => {
     vi.mocked(encryptJson).mockRejectedValueOnce(new Error("crypto fail"));
 
     const items = [
-      { type: "login", name: "fail-me", details: { username: "u", password: "p", urls: [], totp: "", notes: "" } },
+      {
+        type: "login",
+        name: "fail-me",
+        details: {
+          username: "u",
+          password: "p",
+          urls: [],
+          totp: "",
+          notes: "",
+        },
+      },
       { type: "note", name: "survivor", details: { content: "hello" } },
     ] as unknown as NewItemInput[];
 
@@ -290,12 +318,10 @@ describe("writeItems", () => {
     expect(result.succeeded[0].name).toBe("survivor");
 
     vi.mocked(encryptJson).mockReset();
-    vi.mocked(encryptJson).mockImplementation(
-      async (item: unknown) => ({
-        ciphertext: "enc:" + JSON.stringify(item),
-        iv: "mock-iv",
-      }),
-    );
+    vi.mocked(encryptJson).mockImplementation(async (item: unknown) => ({
+      ciphertext: "enc:" + JSON.stringify(item),
+      iv: "mock-iv",
+    }));
   });
 
   it("returns empty result for empty input", async () => {
@@ -306,7 +332,19 @@ describe("writeItems", () => {
 
   it("sets proper defaults for each created item", async () => {
     const items = [
-      { type: "card", name: "card-item", details: { cardholder: "Me", number: "4111", brand: "visa", cvv: "123", expiry: "12/28", pin: "0000", notes: "" } },
+      {
+        type: "card",
+        name: "card-item",
+        details: {
+          cardholder: "Me",
+          number: "4111",
+          brand: "visa",
+          cvv: "123",
+          expiry: "12/28",
+          pin: "0000",
+          notes: "",
+        },
+      },
     ] as unknown as NewItemInput[];
 
     const result = await writeItems(mockVaultKey, items);
@@ -338,7 +376,15 @@ describe("writeItems", () => {
 
 describe("toItemInput", () => {
   it("drops id and timestamps, keeps everything else", () => {
-    const item = makeItem({ id: "drop-me", name: "keep-me", favorite: true, pinned: true, trashed: true, trashedAt: 5000, vaultIds: ["v1"] });
+    const item = makeItem({
+      id: "drop-me",
+      name: "keep-me",
+      favorite: true,
+      pinned: true,
+      trashed: true,
+      trashedAt: 5000,
+      vaultIds: ["v1"],
+    });
 
     const input = toItemInput(item);
 
@@ -368,7 +414,10 @@ describe("sortItems", () => {
   });
 
   it("does not mutate the input array", () => {
-    const items = [makeItem({ id: "a", updatedAt: 1000 }), makeItem({ id: "b", updatedAt: 2000 })];
+    const items = [
+      makeItem({ id: "a", updatedAt: 1000 }),
+      makeItem({ id: "b", updatedAt: 2000 }),
+    ];
     const copy = [...items];
 
     sortItems(items);

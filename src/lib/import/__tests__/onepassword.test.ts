@@ -1,8 +1,9 @@
-import { describe, it, expect } from "vitest";
-import { parseOnePasswordCsv } from "@/lib/import/onepassword";
-import { importFromText } from "@/lib/import/index";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+import { importFromText } from "@/lib/import/index";
+import { parseOnePasswordCsv } from "@/lib/import/onepassword";
 
 function fixture(name: string): string {
   return readFileSync(resolve(__dirname, "../__fixtures__", name), "utf-8");
@@ -45,7 +46,8 @@ describe("parseOnePasswordCsv", () => {
   });
 
   it("handles lowercase column headers", () => {
-    const text = "title,url,username,password,notes\nexample.com,https://x.com,alice,p4ss,";
+    const text =
+      "title,url,username,password,notes\nexample.com,https://x.com,alice,p4ss,";
     const { result, items } = importFromText("export.csv", text);
     expect(result.imported).toBe(1);
     expect(items[0]).toMatchObject({

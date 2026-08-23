@@ -10,6 +10,7 @@
  */
 
 import Dexie, { type Table } from "dexie";
+
 import type { StoredItem, VaultMeta } from "@/lib/types";
 
 export class LckedDB extends Dexie {

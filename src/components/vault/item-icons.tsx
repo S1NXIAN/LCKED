@@ -1,13 +1,14 @@
 "use client";
 
-import * as React from "react";
 import {
-  KeyRound,
-  StickyNote,
   CreditCard,
-  UserRound,
+  KeyRound,
   type LucideIcon,
+  StickyNote,
+  UserRound,
 } from "lucide-react";
+import * as React from "react";
+
 import type { ItemType } from "@/lib/types";
 
 export const ITEM_TYPE_ICONS: Record<ItemType, LucideIcon> = {
@@ -43,7 +44,8 @@ export function ItemTypeIcon({
   size?: "sm" | "md" | "lg";
 }) {
   const Icon = ICONS[type];
-  const dims = size === "sm" ? "h-3.5 w-3.5" : size === "lg" ? "h-5 w-5" : "h-4 w-4";
+  const dims =
+    size === "sm" ? "h-3.5 w-3.5" : size === "lg" ? "h-5 w-5" : "h-4 w-4";
   const box =
     size === "sm" ? "h-7 w-7" : size === "lg" ? "h-10 w-10" : "h-9 w-9";
   return (

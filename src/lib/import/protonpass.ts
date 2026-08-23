@@ -6,8 +6,9 @@
  */
 
 import type { ImportResult, NewItemInput } from "@/lib/types";
+
 import { parseCsv, rowToObject } from "./csv";
-import { makeLogin, makeNote, makeCard, makeIdentity } from "./helpers";
+import { makeCard, makeIdentity, makeLogin, makeNote } from "./helpers";
 
 export function parseProtonPassCsv(text: string): ImportResult {
   const result: ImportResult = { imported: 0, skipped: 0, warnings: [] };
@@ -26,7 +27,10 @@ export function parseProtonPassCsv(text: string): ImportResult {
       const favorite = /^(1|true|yes)$/i.test(o.favorite);
       const notes = o.note_content || o.notes || "";
       if (type === "login") {
-        const urls = (o.login_urls || "").split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+        const urls = (o.login_urls || "")
+          .split(/\r?\n/)
+          .map((s) => s.trim())
+          .filter(Boolean);
         items.push(
           makeLogin({
             name,

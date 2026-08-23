@@ -11,9 +11,9 @@
  */
 
 import { randomId } from "@/lib/crypto";
-import { loadVaultMeta, saveVaultMeta } from "@/lib/vault/vault-db";
-import type { VaultDef, VaultItem } from "@/lib/types";
 import { encryptAndPersist } from "@/lib/items/item-crud";
+import type { VaultDef, VaultItem } from "@/lib/types";
+import { loadVaultMeta, saveVaultMeta } from "@/lib/vault/vault-db";
 
 /* ─── Types ─────────────────────────────────────────────── */
 
@@ -115,7 +115,7 @@ export async function deleteVault(
           ...it,
           vaultIds: it.vaultIds.filter((v) => v !== id),
           updatedAt: Date.now(),
-        } as VaultItem;
+        };
         await encryptAndPersist(next, vaultKey);
         return next;
       }),

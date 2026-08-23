@@ -1,14 +1,20 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { useVault } from "@/store/vault";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import type { VaultItem } from "@/lib/types";
+import { useVault } from "@/store/vault";
 
 /* ─── Mocks ─────────────────────────────────────────────── */
 
-const mockMasterKey = { algorithm: { name: "AES-GCM" } } as unknown as CryptoKey;
+const mockMasterKey = {
+  algorithm: { name: "AES-GCM" },
+} as unknown as CryptoKey;
 const mockVaultKey = { algorithm: { name: "AES-GCM" } } as unknown as CryptoKey;
 
 // Deterministic per-test ids (reset in beforeEach).
-const idCounter = vi.hoisted(() => ({ n: 0, next: () => `mock-id-${++idCounter.n}` }));
+const idCounter = vi.hoisted(() => ({
+  n: 0,
+  next: () => `mock-id-${++idCounter.n}`,
+}));
 
 // persist is a no-op here — it only touches localStorage, which Node lacks.
 // The store's own actions + state are what this harness exercises.
@@ -68,9 +74,9 @@ vi.mock("@/lib/vault/vault-db", () => ({
     };
   }),
   loadAllStoredItems: vi.fn(async () => []),
-  putStoredItem: vi.fn(async () => { }),
-  deleteStoredItem: vi.fn(async () => { }),
-  wipeVault: vi.fn(async () => { }),
+  putStoredItem: vi.fn(async () => {}),
+  deleteStoredItem: vi.fn(async () => {}),
+  wipeVault: vi.fn(async () => {}),
   vaultExists: vi.fn(async () => true),
 }));
 
@@ -182,17 +188,27 @@ describe("bulk actions — partial-failure counts", () => {
     const result = await useVault.getState().restoreItems(["a", "b"]);
 
     expect(result).toEqual({ restored: 1, failed: 0 });
-    expect(useVault.getState().items.find((i) => i.id === "a")?.trashed).toBe(false);
+    expect(useVault.getState().items.find((i) => i.id === "a")?.trashed).toBe(
+      false,
+    );
   });
 });
 
 describe("permanentlyDeleteItems — optimistic removal + rollback", () => {
   it("rolls back only the rows whose IndexedDB delete failed", async () => {
-    seed({ items: [makeItem({ id: "a" }), makeItem({ id: "b" }), makeItem({ id: "c" })] });
+    seed({
+      items: [
+        makeItem({ id: "a" }),
+        makeItem({ id: "b" }),
+        makeItem({ id: "c" }),
+      ],
+    });
     const { deleteStoredItem } = await import("@/lib/vault/vault-db");
     vi.mocked(deleteStoredItem).mockRejectedValueOnce(new Error("idb fail"));
 
-    const result = await useVault.getState().permanentlyDeleteItems(["a", "b", "c"]);
+    const result = await useVault
+      .getState()
+      .permanentlyDeleteItems(["a", "b", "c"]);
 
     expect(result).toEqual({ deleted: 2, failed: 1 });
     // Only "a" (the failed row) is rolled back into state.
@@ -228,7 +244,10 @@ example.com,login,Work,1,0,alice,p@ssw0rd,https://example.com,JBSWY3DPEHPK3PXP,P
     const state = useVault.getState();
     expect(state.status).toBe("unlocked");
     // Order-insensitive: both rows were written near-simultaneously.
-    expect(state.items.map((i) => i.name).sort()).toEqual(["Meeting Notes", "example.com"]);
+    expect(state.items.map((i) => i.name).sort()).toEqual([
+      "Meeting Notes",
+      "example.com",
+    ]);
   });
 });
 
@@ -256,15 +275,31 @@ describe("restoreVault — encrypted backup", () => {
     const payload = {
       items: [
         makeItem({ id: "i1", name: "Work item", vaultIds: ["old-work"] }),
-        makeItem({ id: "i2", name: "Personal item", vaultIds: ["old-personal", "ghost"] }),
+        makeItem({
+          id: "i2",
+          name: "Personal item",
+          vaultIds: ["old-personal", "ghost"],
+        }),
       ],
       vaults: [
-        { id: "old-work", name: "Work", color: "blue", icon: "briefcase", createdAt: 1 },
-        { id: "old-personal", name: "Personal", color: "red", icon: "user", createdAt: 1 },
+        {
+          id: "old-work",
+          name: "Work",
+          color: "blue",
+          icon: "briefcase",
+          createdAt: 1,
+        },
+        {
+          id: "old-personal",
+          name: "Personal",
+          color: "red",
+          icon: "user",
+          createdAt: 1,
+        },
       ],
     };
     const { decryptJson } = await import("@/lib/crypto");
-    vi.mocked(decryptJson).mockResolvedValueOnce(payload as never);
+    vi.mocked(decryptJson).mockResolvedValueOnce(payload);
 
     seed({ status: "setup" });
     const result = await useVault.getState().restoreVault({

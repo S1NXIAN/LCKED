@@ -11,8 +11,8 @@
  */
 
 import { encryptJson, randomId } from "@/lib/crypto";
-import { putStoredItem } from "@/lib/vault/vault-db";
 import type { NewItemInput, VaultItem } from "@/lib/types";
+import { putStoredItem } from "@/lib/vault/vault-db";
 
 /* ─── Item policy primitives ────────────────────────────── */
 
@@ -44,7 +44,7 @@ export function sortItems(items: VaultItem[]): VaultItem[] {
 /** Downgrade a stored item to a NewItemInput — drops id + timestamps only. */
 export function toItemInput(item: VaultItem): NewItemInput {
   const { id: _id, createdAt: _c, updatedAt: _u, ...rest } = item;
-  return rest as NewItemInput;
+  return rest;
 }
 
 /**
@@ -107,9 +107,13 @@ export async function patchItems(
 ): Promise<{ updated: VaultItem[]; failed: number }> {
   const now = Date.now();
   const outcomes = await Promise.allSettled(
-    items.map(async (item, i) => {
+    items.map(async (item, _i) => {
       const patch = patchFn(item);
-      const updated: VaultItem = { ...item, ...patch, updatedAt: now } as VaultItem;
+      const updated: VaultItem = {
+        ...item,
+        ...patch,
+        updatedAt: now,
+      } as VaultItem;
       await encryptAndPersist(updated, vaultKey);
       return updated;
     }),
@@ -150,9 +154,10 @@ export async function writeItem(
       createdAt: existing.createdAt,
       updatedAt: now,
       trashed: input.trashed !== undefined ? input.trashed : existing.trashed,
-      trashedAt: input.trashedAt !== undefined ? input.trashedAt : existing.trashedAt,
+      trashedAt:
+        input.trashedAt !== undefined ? input.trashedAt : existing.trashedAt,
       vaultIds: input.vaultIds ?? existing.vaultIds,
-    } as VaultItem;
+    };
 
     await encryptAndPersist(item, vaultKey);
     return item;
@@ -170,7 +175,7 @@ export async function writeItem(
     trashed: ITEM_DEFAULTS.trashed,
     trashedAt: ITEM_DEFAULTS.trashedAt,
     vaultIds: (input as VaultItem).vaultIds ?? ITEM_DEFAULTS.vaultIds,
-  } as VaultItem;
+  };
 
   await encryptAndPersist(item, vaultKey);
   return item;
@@ -202,7 +207,7 @@ export async function writeItems(
     trashed: ITEM_DEFAULTS.trashed,
     trashedAt: ITEM_DEFAULTS.trashedAt,
     vaultIds: (input as VaultItem).vaultIds ?? ITEM_DEFAULTS.vaultIds,
-  })) as VaultItem[];
+  }));
 
   const outcomes = await Promise.allSettled(
     built.map(async (item) => {

@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import {
-  copyWithAutoClear,
   cancelClipboardClear,
   clearAllClipboardTimers,
+  copyWithAutoClear,
 } from "@/lib/clipboard";
 
 beforeEach(() => {
@@ -50,14 +51,18 @@ describe("copyWithAutoClear", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     // readText returned "other-value", so timer should NOT have cleared.
-    expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith("other-value");
+    expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith(
+      "other-value",
+    );
   });
 
   it("throws if clipboard API is unavailable", async () => {
     const origClipboard = navigator.clipboard;
     Object.assign(navigator, { clipboard: undefined });
 
-    await expect(copyWithAutoClear("x")).rejects.toThrow("Clipboard API unavailable");
+    await expect(copyWithAutoClear("x")).rejects.toThrow(
+      "Clipboard API unavailable",
+    );
 
     Object.assign(navigator, { clipboard: origClipboard });
   });
@@ -114,9 +119,12 @@ describe("clearAllClipboardTimers", () => {
     expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith("");
 
     // No timers should fire after clear.
-    const callsBefore = vi.mocked(navigator.clipboard.writeText).mock.calls.length;
+    const callsBefore = vi.mocked(navigator.clipboard.writeText).mock.calls
+      .length;
     vi.advanceTimersByTime(30_000);
     await vi.advanceTimersByTimeAsync(0);
-    expect(vi.mocked(navigator.clipboard.writeText).mock.calls.length).toBe(callsBefore);
+    expect(vi.mocked(navigator.clipboard.writeText).mock.calls.length).toBe(
+      callsBefore,
+    );
   });
 });

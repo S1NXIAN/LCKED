@@ -1,7 +1,7 @@
 "use client";
 
-import * as React from "react";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
+import * as React from "react";
 
 /**
  * Thin wrapper around next-themes. LCKED defaults to dark (Proton Pass vibe)

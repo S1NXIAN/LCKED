@@ -9,6 +9,7 @@
  */
 
 import type { ImportResult, NewItemInput } from "@/lib/types";
+
 import { makeLogin, makeNote } from "./helpers";
 
 export function parseKeePassXcXml(text: string): ImportResult {
@@ -81,10 +82,16 @@ export function parseKeePassXcXml(text: string): ImportResult {
 /** Read a KeePassXC <Entry> into a Map of Key→Value strings (last write wins). */
 export function readKeePassXcEntry(entry: Element): Map<string, string> {
   const map = new Map<string, string>();
-  const strings = Array.from(entry.children).filter((c) => c.tagName.toLowerCase() === "string");
+  const strings = Array.from(entry.children).filter(
+    (c) => c.tagName.toLowerCase() === "string",
+  );
   for (const str of strings) {
-    const keyEl = Array.from(str.children).find((c) => c.tagName.toLowerCase() === "key");
-    const valueEl = Array.from(str.children).find((c) => c.tagName.toLowerCase() === "value");
+    const keyEl = Array.from(str.children).find(
+      (c) => c.tagName.toLowerCase() === "key",
+    );
+    const valueEl = Array.from(str.children).find(
+      (c) => c.tagName.toLowerCase() === "value",
+    );
     if (!keyEl || !valueEl) continue;
     const key = (keyEl.textContent ?? "").trim();
     const value = valueEl.textContent ?? "";

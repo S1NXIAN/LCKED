@@ -1,39 +1,32 @@
 "use client";
 
 /**
-  * LCKED — CreateVaultDialog
-  * ---------------------------------------------------------------------------
-  * A right-side Sheet that handles BOTH create and edit modes for a user-
-  * defined vault. Driven by two store flags so any component can open it:
-  *
-  *   • createVaultDialogOpen  → blank form, "New vault" title, no delete btn
-  *   • vaultEditorOpen + editingVaultId  → pre-filled form, "Edit vault" title
-  *
-  * Design language matches the item-list + item-editor aesthetic:
-  *   • Header: live vault-icon swatch + title + Save/Create button (NO close X —
-  *     the built-in radix close button is hidden via `[&>button:last-child]:hidden`).
-  *   • Body: a flat borderless name input (no surrounding border, big text),
-  *     followed by labeled swatch pickers for color and icon.
-  *   • Footer: Cancel (left) + Delete vault (right, edit mode only, with an
-  *     AlertDialog confirmation).
-  *
-  * Save calls createVault() or updateVault() depending on the active mode. The
-  * sheet uses the same `bg-background border-l border-border` styling as the
-  * item editor so the surface language stays consistent across all editing
-  * panels.
-  */
+ * LCKED — CreateVaultDialog
+ * ---------------------------------------------------------------------------
+ * A right-side Sheet that handles BOTH create and edit modes for a user-
+ * defined vault. Driven by two store flags so any component can open it:
+ *
+ *   • createVaultDialogOpen  → blank form, "New vault" title, no delete btn
+ *   • vaultEditorOpen + editingVaultId  → pre-filled form, "Edit vault" title
+ *
+ * Design language matches the item-list + item-editor aesthetic:
+ *   • Header: live vault-icon swatch + title + Save/Create button (NO close X —
+ *     the built-in radix close button is hidden via `[&>button:last-child]:hidden`).
+ *   • Body: a flat borderless name input (no surrounding border, big text),
+ *     followed by labeled swatch pickers for color and icon.
+ *   • Footer: Cancel (left) + Delete vault (right, edit mode only, with an
+ *     AlertDialog confirmation).
+ *
+ * Save calls createVault() or updateVault() depending on the active mode. The
+ * sheet uses the same `bg-background border-l border-border` styling as the
+ * item editor so the surface language stays consistent across all editing
+ * panels.
+ */
 
+import { Check, Home, Loader2, Trash2 } from "lucide-react";
 import * as React from "react";
-import { Trash2, Loader2, Check, Home } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,15 +37,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { cn } from "@/lib/utils";
-import { useVault } from "@/store/vault";
+import { Button } from "@/components/ui/button";
 import {
-  VAULT_COLORS,
-  VAULT_ICONS,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
+import {
   DEFAULT_VAULT_COLOR,
   DEFAULT_VAULT_ICON,
+  VAULT_COLORS,
+  VAULT_ICONS,
   vaultColorHex,
 } from "@/lib/vault/vault-assets";
+import { useVault } from "@/store/vault";
+
 import { VaultIcon } from "./vault-icon";
 import { VAULT_LUCIDE_BY_ID } from "./vault-lucide-icons";
 
@@ -70,7 +72,7 @@ export function CreateVaultDialog() {
 
   const open = createOpen || editorOpen;
   const editingVault = editingVaultId
-    ? vaults.find((v) => v.id === editingVaultId) ?? null
+    ? (vaults.find((v) => v.id === editingVaultId) ?? null)
     : null;
   // Edit mode is active only when we have a real editing target; otherwise
   // we're in create mode even if vaultEditorOpen flipped true without an id.
@@ -144,7 +146,6 @@ export function CreateVaultDialog() {
     }
   };
 
-  const previewName = name.trim() || (isEdit ? editingVault?.name : "Untitled vault");
   const accentHex = vaultColorHex(color);
 
   // Hide the default close X (top-right) with `[&>button:last-child]:hidden`
@@ -155,10 +156,10 @@ export function CreateVaultDialog() {
     <Sheet open={open} onOpenChange={(o) => (!o ? close() : undefined)}>
       <SheetContent
         side="right"
-        className="w-full gap-0 border-l border-border bg-background p-0 sm:max-w-[454px] [&>button:last-child]:hidden"
+        className="border-border bg-background w-full gap-0 border-l p-0 sm:max-w-[454px] [&>button:last-child]:hidden"
       >
         {/* Header — live type icon + title + Save/Create */}
-        <SheetHeader className="flex-row items-center gap-2.5 border-b border-border px-4 py-3.5">
+        <SheetHeader className="border-border flex-row items-center gap-2.5 border-b px-4 py-3.5">
           <VaultIcon icon={icon} color={color} size={28} />
           <SheetTitle className="flex-1 truncate text-base font-semibold">
             {isEdit ? "Edit vault" : "New vault"}
@@ -170,7 +171,13 @@ export function CreateVaultDialog() {
             disabled={busy}
             className="min-w-[72px]"
           >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : isEdit ? "Save" : "Create"}
+            {busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : isEdit ? (
+              "Save"
+            ) : (
+              "Create"
+            )}
           </Button>
         </SheetHeader>
         <SheetDescription className="sr-only">
@@ -185,33 +192,35 @@ export function CreateVaultDialog() {
           <div className="flex items-center gap-3 px-6 pt-6">
             <VaultIcon icon={icon} color={color} size={36} />
             <div className="min-w-0 flex-1">
-              <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              <div className="text-muted-foreground mb-1 text-[11px] font-medium tracking-wide uppercase">
                 Name
               </div>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={isEdit ? editingVault?.name || "Vault name" : "Untitled vault"}
+                placeholder={
+                  isEdit ? editingVault?.name || "Vault name" : "Untitled vault"
+                }
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    handleSave();
+                    void handleSave();
                   }
                 }}
-                className="w-full border-0 bg-transparent px-0 py-0.5 text-lg font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+                className="text-foreground placeholder:text-muted-foreground/60 w-full border-0 bg-transparent px-0 py-0.5 text-lg font-medium focus:outline-none"
                 aria-label="Vault name"
               />
             </div>
           </div>
 
           {/* Divider before pickers */}
-          <div className="mx-6 my-5 h-px bg-border" />
+          <div className="bg-border mx-6 my-5 h-px" />
 
           {/* Color swatches — 10 in a 5×2 grid */}
           <div className="px-6">
-            <div className="mb-2.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <div className="text-muted-foreground mb-2.5 text-[11px] font-medium tracking-wide uppercase">
               Color
             </div>
             <div className="grid grid-cols-5 gap-2.5">
@@ -228,12 +237,14 @@ export function CreateVaultDialog() {
                     className={cn(
                       "relative flex h-9 items-center justify-center rounded-lg transition duration-150",
                       selected
-                        ? "ring-2 ring-offset-2 ring-offset-background"
+                        ? "ring-offset-background ring-2 ring-offset-2"
                         : "hover:scale-105",
                     )}
                     style={{
                       backgroundColor: `${hex}29`,
-                      ...(selected ? { boxShadow: `0 0 0 2px ${hex}` } : undefined),
+                      ...(selected
+                        ? { boxShadow: `0 0 0 2px ${hex}` }
+                        : undefined),
                     }}
                   >
                     <span
@@ -242,7 +253,7 @@ export function CreateVaultDialog() {
                     />
                     {selected && (
                       <Check
-                        className="absolute right-1 top-1 h-3 w-3"
+                        className="absolute top-1 right-1 h-3 w-3"
                         style={{ color: hex }}
                       />
                     )}
@@ -254,7 +265,7 @@ export function CreateVaultDialog() {
 
           {/* Icon picker — grid of raw Lucide glyphs tinted with selected color */}
           <div className="px-6 pt-6">
-            <div className="mb-2.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <div className="text-muted-foreground mb-2.5 text-[11px] font-medium tracking-wide uppercase">
               Icon
             </div>
             <div className="grid grid-cols-6 gap-1.5">
@@ -285,7 +296,7 @@ export function CreateVaultDialog() {
         </div>
 
         {/* Footer — Cancel (left) + Delete vault (right, edit mode only) */}
-        <div className="flex items-center gap-2 border-t border-border px-4 py-3">
+        <div className="border-border flex items-center gap-2 border-t px-4 py-3">
           <Button
             type="button"
             variant="ghost"
@@ -301,7 +312,7 @@ export function CreateVaultDialog() {
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive flex-1"
                 onClick={() => setConfirmDelete(true)}
                 disabled={busy}
               >
@@ -310,7 +321,9 @@ export function CreateVaultDialog() {
               </Button>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Delete “{editingVault.name}”?</AlertDialogTitle>
+                  <AlertDialogTitle>
+                    Delete “{editingVault.name}”?
+                  </AlertDialogTitle>
                   <AlertDialogDescription>
                     The vault will be removed. Items inside it will be moved to
                     your default vault (not deleted). This cannot be undone.

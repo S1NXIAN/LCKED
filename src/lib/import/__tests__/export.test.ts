@@ -1,8 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { exportToCsv, detectCardBrand } from "@/lib/import/export";
+import { describe, expect, it } from "vitest";
+
+import { detectCardBrand, exportToCsv } from "@/lib/import/export";
 import type { VaultItem } from "@/lib/types";
 
-function makeItem(overrides: Partial<VaultItem> & { type: VaultItem["type"] }): VaultItem {
+function makeItem(
+  overrides: Partial<VaultItem> & { type: VaultItem["type"] },
+): VaultItem {
   const now = Date.now();
   const base = {
     id: "test-id",

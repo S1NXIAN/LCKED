@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+
 import { estimateStrength } from "@/lib/generator/generator";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +28,7 @@ export function PasswordStrengthMeter({ password }: { password: string }) {
 
   return (
     <div className="flex items-center gap-2" aria-live="polite">
-      <div className="flex h-1.5 flex-1 gap-1 overflow-hidden rounded-full bg-muted">
+      <div className="bg-muted flex h-1.5 flex-1 gap-1 overflow-hidden rounded-full">
         {[0, 1, 2, 3, 4].map((i) => (
           <div
             key={i}
@@ -38,7 +39,12 @@ export function PasswordStrengthMeter({ password }: { password: string }) {
           />
         ))}
       </div>
-      <span className={cn("w-24 shrink-0 text-right text-xs font-medium", LABEL_COLORS[result.score])}>
+      <span
+        className={cn(
+          "w-24 shrink-0 text-right text-xs font-medium",
+          LABEL_COLORS[result.score],
+        )}
+      >
         {result.label}
       </span>
     </div>

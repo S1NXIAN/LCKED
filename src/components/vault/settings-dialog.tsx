@@ -22,26 +22,27 @@
  *   import-tab.tsx   export-tab.tsx
  */
 
-import * as React from "react";
+import { motion } from "framer-motion";
 import {
-  Settings as SettingsIcon,
   ArrowLeft,
-  Palette,
-  ShieldCheck,
-  Upload,
   Download,
   type LucideIcon,
+  Palette,
+  Settings as SettingsIcon,
+  ShieldCheck,
+  Upload,
 } from "lucide-react";
-import { motion } from "framer-motion";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { useVault } from "@/store/vault";
-import { cn } from "@/lib/utils";
+import * as React from "react";
 
-import { GeneralTab } from "./settings/general-tab";
-import { SecurityTab } from "./settings/security-tab";
-import { ImportTab } from "./settings/import-tab";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import { useVault } from "@/store/vault";
+
 import { ExportTab } from "./settings/export-tab";
+import { GeneralTab } from "./settings/general-tab";
+import { ImportTab } from "./settings/import-tab";
+import { SecurityTab } from "./settings/security-tab";
 
 /* --------------------------------- types --------------------------------- */
 
@@ -68,23 +69,23 @@ export function SettingsView() {
   const [tab, setTab] = React.useState<TabId>("general");
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-background">
+    <div className="bg-background flex h-full min-h-0 w-full flex-col">
       {/* Top bar: back + title + item count */}
-      <header className="flex items-center gap-2 border-b border-border bg-background px-3 py-2.5 md:px-4">
+      <header className="border-border bg-background flex items-center gap-2 border-b px-3 py-2.5 md:px-4">
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground"
+          className="text-muted-foreground h-8 w-8"
           onClick={() => setOpen(false)}
           aria-label="Back to vault"
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex items-center gap-2">
-          <SettingsIcon className="h-4 w-4 text-primary" />
+          <SettingsIcon className="text-primary h-4 w-4" />
           <h1 className="text-sm font-semibold tracking-tight">Settings</h1>
         </div>
-        <div className="ml-auto hidden items-center gap-1.5 rounded-md bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground sm:flex">
+        <div className="bg-muted/40 text-muted-foreground ml-auto hidden items-center gap-1.5 rounded-md px-2.5 py-1 text-xs sm:flex">
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
           {items.filter((i) => !i.trashed).length} items · local-only
         </div>
@@ -92,7 +93,7 @@ export function SettingsView() {
 
       {/* Tab navigation: full-width segmented control with sliding spring indicator */}
       <nav
-        className="flex items-center gap-1 border-b border-border px-3 py-2"
+        className="border-border flex items-center gap-1 border-b px-3 py-2"
         role="tablist"
         aria-label="Settings sections"
       >
@@ -115,7 +116,7 @@ export function SettingsView() {
               {active && (
                 <motion.div
                   layoutId="settings-tab-indicator"
-                  className="absolute inset-0 rounded-lg bg-primary/10 ring-1 ring-primary/30"
+                  className="bg-primary/10 ring-primary/30 absolute inset-0 rounded-lg ring-1"
                   transition={{ type: "spring", stiffness: 500, damping: 38 }}
                 />
               )}
@@ -130,19 +131,31 @@ export function SettingsView() {
       <div className="lcked-scroll min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-3xl px-4 py-6">
           <Tabs value={tab} onValueChange={(v) => setTab(v as TabId)}>
-            <TabsContent value="general" className="m-0 space-y-6 focus-visible:outline-none">
+            <TabsContent
+              value="general"
+              className="m-0 space-y-6 focus-visible:outline-none"
+            >
               <GeneralTab />
             </TabsContent>
 
-            <TabsContent value="security" className="m-0 space-y-6 focus-visible:outline-none">
+            <TabsContent
+              value="security"
+              className="m-0 space-y-6 focus-visible:outline-none"
+            >
               <SecurityTab />
             </TabsContent>
 
-            <TabsContent value="import" className="m-0 space-y-6 focus-visible:outline-none">
+            <TabsContent
+              value="import"
+              className="m-0 space-y-6 focus-visible:outline-none"
+            >
               <ImportTab />
             </TabsContent>
 
-            <TabsContent value="export" className="m-0 space-y-6 focus-visible:outline-none">
+            <TabsContent
+              value="export"
+              className="m-0 space-y-6 focus-visible:outline-none"
+            >
               <ExportTab />
             </TabsContent>
           </Tabs>

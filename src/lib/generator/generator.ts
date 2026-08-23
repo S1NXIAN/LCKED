@@ -6,8 +6,8 @@
  * character from each enabled set when length permits.
  */
 
-import type { GeneratorOptions } from "@/lib/types";
 import { WORDLIST } from "@/lib/generator/wordlist-eff";
+import type { GeneratorOptions } from "@/lib/types";
 
 const SETS = {
   uppercase: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
@@ -23,7 +23,8 @@ const AMBIGUOUS = new Set("Il1O0o`'\"|");
 const _u32 = new Uint32Array(1);
 
 function randomInt(maxExclusive: number): number {
-  if (maxExclusive <= 0) throw new RangeError("randomInt: maxExclusive must be > 0");
+  if (maxExclusive <= 0)
+    throw new RangeError("randomInt: maxExclusive must be > 0");
   // Rejection sampling to avoid modulo bias.
   const limit = Math.floor(0xffffffff / maxExclusive) * maxExclusive;
   for (;;) {
@@ -32,7 +33,10 @@ function randomInt(maxExclusive: number): number {
   }
 }
 
-function buildAlphabet(opts: GeneratorOptions): { alphabet: string; required: string[] } {
+function buildAlphabet(opts: GeneratorOptions): {
+  alphabet: string;
+  required: string[];
+} {
   let alphabet = "";
   const required: string[] = [];
   (["uppercase", "lowercase", "numbers", "symbols"] as const).forEach((key) => {
@@ -89,7 +93,8 @@ export interface StrengthResult {
  * Combines length × pool-size entropy with penalties for common patterns.
  */
 export function estimateStrength(password: string): StrengthResult {
-  if (!password) return { score: 0, label: "Empty", percent: 0, crackTime: "—" };
+  if (!password)
+    return { score: 0, label: "Empty", percent: 0, crackTime: "—" };
 
   let pool = 0;
   if (/[a-z]/.test(password)) pool += 26;
@@ -102,7 +107,8 @@ export function estimateStrength(password: string): StrengthResult {
   // Penalise repetition and simple sequences.
   let penalty = 0;
   if (/(.)\1{2,}/.test(password)) penalty += 10; // aaa
-  if (/(0123|1234|2345|3456|4567|5678|6789|abcd|qwe|asdf)/i.test(password)) penalty += 12;
+  if (/(0123|1234|2345|3456|4567|5678|6789|abcd|qwe|asdf)/i.test(password))
+    penalty += 12;
 
   const effective = Math.max(0, entropy - penalty);
   // 10^11 guesses/sec assumption for crack-time phrasing.

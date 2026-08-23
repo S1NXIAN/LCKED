@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import {
   AlertTriangle,
   Clock,
@@ -10,7 +9,9 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react";
+import * as React from "react";
 import { toast } from "sonner";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,10 +25,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
 import { useVault } from "@/store/vault";
+
 import { PasswordStrengthMeter } from "../password-strength-meter";
 
 export function SecurityTab() {
@@ -80,17 +82,17 @@ export function SecurityTab() {
       <div className="space-y-3">
         <header className="space-y-1">
           <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <Clock className="text-muted-foreground h-4 w-4" />
             Auto-lock
           </h2>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             Automatically lock the vault after a period of inactivity.
           </p>
         </header>
         <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">
+          <Label className="text-muted-foreground text-xs">
             Lock after inactivity:{" "}
-            <span className="font-medium text-foreground">
+            <span className="text-foreground font-medium">
               {settings.autoLockMinutes === 0
                 ? "Never"
                 : `${settings.autoLockMinutes} min`}
@@ -101,32 +103,28 @@ export function SecurityTab() {
             min={0}
             max={60}
             step={5}
-            onValueChange={(v) =>
-              updateSettings({ autoLockMinutes: v[0] })
-            }
+            onValueChange={(v) => updateSettings({ autoLockMinutes: v[0] })}
           />
-          <div className="flex justify-between text-[10px] text-muted-foreground">
+          <div className="text-muted-foreground flex justify-between text-[10px]">
             <span>Never</span>
             <span>30 min</span>
             <span>60 min</span>
           </div>
         </div>
 
-        <label className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2.5">
+        <label className="border-border bg-muted/20 flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2.5">
           <span className="flex flex-col">
             <span className="flex items-center gap-2 text-sm">
-              <Eye className="h-4 w-4 text-muted-foreground" />
+              <Eye className="text-muted-foreground h-4 w-4" />
               Lock when tab is hidden
             </span>
-            <span className="ml-6 text-[11px] text-muted-foreground">
+            <span className="text-muted-foreground ml-6 text-[11px]">
               Locks the vault when you switch to another browser tab.
             </span>
           </span>
           <Switch
             checked={settings.lockOnVisibility}
-            onCheckedChange={(v) =>
-              updateSettings({ lockOnVisibility: v })
-            }
+            onCheckedChange={(v) => updateSettings({ lockOnVisibility: v })}
           />
         </label>
       </div>
@@ -137,10 +135,10 @@ export function SecurityTab() {
       <div className="space-y-3">
         <header className="space-y-1">
           <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+            <ShieldCheck className="text-muted-foreground h-4 w-4" />
             Change master password
           </h2>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             Your master password encrypts everything. Changing it re-encrypts
             your vault.
           </p>
@@ -207,9 +205,9 @@ export function SecurityTab() {
             <AlertDialogHeader>
               <AlertDialogTitle>Reset the entire vault?</AlertDialogTitle>
               <AlertDialogDescription>
-                This permanently erases all {items.length} encrypted items
-                from this device. There is no recovery. Export an encrypted
-                backup first if you want to keep your data.
+                This permanently erases all {items.length} encrypted items from
+                this device. There is no recovery. Export an encrypted backup
+                first if you want to keep your data.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

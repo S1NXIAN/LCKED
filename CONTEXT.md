@@ -43,11 +43,11 @@ glossary's vocabulary — don't drift to synonyms.
   only safe round-trip format. Produced by `exportEncrypted`: the export
   password derives an export Master Key that wraps a fresh export Vault Key,
   which encrypts the `{ items, vaults }` payload. Importing anything else
-  (Bitwarden/Proton/1Password/KeePass) is an *import*, not a Backup.
+  (Bitwarden/Proton/1Password/KeePass) is an _import_, not a Backup.
 
 - **Restore** — the setup-time path that brings a Backup (or a plain import)
   into a freshly created vault. Implemented by the store-free `restoreVault`
-  in `src/lib/vault/vault-restore.ts`: for a Backup it decrypts *before* creating
+  in `src/lib/vault/vault-restore.ts`: for a Backup it decrypts _before_ creating
   anything (a wrong password returns `{ ok: false, reason: "wrong-password" }`
   and never leaves an empty vault), re-creates custom vaults, remaps item
   vault memberships by name+color+icon (unmatched ids are dropped), and saves
@@ -56,7 +56,7 @@ glossary's vocabulary — don't drift to synonyms.
 
 - **Untrash** — what "restore" means for a single trashed item
   (`restoreItem`/`restoreItems`/`restoreAllTrash`): clearing `trashed` and
-  `trashedAt`. Do not call this *Restore* — that word is reserved for Backup
+  `trashedAt`. Do not call this _Restore_ — that word is reserved for Backup
   restore above.
 
 - **Trash** — soft-delete. Trashing marks an item `trashed` + `trashedAt`

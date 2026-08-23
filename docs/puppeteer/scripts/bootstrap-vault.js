@@ -9,13 +9,14 @@
 //   • already open  : returns immediately
 // Anything else (locked vault, import flow): throws so you extend this file
 // per GUIDE.md's growth rule. Password needs ≥8 characters.
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const pass = "smoke-test-pass-1";
 
 let snap = await tab.ariaSnapshot();
 // "All Items" (sidebar) covers unlocked homes with items; the other two
 // markers exist only on the empty-vault home. Pre-auth screens match none.
-if (/Add your first item|Select an item|All Items/.test(snap)) return "already unlocked";
+if (/Add your first item|Select an item|All Items/.test(snap))
+  return "already unlocked";
 if (!/Create your vault/.test(snap)) {
   throw new Error("unknown screen — extend bootstrap-vault.js (see GUIDE.md)");
 }

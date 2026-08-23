@@ -1,33 +1,34 @@
 "use client";
 
-import * as React from "react";
+import { format } from "date-fns";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Pencil,
-  Copy,
-  Check,
-  Trash2,
-  Star,
-  CopyPlus,
-  ExternalLink,
-  Globe,
-  Mail,
-  User,
-  Phone,
-  MapPin,
   Building2,
   Calendar,
+  Check,
+  Copy,
+  CopyPlus,
+  CreditCard,
+  ExternalLink,
   Eye,
   EyeOff,
-  RotateCcw,
+  Globe,
   KeyRound,
   Lock,
-  CreditCard,
-  Pin,
   type LucideIcon,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
+  Pin,
+  RotateCcw,
+  Star,
+  Trash2,
+  User,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import * as React from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,15 +40,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { copyWithAutoClear } from "@/lib/clipboard";
-import { useVault } from "@/store/vault";
-import { ItemTypeIcon, ITEM_TYPE_LABELS } from "./item-icons";
-import { TOTPDisplay } from "./totp-display";
-import { FaviconIcon } from "./favicon-icon";
-import { VaultIcon } from "./vault-icon";
-import { format } from "date-fns";
 import { cn, isEmail } from "@/lib/utils";
+import { useVault } from "@/store/vault";
+
+import { FaviconIcon } from "./favicon-icon";
 import { FieldCluster } from "./field-cluster";
+import { ITEM_TYPE_LABELS, ItemTypeIcon } from "./item-icons";
+import { TOTPDisplay } from "./totp-display";
+import { VaultIcon } from "./vault-icon";
 
 /** A single field row inside a FieldCluster. */
 function FieldRow({
@@ -60,9 +62,9 @@ function FieldRow({
   first,
   onCopy,
   /** When true, the value is masked by default (like a password) even if the
-    *  field isn't inherently sensitive. Used for email/username rows when the
-    *  blurEmailMode setting is "full" — the email is hidden until the user
-    *  clicks the reveal (eye) button. */
+   *  field isn't inherently sensitive. Used for email/username rows when the
+   *  blurEmailMode setting is "full" — the email is hidden until the user
+   *  clicks the reveal (eye) button. */
   forceMask = false,
 }: {
   label: string;
@@ -81,11 +83,15 @@ function FieldRow({
   // Either the field is inherently masked (password/card) OR the user has
   // force-masked it via blurEmailMode="full". The reveal toggle clears both.
   const isMasked = masked || (forceMask && !revealed);
-  const display = isMasked && !revealed ? "•".repeat(Math.min(value.length || 8, 12)) : value;
+  const display =
+    isMasked && !revealed ? "•".repeat(Math.min(value.length || 8, 12)) : value;
   const showRevealButton = masked || forceMask;
 
   const handleCopy = async () => {
-    if (onCopy) { onCopy(); return; }
+    if (onCopy) {
+      onCopy();
+      return;
+    }
     if (!value) return;
     try {
       await copyWithAutoClear(value, label);
@@ -107,21 +113,25 @@ function FieldRow({
   return (
     <div
       className={cn(
-        "group flex items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-secondary/30",
-        !first && "border-t border-border/50",
+        "group hover:bg-secondary/30 flex items-center gap-3 px-3.5 py-2.5 transition-colors",
+        !first && "border-border/50 border-t",
         rowClickable && "cursor-pointer",
       )}
       onClick={rowClickable ? handleCopy : undefined}
     >
-      {Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground/70" />}
+      {Icon && <Icon className="text-muted-foreground/70 h-4 w-4 shrink-0" />}
       <div className="min-w-0 flex-1">
-        <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">{label}</div>
+        <div className="text-muted-foreground/70 text-[10px] font-medium tracking-wider uppercase">
+          {label}
+        </div>
         <div
           className={cn(
-            "truncate text-sm text-foreground/90",
+            "text-foreground/90 truncate text-sm",
             mono && "font-secret",
           )}
-          style={mono ? { fontFeatureSettings: '"tnum" 1, "zero" 1' } : undefined}
+          style={
+            mono ? { fontFeatureSettings: '"tnum" 1, "zero" 1' } : undefined
+          }
         >
           {display || "—"}
         </div>
@@ -131,28 +141,36 @@ function FieldRow({
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground h-7 w-7"
             onClick={(e) => {
               e.stopPropagation();
               setRevealed((r) => !r);
             }}
             aria-label={revealed ? "Hide" : "Reveal"}
           >
-            {revealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            {revealed ? (
+              <EyeOff className="h-3.5 w-3.5" />
+            ) : (
+              <Eye className="h-3.5 w-3.5" />
+            )}
           </Button>
         )}
         {copyable && (
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground h-7 w-7"
             onClick={(e) => {
               e.stopPropagation();
               void handleCopy();
             }}
             aria-label={`Copy ${label}`}
           >
-            {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? (
+              <Check className="h-3.5 w-3.5 text-emerald-400" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" />
+            )}
           </Button>
         )}
       </div>
@@ -163,19 +181,19 @@ function FieldRow({
 /* -------------------- Rotating vault chip ----------------- */
 
 /**
-  * A vault chip that cycles through every vault an item belongs to every 1.5s.
-  * The icon and name crossfade with a GPU-friendly opacity+transform transition.
-  * Designed to be "oddly satisfying": a slow, rhythmic pulse that draws the eye
-  * without being distracting. Pauses on hover so the user can click the exact
-  * vault they want.
-  *
-  * Performance notes:
-  *  • Uses a single setInterval (cleared on unmount / vault-count change).
-  *  • The crossfade is pure CSS (opacity + translateY) — no layout thrash.
-  *  • AnimatePresence with mode="popLayout" keeps the transition smooth even
-  *    when the chip width changes between vaults.
-  *  • Reduced-motion users get a static chip (no rotation).
-  */
+ * A vault chip that cycles through every vault an item belongs to every 1.5s.
+ * The icon and name crossfade with a GPU-friendly opacity+transform transition.
+ * Designed to be "oddly satisfying": a slow, rhythmic pulse that draws the eye
+ * without being distracting. Pauses on hover so the user can click the exact
+ * vault they want.
+ *
+ * Performance notes:
+ *  • Uses a single setInterval (cleared on unmount / vault-count change).
+ *  • The crossfade is pure CSS (opacity + translateY) — no layout thrash.
+ *  • AnimatePresence with mode="popLayout" keeps the transition smooth even
+ *    when the chip width changes between vaults.
+ *  • Reduced-motion users get a static chip (no rotation).
+ */
 function RotatingVaultChip({
   vaults,
   onSelect,
@@ -191,7 +209,8 @@ function RotatingVaultChip({
     if (typeof window === "undefined") return;
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     setPrefersReducedMotion(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
+    const handler = (e: MediaQueryListEvent) =>
+      setPrefersReducedMotion(e.matches);
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, []);
@@ -223,7 +242,7 @@ function RotatingVaultChip({
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
-      className="flex items-center gap-1.5 rounded-md px-1 py-0.5 text-sm text-muted-foreground/80 transition-colors hover:bg-muted/60 hover:text-foreground"
+      className="text-muted-foreground/80 hover:bg-muted/60 hover:text-foreground flex items-center gap-1.5 rounded-md px-1 py-0.5 text-sm transition-colors"
       title={
         vaults.length === 1
           ? `Go to ${current.name} vault`
@@ -244,7 +263,7 @@ function RotatingVaultChip({
         </motion.span>
       </AnimatePresence>
       {vaults.length > 1 && !prefersReducedMotion && (
-        <span className="ml-0.5 text-[10px] tabular-nums text-muted-foreground/50">
+        <span className="text-muted-foreground/50 ml-0.5 text-[10px] tabular-nums">
           {idx + 1}/{vaults.length}
         </span>
       )}
@@ -275,8 +294,8 @@ export function ItemDetail() {
   // in the spotlight (icon + name crossfade).
   const itemVaults = item
     ? item.vaultIds
-      .map((id) => vaults.find((v) => v.id === id))
-      .filter((v): v is NonNullable<typeof v> => Boolean(v))
+        .map((id) => vaults.find((v) => v.id === id))
+        .filter((v): v is NonNullable<typeof v> => Boolean(v))
     : [];
 
   // Handlers — defined as consts referencing `item` via closure. They're
@@ -284,23 +303,39 @@ export function ItemDetail() {
   // guaranteed to be defined when they run.
   const handleTrash = async () => {
     if (!item) return;
-    try { await trashItem(item.id); toast.success("Moved to Trash"); }
-    catch { toast.error("Could not move to trash"); }
+    try {
+      await trashItem(item.id);
+      toast.success("Moved to Trash");
+    } catch {
+      toast.error("Could not move to trash");
+    }
   };
   const handleRestore = async () => {
     if (!item) return;
-    try { await restoreItem(item.id); toast.success("Item restored"); }
-    catch { toast.error("Could not restore item"); }
+    try {
+      await restoreItem(item.id);
+      toast.success("Item restored");
+    } catch {
+      toast.error("Could not restore item");
+    }
   };
   const handlePermanentDelete = async () => {
     if (!item) return;
-    try { await permanentlyDeleteItem(item.id); toast.success("Item permanently deleted"); }
-    catch { toast.error("Could not delete item"); }
+    try {
+      await permanentlyDeleteItem(item.id);
+      toast.success("Item permanently deleted");
+    } catch {
+      toast.error("Could not delete item");
+    }
   };
   const handleDuplicate = async () => {
     if (!item) return;
-    try { await duplicateItem(item.id); toast.success("Item duplicated"); }
-    catch { toast.error("Could not duplicate item"); }
+    try {
+      await duplicateItem(item.id);
+      toast.success("Item duplicated");
+    } catch {
+      toast.error("Could not duplicate item");
+    }
   };
 
   return (
@@ -319,11 +354,13 @@ export function ItemDetail() {
             className="flex h-full flex-col"
           >
             {/* Header */}
-            <div className="border-b border-border px-5 py-4">
+            <div className="border-border border-b px-5 py-4">
               <div className="flex items-center gap-3.5">
                 {/* Favicon for logins (gated by showFavicons setting),
                                         type-icon otherwise. */}
-                {showFavicons && item.type === "login" && item.details.urls[0] ? (
+                {showFavicons &&
+                item.type === "login" &&
+                item.details.urls[0] ? (
                   <FaviconIcon
                     url={item.details.urls[0]}
                     size={44}
@@ -334,7 +371,12 @@ export function ItemDetail() {
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <h2 className={cn("truncate text-xl font-semibold", item.trashed && "line-through opacity-50")}>
+                    <h2
+                      className={cn(
+                        "truncate text-xl font-semibold",
+                        item.trashed && "line-through opacity-50",
+                      )}
+                    >
                       {item.name}
                     </h2>
                   </div>
@@ -343,9 +385,13 @@ export function ItemDetail() {
                     <button
                       type="button"
                       onClick={() => {
-                        window.dispatchEvent(new CustomEvent("lcked:set-type-filter", { detail: item.type }));
+                        window.dispatchEvent(
+                          new CustomEvent("lcked:set-type-filter", {
+                            detail: item.type,
+                          }),
+                        );
                       }}
-                      className="rounded-md bg-secondary/40 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground"
+                      className="bg-secondary/40 text-muted-foreground hover:bg-secondary/70 hover:text-foreground rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wider uppercase transition-colors"
                       title={`Filter list by ${ITEM_TYPE_LABELS[item.type]}`}
                     >
                       {ITEM_TYPE_LABELS[item.type]}
@@ -357,7 +403,10 @@ export function ItemDetail() {
                                                 the item belongs to only one vault (or none), no
                                                 rotation — the chip is static. */}
                     {itemVaults.length > 0 && (
-                      <RotatingVaultChip vaults={itemVaults} onSelect={(id) => setActiveVault(id)} />
+                      <RotatingVaultChip
+                        vaults={itemVaults}
+                        onSelect={(id) => setActiveVault(id)}
+                      />
                     )}
                     {item.trashed && (
                       <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
@@ -370,26 +419,42 @@ export function ItemDetail() {
                 <div className="flex shrink-0 items-center gap-0.5">
                   {item.trashed ? (
                     <>
-                      <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={handleRestore}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-1.5"
+                        onClick={handleRestore}
+                      >
                         <RotateCcw className="h-3.5 w-3.5" />
                         Restore
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-red-400" aria-label="Delete permanently">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-muted-foreground h-8 w-8 hover:text-red-400"
+                            aria-label="Delete permanently"
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Delete permanently?</AlertDialogTitle>
+                            <AlertDialogTitle>
+                              Delete permanently?
+                            </AlertDialogTitle>
                             <AlertDialogDescription>
-                              &ldquo;{item.name}&rdquo; will be permanently erased. This cannot be undone.
+                              &ldquo;{item.name}&rdquo; will be permanently
+                              erased. This cannot be undone.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handlePermanentDelete} className="bg-red-500 text-white hover:bg-red-600">
+                            <AlertDialogAction
+                              onClick={handlePermanentDelete}
+                              className="bg-red-500 text-white hover:bg-red-600"
+                            >
                               Delete forever
                             </AlertDialogAction>
                           </AlertDialogFooter>
@@ -398,21 +463,66 @@ export function ItemDetail() {
                     </>
                   ) : (
                     <>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => toggleFavorite(item.id)} aria-label="Toggle favorite">
-                        <Star className={cn("h-4 w-4", item.favorite ? "fill-amber-400 text-amber-400" : "text-muted-foreground")} />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => toggleFavorite(item.id)}
+                        aria-label="Toggle favorite"
+                      >
+                        <Star
+                          className={cn(
+                            "h-4 w-4",
+                            item.favorite
+                              ? "fill-amber-400 text-amber-400"
+                              : "text-muted-foreground",
+                          )}
+                        />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => togglePin(item.id)} aria-label="Toggle pin" title={item.pinned ? "Unpin" : "Pin to top"}>
-                        <Pin className={cn("h-4 w-4", item.pinned ? "fill-primary/20 text-primary" : "text-muted-foreground")} />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => togglePin(item.id)}
+                        aria-label="Toggle pin"
+                        title={item.pinned ? "Unpin" : "Pin to top"}
+                      >
+                        <Pin
+                          className={cn(
+                            "h-4 w-4",
+                            item.pinned
+                              ? "fill-primary/20 text-primary"
+                              : "text-muted-foreground",
+                          )}
+                        />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditorOpen(true, item.id)} aria-label="Edit" title="Edit">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => setEditorOpen(true, item.id)}
+                        aria-label="Edit"
+                        title="Edit"
+                      >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleDuplicate} aria-label="Duplicate">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={handleDuplicate}
+                        aria-label="Duplicate"
+                      >
                         <CopyPlus className="h-4 w-4" />
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-red-400" aria-label="Move to trash">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-muted-foreground h-8 w-8 hover:text-red-400"
+                            aria-label="Move to trash"
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </AlertDialogTrigger>
@@ -420,12 +530,16 @@ export function ItemDetail() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Move to trash?</AlertDialogTitle>
                             <AlertDialogDescription>
-                              &ldquo;{item.name}&rdquo; will be moved to Trash. You can restore it later or it will be auto-deleted after 30 days.
+                              &ldquo;{item.name}&rdquo; will be moved to Trash.
+                              You can restore it later or it will be
+                              auto-deleted after 30 days.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleTrash}>Move to trash</AlertDialogAction>
+                            <AlertDialogAction onClick={handleTrash}>
+                              Move to trash
+                            </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
@@ -443,41 +557,63 @@ export function ItemDetail() {
                                             whether the value looks like an email. */}
                   <FieldCluster>
                     <FieldRow
-                      label={isEmail(item.details.username) ? "Email" : "Username"}
+                      label={
+                        isEmail(item.details.username) ? "Email" : "Username"
+                      }
                       value={item.details.username}
                       icon={isEmail(item.details.username) ? Mail : User}
                       first
                       forceMask={blurEmailMode === "full"}
                     />
-                    <FieldRow label="Password" value={item.details.password} mono masked icon={KeyRound} />
+                    <FieldRow
+                      label="Password"
+                      value={item.details.password}
+                      mono
+                      masked
+                      icon={KeyRound}
+                    />
                   </FieldCluster>
 
                   {/* TOTP */}
-                  {item.details.totp && <TOTPDisplay secret={item.details.totp} />}
+                  {item.details.totp && (
+                    <TOTPDisplay secret={item.details.totp} />
+                  )}
 
                   {/* Websites */}
                   {item.details.urls.filter(Boolean).length > 0 && (
                     <div className="space-y-1.5">
-                      <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 px-1">Websites</div>
+                      <div className="text-muted-foreground/70 px-1 text-[10px] font-medium tracking-wider uppercase">
+                        Websites
+                      </div>
                       <FieldCluster>
                         {item.details.urls.filter(Boolean).map((url, idx) => (
-                          <div key={idx} className={cn("group flex items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-secondary/30", idx > 0 && "border-t border-border/50")}>
-                            <Globe className="h-4 w-4 shrink-0 text-muted-foreground/70" />
+                          <div
+                            key={idx}
+                            className={cn(
+                              "group hover:bg-secondary/30 flex items-center gap-3 px-3.5 py-2.5 transition-colors",
+                              idx > 0 && "border-border/50 border-t",
+                            )}
+                          >
+                            <Globe className="text-muted-foreground/70 h-4 w-4 shrink-0" />
                             <a
-                              href={url.startsWith("http") ? url : `https://${url}`}
+                              href={
+                                url.startsWith("http") ? url : `https://${url}`
+                              }
                               target="_blank"
                               rel="noopener noreferrer"
                               data-native-link="true"
-                              className="truncate text-sm text-primary hover:underline"
+                              className="text-primary truncate text-sm hover:underline"
                             >
                               {url}
                             </a>
                             <a
-                              href={url.startsWith("http") ? url : `https://${url}`}
+                              href={
+                                url.startsWith("http") ? url : `https://${url}`
+                              }
                               target="_blank"
                               rel="noopener noreferrer"
                               data-native-link="true"
-                              className="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-secondary hover:text-foreground group-hover:opacity-100"
+                              className="text-muted-foreground hover:bg-secondary hover:text-foreground ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100"
                               aria-label="Open"
                             >
                               <ExternalLink className="h-3.5 w-3.5" />
@@ -491,9 +627,13 @@ export function ItemDetail() {
                   {/* Notes */}
                   {item.details.notes && (
                     <div className="space-y-1.5">
-                      <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 px-1">Note</div>
-                      <div className="rounded-xl border border-border bg-secondary/10 p-3.5 dark:bg-secondary/10">
-                        <p className="whitespace-pre-wrap text-sm text-foreground/80">{item.details.notes}</p>
+                      <div className="text-muted-foreground/70 px-1 text-[10px] font-medium tracking-wider uppercase">
+                        Note
+                      </div>
+                      <div className="border-border bg-secondary/10 dark:bg-secondary/10 rounded-xl border p-3.5">
+                        <p className="text-foreground/80 text-sm whitespace-pre-wrap">
+                          {item.details.notes}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -501,25 +641,59 @@ export function ItemDetail() {
               )}
 
               {item.type === "note" && (
-                <div className="rounded-xl border border-border bg-secondary/10 p-4 dark:bg-secondary/10">
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{item.details.content}</p>
+                <div className="border-border bg-secondary/10 dark:bg-secondary/10 rounded-xl border p-4">
+                  <p className="text-foreground/90 text-sm leading-relaxed whitespace-pre-wrap">
+                    {item.details.content}
+                  </p>
                 </div>
               )}
 
               {item.type === "card" && (
                 <div className="space-y-4">
                   <FieldCluster>
-                    <FieldRow label="Cardholder" value={item.details.cardholder} icon={User} first />
-                    <FieldRow label="Card number" value={item.details.number} mono masked icon={CreditCard} />
-                    <FieldRow label="CVV" value={item.details.cvv} mono masked icon={Lock} />
-                    <FieldRow label="Expiry" value={item.details.expiry} mono icon={Calendar} />
-                    <FieldRow label="PIN" value={item.details.pin} mono masked icon={KeyRound} />
+                    <FieldRow
+                      label="Cardholder"
+                      value={item.details.cardholder}
+                      icon={User}
+                      first
+                    />
+                    <FieldRow
+                      label="Card number"
+                      value={item.details.number}
+                      mono
+                      masked
+                      icon={CreditCard}
+                    />
+                    <FieldRow
+                      label="CVV"
+                      value={item.details.cvv}
+                      mono
+                      masked
+                      icon={Lock}
+                    />
+                    <FieldRow
+                      label="Expiry"
+                      value={item.details.expiry}
+                      mono
+                      icon={Calendar}
+                    />
+                    <FieldRow
+                      label="PIN"
+                      value={item.details.pin}
+                      mono
+                      masked
+                      icon={KeyRound}
+                    />
                   </FieldCluster>
                   {item.details.notes && (
                     <div className="space-y-1.5">
-                      <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 px-1">Note</div>
-                      <div className="rounded-xl border border-border bg-secondary/10 p-3.5 dark:bg-secondary/10">
-                        <p className="whitespace-pre-wrap text-sm text-foreground/80">{item.details.notes}</p>
+                      <div className="text-muted-foreground/70 px-1 text-[10px] font-medium tracking-wider uppercase">
+                        Note
+                      </div>
+                      <div className="border-border bg-secondary/10 dark:bg-secondary/10 rounded-xl border p-3.5">
+                        <p className="text-foreground/80 text-sm whitespace-pre-wrap">
+                          {item.details.notes}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -529,33 +703,68 @@ export function ItemDetail() {
               {item.type === "identity" && (
                 <div className="space-y-4">
                   <FieldCluster>
-                    <div className="grid grid-cols-2 divide-x divide-border/50">
-                      <FieldRow label="First name" value={item.details.firstName} first />
-                      <FieldRow label="Last name" value={item.details.lastName} first />
+                    <div className="divide-border/50 grid grid-cols-2 divide-x">
+                      <FieldRow
+                        label="First name"
+                        value={item.details.firstName}
+                        first
+                      />
+                      <FieldRow
+                        label="Last name"
+                        value={item.details.lastName}
+                        first
+                      />
                     </div>
-                    <div className="grid grid-cols-2 divide-x divide-border/50">
-                      <FieldRow label="Email" value={item.details.email} icon={Mail} forceMask={blurEmailMode === "full"} />
-                      <FieldRow label="Phone" value={item.details.phone} icon={Phone} />
+                    <div className="divide-border/50 grid grid-cols-2 divide-x">
+                      <FieldRow
+                        label="Email"
+                        value={item.details.email}
+                        icon={Mail}
+                        forceMask={blurEmailMode === "full"}
+                      />
+                      <FieldRow
+                        label="Phone"
+                        value={item.details.phone}
+                        icon={Phone}
+                      />
                     </div>
-                    <FieldRow label="Company" value={item.details.company} icon={Building2} />
+                    <FieldRow
+                      label="Company"
+                      value={item.details.company}
+                      icon={Building2}
+                    />
                   </FieldCluster>
                   <FieldCluster>
-                    <FieldRow label="Address" value={item.details.address1} icon={MapPin} first />
-                    {item.details.address2 && <FieldRow label="Address line 2" value={item.details.address2} />}
-                    <div className="grid grid-cols-2 divide-x divide-border/50">
+                    <FieldRow
+                      label="Address"
+                      value={item.details.address1}
+                      icon={MapPin}
+                      first
+                    />
+                    {item.details.address2 && (
+                      <FieldRow
+                        label="Address line 2"
+                        value={item.details.address2}
+                      />
+                    )}
+                    <div className="divide-border/50 grid grid-cols-2 divide-x">
                       <FieldRow label="City" value={item.details.city} />
                       <FieldRow label="State" value={item.details.state} />
                     </div>
-                    <div className="grid grid-cols-2 divide-x divide-border/50">
+                    <div className="divide-border/50 grid grid-cols-2 divide-x">
                       <FieldRow label="ZIP" value={item.details.zip} />
                       <FieldRow label="Country" value={item.details.country} />
                     </div>
                   </FieldCluster>
                   {item.details.notes && (
                     <div className="space-y-1.5">
-                      <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 px-1">Note</div>
-                      <div className="rounded-xl border border-border bg-secondary/10 p-3.5 dark:bg-secondary/10">
-                        <p className="whitespace-pre-wrap text-sm text-foreground/80">{item.details.notes}</p>
+                      <div className="text-muted-foreground/70 px-1 text-[10px] font-medium tracking-wider uppercase">
+                        Note
+                      </div>
+                      <div className="border-border bg-secondary/10 dark:bg-secondary/10 rounded-xl border p-3.5">
+                        <p className="text-foreground/80 text-sm whitespace-pre-wrap">
+                          {item.details.notes}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -565,7 +774,9 @@ export function ItemDetail() {
               {/* Custom fields */}
               {item.customFields.length > 0 && (
                 <div className="mt-4 space-y-1.5">
-                  <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 px-1">Custom fields</div>
+                  <div className="text-muted-foreground/70 px-1 text-[10px] font-medium tracking-wider uppercase">
+                    Custom fields
+                  </div>
                   <FieldCluster>
                     {item.customFields.map((cf, idx) => (
                       <FieldRow
@@ -582,7 +793,7 @@ export function ItemDetail() {
               )}
 
               {/* Timestamps */}
-              <div className="mt-6 flex items-center gap-4 border-t border-border/40 pt-4 text-[11px] text-muted-foreground/70">
+              <div className="border-border/40 text-muted-foreground/70 mt-6 flex items-center gap-4 border-t pt-4 text-[11px]">
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-3 w-3" />
                   Created {format(new Date(item.createdAt), "MMM d, yyyy")}
@@ -603,11 +814,13 @@ export function ItemDetail() {
             transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
             className="flex h-full flex-col items-center justify-center px-6 text-center"
           >
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary/20">
-              <Copy className="h-7 w-7 text-muted-foreground/70" />
+            <div className="bg-secondary/20 mb-4 flex h-16 w-16 items-center justify-center rounded-2xl">
+              <Copy className="text-muted-foreground/70 h-7 w-7" />
             </div>
-            <h3 className="text-sm font-medium text-foreground/80">Select an item</h3>
-            <p className="mt-1.5 max-w-xs text-xs text-muted-foreground/70">
+            <h3 className="text-foreground/80 text-sm font-medium">
+              Select an item
+            </h3>
+            <p className="text-muted-foreground/70 mt-1.5 max-w-xs text-xs">
               Pick an item from the list to view its details.
             </p>
           </motion.div>

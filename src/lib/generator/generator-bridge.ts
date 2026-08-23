@@ -18,7 +18,9 @@ let _generatorCallback: ((password: string) => void) | null = null;
  * opens the generator dialog — the callback receives the generated password
  * and inserts it into the source field.
  */
-export function setGeneratorCallback(cb: ((password: string) => void) | null): void {
+export function setGeneratorCallback(
+  cb: ((password: string) => void) | null,
+): void {
   _generatorCallback = cb;
 }
 

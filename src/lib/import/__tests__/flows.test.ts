@@ -1,7 +1,13 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { toast } from "sonner";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { download } from "@/lib/browser-utils";
-import { readPickedFile, runImport, downloadEncryptedExport, downloadCsvExport } from "@/lib/import/flows";
+import {
+  downloadCsvExport,
+  downloadEncryptedExport,
+  readPickedFile,
+  runImport,
+} from "@/lib/import/flows";
 
 // The flows module is the seam under test; toast + download are its edges.
 vi.mock("sonner", () => ({
@@ -56,7 +62,10 @@ describe("runImport", () => {
       warnings: [],
     });
 
-    const ok = await runImport(makeReadableFile("vault.json", "file-body"), importItems);
+    const ok = await runImport(
+      makeReadableFile("vault.json", "file-body"),
+      importItems,
+    );
 
     expect(ok).toBe(true);
     expect(importItems).toHaveBeenCalledWith("vault.json", "file-body");
@@ -73,7 +82,10 @@ describe("runImport", () => {
       warnings: ["bad row"],
     });
 
-    const ok = await runImport(makeReadableFile("a.csv", "file-body"), importItems);
+    const ok = await runImport(
+      makeReadableFile("a.csv", "file-body"),
+      importItems,
+    );
 
     expect(ok).toBe(true);
     expect(toast.success).toHaveBeenCalledWith(
@@ -85,7 +97,10 @@ describe("runImport", () => {
   it("toasts a friendly failure and reports it", async () => {
     const importItems = vi.fn().mockRejectedValue(new Error("boom"));
 
-    const ok = await runImport(makeReadableFile("x.xml", "file-body"), importItems);
+    const ok = await runImport(
+      makeReadableFile("x.xml", "file-body"),
+      importItems,
+    );
 
     expect(ok).toBe(false);
     expect(toast.error).toHaveBeenCalledWith(
@@ -99,12 +114,17 @@ describe("downloadEncryptedExport", () => {
   const exportEncrypted = vi.fn().mockResolvedValue("{}");
 
   it("rejects short passwords without exporting (dialog mode)", async () => {
-    const ok = await downloadEncryptedExport({ exportEncrypted, passphrase: "short" });
+    const ok = await downloadEncryptedExport({
+      exportEncrypted,
+      passphrase: "short",
+    });
 
     expect(ok).toBe(false);
     expect(exportEncrypted).not.toHaveBeenCalled();
     expect(download).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith("Export password must be at least 8 characters");
+    expect(toast.error).toHaveBeenCalledWith(
+      "Export password must be at least 8 characters",
+    );
   });
 
   it("rejects mismatched confirmation (tab mode)", async () => {
@@ -116,7 +136,9 @@ describe("downloadEncryptedExport", () => {
 
     expect(ok).toBe(false);
     expect(exportEncrypted).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith("Passphrase must be at least 8 characters and match");
+    expect(toast.error).toHaveBeenCalledWith(
+      "Passphrase must be at least 8 characters and match",
+    );
   });
 
   it("exports and downloads a dated JSON file", async () => {
@@ -137,7 +159,11 @@ describe("downloadEncryptedExport", () => {
   });
 
   it("downloads a ZIP variant when asked", async () => {
-    const ok = await downloadEncryptedExport({ exportEncrypted, passphrase: "long-enough", zip: true });
+    const ok = await downloadEncryptedExport({
+      exportEncrypted,
+      passphrase: "long-enough",
+      zip: true,
+    });
 
     expect(ok).toBe(true);
     expect(download).toHaveBeenCalledWith(
@@ -149,7 +175,10 @@ describe("downloadEncryptedExport", () => {
 
   it("reports export failures", async () => {
     const failing = vi.fn().mockRejectedValue(new Error("crypto"));
-    const ok = await downloadEncryptedExport({ exportEncrypted: failing, passphrase: "long-enough" });
+    const ok = await downloadEncryptedExport({
+      exportEncrypted: failing,
+      passphrase: "long-enough",
+    });
 
     expect(ok).toBe(false);
     expect(toast.error).toHaveBeenCalledWith("Export failed");
@@ -162,7 +191,11 @@ describe("downloadCsvExport", () => {
 
     downloadCsvExport(exportCsv);
 
-    expect(download).toHaveBeenCalledWith("lcked-vault-2026-08-23.csv", "name,url\n", "text/csv");
+    expect(download).toHaveBeenCalledWith(
+      "lcked-vault-2026-08-23.csv",
+      "name,url\n",
+      "text/csv",
+    );
     expect(toast.success).toHaveBeenCalled();
   });
 });

@@ -1,23 +1,25 @@
 "use client";
 
-import * as React from "react";
 import {
   Check,
   Copy,
+  Dice5,
   Eye,
   EyeOff,
-  Dice5,
-  RefreshCw,
   type LucideIcon,
+  RefreshCw,
 } from "lucide-react";
+import * as React from "react";
 import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
+
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 import { copyWithAutoClear } from "@/lib/clipboard";
-import { useVault } from "@/store/vault";
 import { setGeneratorCallback } from "@/lib/generator/generator-bridge";
 import type { GeneratorOptions } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { useVault } from "@/store/vault";
+
 import { PasswordStrengthMeter } from "./password-strength-meter";
 
 interface PasswordFieldProps {
@@ -55,7 +57,7 @@ export function PasswordField({
   showStrength = false,
   showGenerate = true,
   showCopy = true,
-  generatorOptions,
+  generatorOptions: _generatorOptions,
   className,
   inputClassName,
   label,
@@ -112,11 +114,13 @@ export function PasswordField({
   return (
     <div className={cn("space-y-1.5", className)}>
       {label && (
-        <label className="text-xs font-medium text-muted-foreground">{label}</label>
+        <label className="text-muted-foreground text-xs font-medium">
+          {label}
+        </label>
       )}
       <div className="relative flex items-center">
         {Icon && (
-          <Icon className="pointer-events-none absolute left-3 h-4 w-4 text-muted-foreground" />
+          <Icon className="text-muted-foreground pointer-events-none absolute left-3 h-4 w-4" />
         )}
         <Input
           type={revealed ? "text" : "password"}
@@ -125,11 +129,7 @@ export function PasswordField({
           placeholder={placeholder}
           spellCheck={false}
           autoComplete="off"
-          className={cn(
-            "font-secret pr-24",
-            Icon && "pl-9",
-            inputClassName,
-          )}
+          className={cn("font-secret pr-24", Icon && "pl-9", inputClassName)}
         />
         <div className="absolute right-1.5 flex items-center gap-0.5">
           {showGenerate && (
@@ -137,7 +137,7 @@ export function PasswordField({
               type="button"
               size="icon"
               variant="ghost"
-              className="h-7 w-7 text-muted-foreground hover:text-primary"
+              className="text-muted-foreground hover:text-primary h-7 w-7"
               onClick={handleGenerate}
               aria-label="Generate password"
               title="Generate password"
@@ -150,12 +150,16 @@ export function PasswordField({
               type="button"
               size="icon"
               variant="ghost"
-              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground h-7 w-7"
               onClick={() => setRevealed((r) => !r)}
               aria-label={revealed ? "Hide" : "Show"}
               title={revealed ? "Hide" : "Show"}
             >
-              {revealed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {revealed ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
             </Button>
           )}
           {showCopy && (
@@ -163,7 +167,7 @@ export function PasswordField({
               type="button"
               size="icon"
               variant="ghost"
-              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground h-7 w-7"
               onClick={handleCopy}
               aria-label="Copy"
               title="Copy (auto-clears in 30s)"
@@ -178,7 +182,7 @@ export function PasswordField({
         </div>
       </div>
       {countdown !== null && (
-        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+        <div className="text-muted-foreground flex items-center gap-1 text-[10px]">
           <RefreshCw className="h-3 w-3 animate-spin" />
           Clipboard clears in {countdown}s
         </div>

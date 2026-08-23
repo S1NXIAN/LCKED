@@ -6,9 +6,10 @@
  */
 
 import type { ImportResult, ItemType, NewItemInput } from "@/lib/types";
+
 import { parseCsv, rowToObject } from "./csv";
-import { makeLogin, makeNote, makeCard, makeIdentity } from "./helpers";
 import { detectCardBrand } from "./export";
+import { makeCard, makeIdentity, makeLogin, makeNote } from "./helpers";
 
 const BITWARDEN_TYPE_MAP: Record<number, ItemType> = {
   1: "login",
@@ -31,7 +32,9 @@ export function parseBitwardenJson(text: string): ImportResult {
     return result;
   }
   if (data.encrypted === true) {
-    result.warnings.push("This Bitwarden export is encrypted. Re-export as unencrypted JSON/CSV to import.");
+    result.warnings.push(
+      "This Bitwarden export is encrypted. Re-export as unencrypted JSON/CSV to import.",
+    );
     return result;
   }
 
@@ -51,7 +54,9 @@ export function parseBitwardenJson(text: string): ImportResult {
       if (type === "login") {
         const login = raw.login ?? {};
         const urls = Array.isArray(login.uris)
-          ? login.uris.map((u: any) => (typeof u === "string" ? u : u?.uri ?? "")).filter(Boolean)
+          ? login.uris
+              .map((u: any) => (typeof u === "string" ? u : (u?.uri ?? "")))
+              .filter(Boolean)
           : [];
         items.push(
           makeLogin({
@@ -135,7 +140,10 @@ export function parseBitwardenCsv(text: string): ImportResult {
       const pinned = /^(1|true|yes)$/i.test(o.pinned);
       const notes = o.notes || "";
       if (typeStr === "login" || typeStr === "1") {
-        const urls = (o.login_uri || "").split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+        const urls = (o.login_uri || "")
+          .split(/\r?\n/)
+          .map((s) => s.trim())
+          .filter(Boolean);
         items.push(
           makeLogin({
             name,
@@ -150,7 +158,9 @@ export function parseBitwardenCsv(text: string): ImportResult {
           }),
         );
       } else if (typeStr === "note" || typeStr === "2") {
-        items.push(makeNote({ name, content: notes, folder, favorite, pinned }));
+        items.push(
+          makeNote({ name, content: notes, folder, favorite, pinned }),
+        );
       } else if (typeStr === "card" || typeStr === "3") {
         const number = o.card_number || "";
         items.push(
@@ -160,9 +170,10 @@ export function parseBitwardenCsv(text: string): ImportResult {
             number,
             brand: detectCardBrand(number),
             cvv: o.card_code || o.card_cvv || "",
-            expiry: o.card_exp_month && o.card_exp_year
-              ? `${o.card_exp_month}/${o.card_exp_year}`
-              : o.card_expiration || "",
+            expiry:
+              o.card_exp_month && o.card_exp_year
+                ? `${o.card_exp_month}/${o.card_exp_year}`
+                : o.card_expiration || "",
             pin: "",
             notes,
             folder,

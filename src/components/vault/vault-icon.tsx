@@ -1,8 +1,10 @@
 "use client";
 
 import { Home } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { vaultColorHex } from "@/lib/vault/vault-assets";
+
 import { VAULT_LUCIDE_BY_ID } from "./vault-lucide-icons";
 
 export interface VaultIconProps {
@@ -18,13 +20,19 @@ export interface VaultIconProps {
 }
 
 /**
-  * Render a vault's icon inside a colored rounded swatch. The fill is the
-  * vault color at ~16% opacity (`${hex}29`); the glyph uses the full hex for contrast.
-  * Used by VaultsSidebar rows AND the create-vault-dialog picker preview.
-  * The Lucide-component lookup lives in `./vault-lucide-icons` so both this
-  * module and the picker share a single source of truth.
-  */
-export function VaultIcon({ icon, color, size = 28, className, bare = false }: VaultIconProps) {
+ * Render a vault's icon inside a colored rounded swatch. The fill is the
+ * vault color at ~16% opacity (`${hex}29`); the glyph uses the full hex for contrast.
+ * Used by VaultsSidebar rows AND the create-vault-dialog picker preview.
+ * The Lucide-component lookup lives in `./vault-lucide-icons` so both this
+ * module and the picker share a single source of truth.
+ */
+export function VaultIcon({
+  icon,
+  color,
+  size = 28,
+  className,
+  bare = false,
+}: VaultIconProps) {
   const hex = vaultColorHex(color);
   const Resolved = VAULT_LUCIDE_BY_ID[icon] ?? Home;
   const px = `${size}px`;
@@ -42,7 +50,10 @@ export function VaultIcon({ icon, color, size = 28, className, bare = false }: V
   }
   return (
     <span
-      className={cn("inline-flex shrink-0 items-center justify-center rounded-lg", className)}
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center rounded-lg",
+        className,
+      )}
       style={{
         width: px,
         height: px,

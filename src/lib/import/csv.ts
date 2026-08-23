@@ -57,7 +57,10 @@ export function parseCsv(text: string): string[][] {
   return rows.filter((r) => r.length > 0 && !(r.length === 1 && r[0] === ""));
 }
 
-export function rowToObject(headers: string[], row: string[]): Record<string, string> {
+export function rowToObject(
+  headers: string[],
+  row: string[],
+): Record<string, string> {
   const obj: Record<string, string> = {};
   headers.forEach((h, i) => {
     obj[h.trim()] = (row[i] ?? "").trim();

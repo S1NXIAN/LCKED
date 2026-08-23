@@ -6,6 +6,7 @@
  */
 
 import type { VaultItem } from "@/lib/types";
+
 import { csvEscape } from "./csv";
 
 const CSV_HEADERS = [

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+
 import { cn } from "@/lib/utils";
 
 export interface FaviconIconProps {
@@ -15,7 +16,10 @@ export interface FaviconIconProps {
  *  re-renders. Failures expire after 5 minutes (D-33) so a transient network
  *  blip or offline state doesn't permanently blacklist a host. Successes
  *  never expire. */
-interface CacheEntry { ok: boolean; at: number; }
+interface CacheEntry {
+  ok: boolean;
+  at: number;
+}
 const faviconCache = new Map<string, CacheEntry>();
 const FAILURE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -23,7 +27,9 @@ function hostnameOf(url: string): string | null {
   if (!url) return null;
   const trimmed = url.trim();
   if (!trimmed) return null;
-  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  const withScheme = /^https?:\/\//i.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
   try {
     const u = new URL(withScheme);
     const host = u.hostname.toLowerCase();
@@ -34,7 +40,12 @@ function hostnameOf(url: string): string | null {
   }
 }
 
-export function FaviconIcon({ url, size = 32, className, fallback }: FaviconIconProps) {
+export function FaviconIcon({
+  url,
+  size = 32,
+  className,
+  fallback,
+}: FaviconIconProps) {
   const host = hostnameOf(url);
   // Derive `failed` synchronously from the cache (with TTL for failures).
   const computeFailed = (h: string | null): boolean => {
@@ -61,7 +72,10 @@ export function FaviconIcon({ url, size = 32, className, fallback }: FaviconIcon
   if (!host || failed) {
     return (
       <span
-        className={cn("inline-flex shrink-0 items-center justify-center", className)}
+        className={cn(
+          "inline-flex shrink-0 items-center justify-center",
+          className,
+        )}
         style={{ width: px, height: px }}
         role="img"
         aria-label={host ? `${host} favicon` : "No URL"}

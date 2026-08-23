@@ -1,14 +1,16 @@
 "use client";
 
 /**
-  * LCKED — identity field section: name, contact, company and address
-  * bundles plus notes.
-  */
+ * LCKED — identity field section: name, contact, company and address
+ * bundles plus notes.
+ */
 
-import { Mail, User, Phone, Building2, MapPin, Globe } from "lucide-react";
+import { Building2, Globe, Mail, MapPin, Phone, User } from "lucide-react";
+
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { type IdentityDetails } from "@/lib/types";
+
 import {
   FieldCluster,
   FieldClusterWithLabel,
@@ -28,7 +30,7 @@ export function IdentityFields({
     <div className="space-y-4">
       {/* First name + Last name */}
       <FieldCluster>
-        <div className="grid grid-cols-2 divide-x divide-border/50">
+        <div className="divide-border/50 grid grid-cols-2 divide-x">
           <FieldRowInput label="First name" icon={User} first>
             <Input
               value={details.firstName}
@@ -50,7 +52,7 @@ export function IdentityFields({
 
       {/* Email + Phone */}
       <FieldCluster>
-        <div className="grid grid-cols-2 divide-x divide-border/50">
+        <div className="divide-border/50 grid grid-cols-2 divide-x">
           <FieldRowInput label="Email" icon={Mail} first>
             <Input
               type="email"
@@ -101,7 +103,7 @@ export function IdentityFields({
             className={flatInputCls}
           />
         </FieldRowInput>
-        <div className="grid grid-cols-2 divide-x divide-border/50">
+        <div className="divide-border/50 grid grid-cols-2 divide-x">
           <FieldRowInput label="City" icon={MapPin}>
             <Input
               value={details.city}
@@ -119,7 +121,7 @@ export function IdentityFields({
             />
           </FieldRowInput>
         </div>
-        <div className="grid grid-cols-2 divide-x divide-border/50">
+        <div className="divide-border/50 grid grid-cols-2 divide-x">
           <FieldRowInput label="Postal / ZIP" icon={MapPin}>
             <Input
               value={details.zip}

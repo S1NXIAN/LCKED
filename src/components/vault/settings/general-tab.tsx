@@ -1,13 +1,14 @@
 "use client";
 
-import * as React from "react";
 import { Check, Eye, Globe, Palette } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import { useTheme } from "next-themes";
+import * as React from "react";
+
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { THEMES } from "@/lib/themes";
 import { cn } from "@/lib/utils";
 import { useVault } from "@/store/vault";
-import { useTheme } from "next-themes";
 
 export function GeneralTab() {
   const settings = useVault((s) => s.settings);
@@ -16,9 +17,9 @@ export function GeneralTab() {
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
   const themeId = mounted
-    ? resolvedTheme ?? "dark"
-    : (typeof window !== "undefined" &&
-        window.localStorage.getItem("theme")) || "dark";
+    ? (resolvedTheme ?? "dark")
+    : (typeof window !== "undefined" && window.localStorage.getItem("theme")) ||
+      "dark";
 
   const handleSelectTheme = (id: string) => {
     setTheme(id);
@@ -28,10 +29,10 @@ export function GeneralTab() {
     <section className="space-y-5">
       <header className="space-y-1">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Palette className="h-4 w-4 text-muted-foreground" />
+          <Palette className="text-muted-foreground h-4 w-4" />
           Appearance
         </h2>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-muted-foreground text-xs">
           Pick a colour scheme. Themes apply instantly and persist across
           sessions.
         </p>
@@ -47,7 +48,7 @@ export function GeneralTab() {
               className={cn(
                 "group relative flex items-start gap-3 rounded-xl border p-3 text-left transition duration-150",
                 active
-                  ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                  ? "border-primary bg-primary/5 ring-primary/30 ring-1"
                   : "border-border bg-muted/20 hover:border-border hover:bg-muted/40",
               )}
               aria-pressed={active}
@@ -56,7 +57,7 @@ export function GeneralTab() {
                 {t.swatches.map((c, i) => (
                   <span
                     key={i}
-                    className="h-5 w-5 rounded-full border border-background"
+                    className="border-background h-5 w-5 rounded-full border"
                     style={{ backgroundColor: c }}
                     aria-hidden="true"
                   />
@@ -67,12 +68,12 @@ export function GeneralTab() {
                   <span className="text-sm font-medium">{t.label}</span>
                   {active && (
                     <Check
-                      className="h-3.5 w-3.5 text-primary"
+                      className="text-primary h-3.5 w-3.5"
                       aria-label="Active theme"
                     />
                   )}
                 </div>
-                <div className="text-[11px] text-muted-foreground">
+                <div className="text-muted-foreground text-[11px]">
                   {t.caption}
                 </div>
               </div>
@@ -85,16 +86,16 @@ export function GeneralTab() {
 
       <header className="space-y-1">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Globe className="h-4 w-4 text-muted-foreground" />
+          <Globe className="text-muted-foreground h-4 w-4" />
           List preferences
         </h2>
       </header>
 
       <div className="space-y-2">
-        <label className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2.5">
+        <label className="border-border bg-muted/20 flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2.5">
           <span className="flex flex-col">
             <span className="text-sm">Show website favicons</span>
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-muted-foreground text-[11px]">
               Fetches website icons for login items. Disable for offline
               privacy.
             </span>
@@ -105,10 +106,10 @@ export function GeneralTab() {
           />
         </label>
 
-        <label className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2.5">
+        <label className="border-border bg-muted/20 flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2.5">
           <span className="flex flex-col">
             <span className="text-sm">Sort favorites to top</span>
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-muted-foreground text-[11px]">
               Favorite items appear above others. Pinned items always stay at
               top regardless.
             </span>
@@ -119,10 +120,10 @@ export function GeneralTab() {
           />
         </label>
 
-        <label className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2.5">
+        <label className="border-border bg-muted/20 flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2.5">
           <span className="flex flex-col">
             <span className="text-sm">Show item actions on hover</span>
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-muted-foreground text-[11px]">
               Item action buttons (restore/delete in trash) only appear when
               hovering. Disable to always show them.
             </span>
@@ -138,31 +139,31 @@ export function GeneralTab() {
 
       <header className="space-y-1">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Eye className="h-4 w-4 text-muted-foreground" />
+          <Eye className="text-muted-foreground h-4 w-4" />
           Privacy
         </h2>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-muted-foreground text-xs">
           Blur email and username fields in the item list so shoulder-surfers
           can&rsquo;t read them.
         </p>
       </header>
 
       <div className="grid grid-cols-3 gap-2">
-        {([
-          { id: "off", label: "Off", caption: "Always visible" },
-          {
-            id: "hover",
-            label: "On hover",
-            caption:
-              "Blurred, reveals on hover or selection",
-          },
-          {
-            id: "full",
-            label: "Full",
-            caption:
-              "Always blurred; hidden in details until revealed",
-          },
-        ] as const).map((opt) => {
+        {(
+          [
+            { id: "off", label: "Off", caption: "Always visible" },
+            {
+              id: "hover",
+              label: "On hover",
+              caption: "Blurred, reveals on hover or selection",
+            },
+            {
+              id: "full",
+              label: "Full",
+              caption: "Always blurred; hidden in details until revealed",
+            },
+          ] as const
+        ).map((opt) => {
           const active = settings.blurEmailMode === opt.id;
           return (
             <button
@@ -171,13 +172,13 @@ export function GeneralTab() {
               className={cn(
                 "flex flex-col gap-1 rounded-lg border p-3 text-left transition duration-150",
                 active
-                  ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                  ? "border-primary bg-primary/5 ring-primary/30 ring-1"
                   : "border-border bg-muted/20 hover:bg-muted/40",
               )}
               aria-pressed={active}
             >
               <span className="text-sm font-medium">{opt.label}</span>
-              <span className="text-[11px] leading-tight text-muted-foreground">
+              <span className="text-muted-foreground text-[11px] leading-tight">
                 {opt.caption}
               </span>
             </button>

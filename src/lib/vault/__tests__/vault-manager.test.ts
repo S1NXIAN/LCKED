@@ -1,12 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { VaultDef, VaultItem, VaultMeta } from "@/lib/types";
 import {
   createVault,
-  updateVault,
-  renameVault,
   deleteVault,
+  renameVault,
   reorderVaults,
+  updateVault,
 } from "@/lib/vault/vault-manager";
-import type { VaultDef, VaultItem, VaultMeta, VaultSettings } from "@/lib/types";
 
 /* ─── Mocks ─────────────────────────────────────────────── */
 
@@ -47,11 +48,11 @@ vi.mock("@/lib/vault/vault-db", () => ({
       sortFavoritesFirst: false,
       hoverItemActions: true,
       blurEmailMode: "off",
-    } as VaultSettings,
+    },
     vaults: [],
   })),
-  saveVaultMeta: vi.fn(async () => { }),
-  putStoredItem: vi.fn(async () => { }),
+  saveVaultMeta: vi.fn(async () => {}),
+  putStoredItem: vi.fn(async () => {}),
 }));
 
 beforeEach(() => {
@@ -175,7 +176,8 @@ describe("createVault", () => {
 
 describe("updateVault", () => {
   it("patches the correct vault and returns updated vaults", async () => {
-    const { loadVaultMeta, saveVaultMeta } = await import("@/lib/vault/vault-db");
+    const { loadVaultMeta, saveVaultMeta } =
+      await import("@/lib/vault/vault-db");
     vi.mocked(loadVaultMeta).mockResolvedValueOnce(
       makeVaultMeta({ vaults: [makeVaultDef({ id: "v1", name: "Old" })] }),
     );
@@ -208,7 +210,8 @@ describe("updateVault", () => {
 
 describe("renameVault", () => {
   it("delegates to updateVault and changes the name", async () => {
-    const { loadVaultMeta, saveVaultMeta } = await import("@/lib/vault/vault-db");
+    const { loadVaultMeta, saveVaultMeta } =
+      await import("@/lib/vault/vault-db");
     vi.mocked(loadVaultMeta).mockResolvedValueOnce(
       makeVaultMeta({ vaults: [makeVaultDef({ id: "v1", name: "Old" })] }),
     );
@@ -233,10 +236,7 @@ describe("deleteVault", () => {
       await import("@/lib/vault/vault-db");
     vi.mocked(loadVaultMeta).mockResolvedValueOnce(
       makeVaultMeta({
-        vaults: [
-          makeVaultDef({ id: "v1" }),
-          makeVaultDef({ id: "v2" }),
-        ],
+        vaults: [makeVaultDef({ id: "v1" }), makeVaultDef({ id: "v2" })],
       }),
     );
 
@@ -287,7 +287,8 @@ describe("deleteVault", () => {
   });
 
   it("silent no-op when vault meta is missing", async () => {
-    const { loadVaultMeta, saveVaultMeta } = await import("@/lib/vault/vault-db");
+    const { loadVaultMeta, saveVaultMeta } =
+      await import("@/lib/vault/vault-db");
     vi.mocked(loadVaultMeta).mockResolvedValueOnce(undefined);
 
     const result = await deleteVault("v1", mockVaultKey, []);
@@ -298,20 +299,19 @@ describe("deleteVault", () => {
 
   it("throws and does not save meta when re-encryption fails", async () => {
     const { encryptJson } = await import("@/lib/crypto");
-    const { loadVaultMeta, saveVaultMeta } = await import("@/lib/vault/vault-db");
+    const { loadVaultMeta, saveVaultMeta } =
+      await import("@/lib/vault/vault-db");
 
     vi.mocked(loadVaultMeta).mockResolvedValueOnce(
       makeVaultMeta({ vaults: [makeVaultDef()] }),
     );
-    vi.mocked(encryptJson).mockRejectedValueOnce(
-      new Error("crypto fail"),
-    );
+    vi.mocked(encryptJson).mockRejectedValueOnce(new Error("crypto fail"));
 
     const item = makeItem({ vaultIds: ["v1"] });
 
-    await expect(
-      deleteVault("v1", mockVaultKey, [item]),
-    ).rejects.toThrow("crypto fail");
+    await expect(deleteVault("v1", mockVaultKey, [item])).rejects.toThrow(
+      "crypto fail",
+    );
     expect(saveVaultMeta).not.toHaveBeenCalled();
   });
 });
@@ -320,7 +320,8 @@ describe("deleteVault", () => {
 
 describe("reorderVaults", () => {
   it("saves meta with the new order", async () => {
-    const { loadVaultMeta, saveVaultMeta } = await import("@/lib/vault/vault-db");
+    const { loadVaultMeta, saveVaultMeta } =
+      await import("@/lib/vault/vault-db");
 
     const v1 = makeVaultDef({ id: "v1", name: "A" });
     const v2 = makeVaultDef({ id: "v2", name: "B" });

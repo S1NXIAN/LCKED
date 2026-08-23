@@ -19,20 +19,40 @@
  */
 
 export interface ImportSource {
- /** Unique id — also used as the icon filename (e.g. "bitwarden" → /icons/pm/bitwarden.png). */
- id: string;
- /** Display name shown in the UI. */
- label: string;
- /** Path to the PNG icon (relative to /public). */
- icon: string;
- /** Accepted file format hint shown under the label. */
- hint: string;
+  /** Unique id — also used as the icon filename (e.g. "bitwarden" → /icons/pm/bitwarden.png). */
+  id: string;
+  /** Display name shown in the UI. */
+  label: string;
+  /** Path to the PNG icon (relative to /public). */
+  icon: string;
+  /** Accepted file format hint shown under the label. */
+  hint: string;
 }
 
 export const IMPORT_SOURCES: ImportSource[] = [
- { id: "bitwarden", label: "Bitwarden", icon: "/icons/pm/bitwarden.png", hint: "JSON / CSV" },
- { id: "chrome", label: "Chrome", icon: "/icons/pm/chrome.png", hint: "CSV" },
- { id: "firefox", label: "Firefox", icon: "/icons/pm/firefox.png", hint: "CSV" },
- { id: "proton-pass", label: "Proton Pass", icon: "/icons/pm/proton-pass.png", hint: "CSV" },
- { id: "keepassxc", label: "KeePassXC", icon: "/icons/pm/keepassxc.png", hint: "XML" },
+  {
+    id: "bitwarden",
+    label: "Bitwarden",
+    icon: "/icons/pm/bitwarden.png",
+    hint: "JSON / CSV",
+  },
+  { id: "chrome", label: "Chrome", icon: "/icons/pm/chrome.png", hint: "CSV" },
+  {
+    id: "firefox",
+    label: "Firefox",
+    icon: "/icons/pm/firefox.png",
+    hint: "CSV",
+  },
+  {
+    id: "proton-pass",
+    label: "Proton Pass",
+    icon: "/icons/pm/proton-pass.png",
+    hint: "CSV",
+  },
+  {
+    id: "keepassxc",
+    label: "KeePassXC",
+    icon: "/icons/pm/keepassxc.png",
+    hint: "XML",
+  },
 ];

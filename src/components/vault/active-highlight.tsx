@@ -41,13 +41,19 @@
  */
 
 import * as React from "react";
+
 import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
 type Phase = "hidden" | "fadingIn" | "visible" | "fadingOut";
 
-interface Rect { x: number; y: number; w: number; h: number; }
+interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
 
 // ─── Component ────────────────────────────────────────────────────────────
 
@@ -72,7 +78,9 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
   const activeKeyRef = React.useRef(activeKey);
   const animateRef = React.useRef<(() => void) | null>(null);
 
-  React.useEffect(() => { activeKeyRef.current = activeKey; }, [activeKey]);
+  React.useEffect(() => {
+    activeKeyRef.current = activeKey;
+  }, [activeKey]);
 
   // ─── State (triggers re-render for opacity changes) ───────────────────
   const [opacity, setOpacity] = React.useState(0);
@@ -87,9 +95,9 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
     if (!key || !container) return false;
 
     const selector = `[${selectorAttr}="${CSS.escape(key)}"]`;
-    const el = (container.matches(selector)
+    const el = container.matches(selector)
       ? container
-      : container.querySelector<HTMLElement>(selector)) as HTMLElement | null;
+      : container.querySelector<HTMLElement>(selector);
     if (!el) return false;
 
     const r = el.getBoundingClientRect();
@@ -164,7 +172,8 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
       const FACTOR = 0.35;
       const nx = pos.x + (target.x - pos.x) * FACTOR;
       const ny = pos.y + (target.y - pos.y) * FACTOR;
-      const settled = Math.abs(target.x - nx) < 0.5 && Math.abs(target.y - ny) < 0.5;
+      const settled =
+        Math.abs(target.x - nx) < 0.5 && Math.abs(target.y - ny) < 0.5;
       pos.x = settled ? target.x : nx;
       pos.y = settled ? target.y : ny;
       hl.style.transform = `translate(${pos.x}px, ${pos.y}px)`;
@@ -175,7 +184,9 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
       rafRef.current = requestAnimationFrame(step);
     };
     animateRef.current = step;
-    return () => { animateRef.current = null; };
+    return () => {
+      animateRef.current = null;
+    };
   }, []);
 
   // ─── On activeKey change: triple-rAF + kick ───────────────────────────
@@ -189,13 +200,18 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
       setOpacity(0);
       return;
     }
-    let f2 = 0, f3 = 0;
+    let f2 = 0,
+      f3 = 0;
     const f1 = requestAnimationFrame(() => {
       f2 = requestAnimationFrame(() => {
         f3 = requestAnimationFrame(() => kick());
       });
     });
-    return () => { cancelAnimationFrame(f1); cancelAnimationFrame(f2); cancelAnimationFrame(f3); };
+    return () => {
+      cancelAnimationFrame(f1);
+      cancelAnimationFrame(f2);
+      cancelAnimationFrame(f3);
+    };
   }, [activeKey, kick]);
 
   // ─── MutationObserver: re-measure on DOM changes + delayed catch-up ──
@@ -207,32 +223,57 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
     const observer = new MutationObserver(() => {
       if (pending) return;
       pending = true;
-      requestAnimationFrame(() => { pending = false; kick(); });
+      requestAnimationFrame(() => {
+        pending = false;
+        kick();
+      });
       if (delayed) clearTimeout(delayed);
       delayed = setTimeout(() => kick(), 300);
     });
-    observer.observe(container, { childList: true, subtree: true, attributes: true, attributeFilter: [selectorAttr] });
-    return () => { observer.disconnect(); if (delayed) clearTimeout(delayed); };
+    observer.observe(container, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: [selectorAttr],
+    });
+    return () => {
+      observer.disconnect();
+      if (delayed) clearTimeout(delayed);
+    };
   }, [containerRef, kick, selectorAttr]);
 
   // ─── Scroll + resize: rAF-throttled re-measure ────────────────────────
   React.useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const scrollEl = container.closest("[data-radix-scroll-area-viewport]") ?? container.closest(".lcked-scroll") ?? container.parentElement;
+    const scrollEl =
+      container.closest("[data-radix-scroll-area-viewport]") ??
+      container.closest(".lcked-scroll") ??
+      container.parentElement;
     let p = false;
     const handler = () => {
       if (p) return;
       p = true;
-      requestAnimationFrame(() => { p = false; kick(); });
+      requestAnimationFrame(() => {
+        p = false;
+        kick();
+      });
     };
     scrollEl?.addEventListener("scroll", handler, { passive: true });
     window.addEventListener("resize", handler, { passive: true });
-    return () => { scrollEl?.removeEventListener("scroll", handler); window.removeEventListener("resize", handler); };
+    return () => {
+      scrollEl?.removeEventListener("scroll", handler);
+      window.removeEventListener("resize", handler);
+    };
   }, [containerRef, kick]);
 
   // ─── Cleanup rAF on unmount ───────────────────────────────────────────
-  React.useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
+  React.useEffect(
+    () => () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    },
+    [],
+  );
 
   // ─── Render (always mounted; opacity drives the fade) ─────────────────
   return (
@@ -240,7 +281,7 @@ export function ActiveHighlight<T extends HTMLElement = HTMLElement>({
       ref={hlRef}
       aria-hidden
       className={cn(
-        "lcked-active-glow pointer-events-none absolute left-0 top-0 rounded-lg transition-opacity duration-200 ease-out",
+        "lcked-active-glow pointer-events-none absolute top-0 left-0 rounded-lg transition-opacity duration-200 ease-out",
         className,
       )}
       style={{ width: 0, height: 0, transform: "translate(0px, 0px)", opacity }}

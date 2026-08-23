@@ -2,8 +2,10 @@
 
 import type * as React from "react";
 import { toast } from "sonner";
+
 import { cn } from "@/lib/utils";
 import { useVault } from "@/store/vault";
+
 import { exitMultiSelect, parseDraggedIds } from "./drag-drop";
 
 interface VaultRowProps {
@@ -18,7 +20,7 @@ interface VaultRowProps {
   /** Click handler — sets the active vault filter. */
   onSelect: () => void;
   /** Drag-and-drop target vault id. Omit to disable dropping; `null`
-    * targets the main vault (drops the items' vault memberships). */
+   * targets the main vault (drops the items' vault memberships). */
   dropVaultId?: string | null;
   /** Optional amber-tinted style (used by Trash when non-empty). */
   warn?: boolean;
@@ -29,14 +31,14 @@ interface VaultRowProps {
 }
 
 /**
-  * A single sidebar row. When `menu` is provided we render a div instead of a
-  * button to avoid invalid nested-button HTML. The reserved `menuSlot` keeps
-  * every row's right edge aligned whether or not a menu is present.
-  *
-  * The active state keeps `text-accent-foreground` but NO `bg-accent` — the
-  * sliding VaultActiveHighlight provides the background, so a static one
-  * would visually fight the spring.
-  */
+ * A single sidebar row. When `menu` is provided we render a div instead of a
+ * button to avoid invalid nested-button HTML. The reserved `menuSlot` keeps
+ * every row's right edge aligned whether or not a menu is present.
+ *
+ * The active state keeps `text-accent-foreground` but NO `bg-accent` — the
+ * sliding VaultActiveHighlight provides the background, so a static one
+ * would visually fight the spring.
+ */
 export function VaultRow({
   icon,
   label,
@@ -63,7 +65,9 @@ export function VaultRow({
     if (moved > 0 && failed === 0) {
       toast.success(`Moved ${moved} item${moved === 1 ? "" : "s"} to ${label}`);
     } else if (moved > 0 && failed > 0) {
-      toast.warning(`Moved ${moved}, ${failed} failed`, { description: `${label}` });
+      toast.warning(`Moved ${moved}, ${failed} failed`, {
+        description: `${label}`,
+      });
     } else if (failed > 0) {
       toast.error(`Could not move ${failed} item${failed === 1 ? "" : "s"}`);
     }
@@ -105,16 +109,25 @@ export function VaultRow({
           : warn
             ? "text-foreground hover:bg-amber-500/10"
             : "text-foreground/80 hover:bg-muted/60 hover:text-foreground",
-        dragOver && "ring-2 ring-primary/60 ring-offset-1 ring-offset-background",
+        dragOver &&
+          "ring-primary/60 ring-offset-background ring-2 ring-offset-1",
       )}
     >
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center">{icon}</span>
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center">
+        {icon}
+      </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium leading-tight">{label}</span>
+        <span className="block truncate text-sm leading-tight font-medium">
+          {label}
+        </span>
         <span
           className={cn(
             "block text-xs leading-tight tabular-nums",
-            warn && !active ? "text-amber-400/80" : active ? "text-accent-foreground/70" : "text-muted-foreground",
+            warn && !active
+              ? "text-amber-400/80"
+              : active
+                ? "text-accent-foreground/70"
+                : "text-muted-foreground",
           )}
         >
           {count} {count === 1 ? "item" : "items"}

@@ -1,18 +1,19 @@
 "use client";
 
 /**
-  * LCKED — login field section: username + password, TOTP, website URLs,
-  * notes. The URL rows use the stable per-row keys owned by the form hook
-  * (IE-2) and a native <datalist> of every URL already in the vault.
-  */
+ * LCKED — login field section: username + password, TOTP, website URLs,
+ * notes. The URL rows use the stable per-row keys owned by the form hook
+ * (IE-2) and a native <datalist> of every URL already in the vault.
+ */
 
-import { Plus, Trash2, Mail, User, KeyRound, Globe, Lock } from "lucide-react";
+import { Globe, KeyRound, Lock, Mail, Plus, Trash2, User } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { PasswordField } from "../password-field";
 import { type LoginDetails, type VaultSettings } from "@/lib/types";
 import { cn, isEmail } from "@/lib/utils";
+
 import {
   FieldCluster,
   FieldClusterWithLabel,
@@ -21,6 +22,7 @@ import {
   flatPasswordInputCls,
   flatTextareaCls,
 } from "../field-cluster";
+import { PasswordField } from "../password-field";
 
 export function LoginFields({
   details,
@@ -50,7 +52,11 @@ export function LoginFields({
                         switch between Mail / User based on whether the value looks
                         like an email. This mirrors the item-detail presentation. */}
       <FieldCluster>
-        <FieldRowInput label={isEmail(details.username) ? "Email" : "Username"} icon={isEmail(details.username) ? Mail : User} first>
+        <FieldRowInput
+          label={isEmail(details.username) ? "Email" : "Username"}
+          icon={isEmail(details.username) ? Mail : User}
+          first
+        >
           <Input
             value={details.username}
             onChange={(e) => updateDetails({ username: e.target.value })}
@@ -108,10 +114,10 @@ export function LoginFields({
             key={urlKeys[idx] ?? idx}
             className={cn(
               "flex items-center gap-3 px-3.5 py-2.5",
-              idx !== 0 && "border-t border-border/50",
+              idx !== 0 && "border-border/50 border-t",
             )}
           >
-            <Globe className="h-4 w-4 shrink-0 text-muted-foreground/70" />
+            <Globe className="text-muted-foreground/70 h-4 w-4 shrink-0" />
             <Input
               value={url}
               onChange={(e) => setUrl(idx, e.target.value)}
@@ -128,10 +134,12 @@ export function LoginFields({
                     e.preventDefault();
                     setUrl(idx, `https://${v}`);
                     // Move focus forward manually since we prevented Tab.
-                    const inputs = (e.currentTarget.closest("form") as HTMLFormElement | null)?.querySelectorAll<HTMLElement>("input,textarea,button");
+                    const inputs = e.currentTarget
+                      .closest("form")
+                      ?.querySelectorAll<HTMLElement>("input,textarea,button");
                     if (inputs) {
                       const arr = Array.from(inputs);
-                      const cur = arr.indexOf(e.currentTarget as HTMLElement);
+                      const cur = arr.indexOf(e.currentTarget);
                       const nextEl = arr[cur + 1];
                       nextEl?.focus();
                     }
@@ -148,7 +156,7 @@ export function LoginFields({
                 type="button"
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7 shrink-0 text-muted-foreground hover:text-red-400"
+                className="text-muted-foreground h-7 w-7 shrink-0 hover:text-red-400"
                 onClick={() => removeUrl(idx)}
                 aria-label={`Remove URL ${idx + 1}`}
               >

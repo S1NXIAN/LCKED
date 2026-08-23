@@ -66,8 +66,9 @@ read state in one evaluate with attribute selectors instead:
 
 ```js
 return await tab.evaluate(() =>
-  Array.from(document.querySelectorAll('input[placeholder="example.com"]'))
-       .map(el => el.value)
+  Array.from(document.querySelectorAll('input[placeholder="example.com"]')).map(
+    (el) => el.value,
+  ),
 );
 ```
 

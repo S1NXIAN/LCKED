@@ -30,7 +30,11 @@ export function searchableText(item: VaultItem): string {
       parts.push(item.details.content);
       break;
     case "card":
-      parts.push(item.details.cardholder, item.details.brand, item.details.notes);
+      parts.push(
+        item.details.cardholder,
+        item.details.brand,
+        item.details.notes,
+      );
       break;
     case "identity":
       parts.push(

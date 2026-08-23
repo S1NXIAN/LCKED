@@ -27,7 +27,7 @@ export async function copyWithAutoClear(
   // Clear any prior timer for this key.
   const prior = clipboardTimers.get(key);
   if (prior) clearTimeout(prior);
-  const timer = setTimeout(async () => {
+  const clearIfUnchanged = async () => {
     try {
       const current = await navigator.clipboard.readText().catch(() => "");
       if (current === value) {
@@ -37,7 +37,8 @@ export async function copyWithAutoClear(
       // readText may be denied — best-effort clear.
     }
     clipboardTimers.delete(key);
-  }, clearMs);
+  };
+  const timer = setTimeout(() => void clearIfUnchanged(), clearMs);
   clipboardTimers.set(key, timer);
 }
 

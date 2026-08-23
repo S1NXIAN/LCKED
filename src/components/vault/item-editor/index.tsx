@@ -1,43 +1,74 @@
 "use client";
 
 /**
-  * LCKED — ItemEditor (right sidebar)
-  * ---------------------------------------------------------------------------
-  * Slides in from the right as a Sheet (matching the password-generator and
-  * create-vault sidebars). Handles both "New item" and "Edit item" modes,
-  * driven by `editorOpen` + `editorItemId` in the vault store.
-  *
-  * This module is the editor SHELL: dialog chrome, header (type icon + title,
-  * vault multi-select, Save/Create), type selector, name field, save flow and
-  * busy state. Form lifecycle lives in ./use-item-form; per-type sections in
-  * ./login-fields / ./note-fields / ./card-fields / ./identity-fields; custom
-  * fields in ./custom-fields; the dirty-check confirmation in ./discard-dialog.
-  */
+ * LCKED — ItemEditor (right sidebar)
+ * ---------------------------------------------------------------------------
+ * Slides in from the right as a Sheet (matching the password-generator and
+ * create-vault sidebars). Handles both "New item" and "Edit item" modes,
+ * driven by `editorOpen` + `editorItemId` in the vault store.
+ *
+ * This module is the editor SHELL: dialog chrome, header (type icon + title,
+ * vault multi-select, Save/Create), type selector, name field, save flow and
+ * busy state. Form lifecycle lives in ./use-item-form; per-type sections in
+ * ./login-fields / ./note-fields / ./card-fields / ./identity-fields; custom
+ * fields in ./custom-fields; the dirty-check confirmation in ./discard-dialog.
+ */
 
+import { Check, ChevronsUpDown, Loader2, Star, Trash2 } from "lucide-react";
 import * as React from "react";
-import { Trash2, Star, Loader2, Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { useVault } from "@/store/vault";
-import { type BaseItem, type CustomField, type ItemType, type NewItemInput, type LoginDetails, type NoteDetails, type CardDetails, type IdentityDetails } from "@/lib/types";
-import { ItemTypeIcon, ITEM_TYPE_LABELS } from "../item-icons";
-import { VaultIcon } from "../vault-icon";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  type BaseItem,
+  type CardDetails,
+  type CustomField,
+  type IdentityDetails,
+  type ItemType,
+  type LoginDetails,
+  type NewItemInput,
+  type NoteDetails,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { useItemForm } from "./use-item-form";
-import { LoginFields } from "./login-fields";
-import { NoteFields } from "./note-fields";
+import { useVault } from "@/store/vault";
+
+import { ITEM_TYPE_LABELS, ItemTypeIcon } from "../item-icons";
+import { VaultIcon } from "../vault-icon";
 import { CardFields } from "./card-fields";
-import { IdentityFields } from "./identity-fields";
 import { CustomFields } from "./custom-fields";
 import { DiscardDialog } from "./discard-dialog";
+import { IdentityFields } from "./identity-fields";
+import { LoginFields } from "./login-fields";
+import { NoteFields } from "./note-fields";
+import { useItemForm } from "./use-item-form";
 
 export function ItemEditor() {
   const {
-    open, editorItemId, form, setForm,
-    urlKeys, setUrlKeys, cfKeys, setCfKeys,
-    nextKey, initialForm, switchType,
+    open,
+    editorItemId,
+    form,
+    setForm,
+    urlKeys,
+    setUrlKeys,
+    cfKeys,
+    setCfKeys,
+    nextKey,
+    initialForm,
+    switchType,
   } = useItemForm();
   const vaults = useVault((s) => s.vaults);
   const settings = useVault((s) => s.settings);
@@ -60,6 +91,9 @@ export function ItemEditor() {
       }
     }
     return Array.from(set).slice(0, 50);
+    // Deliberate: recompute once per dialog-open, not on every vault
+    // mutation — the set is a typing aid, not live state (IE-1).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   if (!open || !form) return null;
@@ -72,19 +106,30 @@ export function ItemEditor() {
   // patchers below. `patch` cannot touch `type`, so every spread result is
   // still a valid union member — an invariant TS can't verify across the
   // spread (same as switchType in ./use-item-form).
-  const update = (patch: Partial<Omit<BaseItem, "id" | "createdAt" | "updatedAt">>) =>
-    setForm((f) => (f ? ({ ...f, ...patch } as NewItemInput) : f));
+  const update = (
+    patch: Partial<Omit<BaseItem, "id" | "createdAt" | "updatedAt">>,
+  ) => setForm((f) => (f ? ({ ...f, ...patch } as NewItemInput) : f));
   // Per-type detail patchers. The setState callback sees the full union
   // again, so each re-narrows via its `f?.type === …` guard — keeping every
   // merge cast-free and keyed to the concrete details type.
   const updateLoginDetails = (patch: Partial<LoginDetails>) =>
-    setForm((f) => (f?.type === "login" ? { ...f, details: { ...f.details, ...patch } } : f));
+    setForm((f) =>
+      f?.type === "login" ? { ...f, details: { ...f.details, ...patch } } : f,
+    );
   const updateNoteDetails = (patch: Partial<NoteDetails>) =>
-    setForm((f) => (f?.type === "note" ? { ...f, details: { ...f.details, ...patch } } : f));
+    setForm((f) =>
+      f?.type === "note" ? { ...f, details: { ...f.details, ...patch } } : f,
+    );
   const updateCardDetails = (patch: Partial<CardDetails>) =>
-    setForm((f) => (f?.type === "card" ? { ...f, details: { ...f.details, ...patch } } : f));
+    setForm((f) =>
+      f?.type === "card" ? { ...f, details: { ...f.details, ...patch } } : f,
+    );
   const updateIdentityDetails = (patch: Partial<IdentityDetails>) =>
-    setForm((f) => (f?.type === "identity" ? { ...f, details: { ...f.details, ...patch } } : f));
+    setForm((f) =>
+      f?.type === "identity"
+        ? { ...f, details: { ...f.details, ...patch } }
+        : f,
+    );
 
   const handleSave = async () => {
     if (!form) return;
@@ -118,12 +163,19 @@ export function ItemEditor() {
   };
 
   const addCustomField = () => {
-    update({ customFields: [...form.customFields, { name: "", value: "", type: "text" }] });
+    update({
+      customFields: [
+        ...form.customFields,
+        { name: "", value: "", type: "text" },
+      ],
+    });
     setCfKeys((k) => [...k, nextKey()]);
   };
   const updateCustomField = (idx: number, patch: Partial<CustomField>) =>
     update({
-      customFields: form.customFields.map((cf, i) => (i === idx ? { ...cf, ...patch } : cf)),
+      customFields: form.customFields.map((cf, i) =>
+        i === idx ? { ...cf, ...patch } : cf,
+      ),
     });
   const removeCustomField = (idx: number) => {
     update({ customFields: form.customFields.filter((_, i) => i !== idx) });
@@ -154,7 +206,12 @@ export function ItemEditor() {
     setForm((f) => {
       if (!f) return f;
       const has = f.vaultIds.includes(id);
-      return { ...f, vaultIds: has ? f.vaultIds.filter((v) => v !== id) : [...f.vaultIds, id] };
+      return {
+        ...f,
+        vaultIds: has
+          ? f.vaultIds.filter((v) => v !== id)
+          : [...f.vaultIds, id],
+      };
     });
   };
 
@@ -168,13 +225,15 @@ export function ItemEditor() {
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent
         side="right"
-        className="w-full gap-0 overflow-hidden border-l border-border bg-background p-0 sm:max-w-[454px] [&>button:last-child]:hidden"
+        className="border-border bg-background w-full gap-0 overflow-hidden border-l p-0 sm:max-w-[454px] [&>button:last-child]:hidden"
       >
         {/* Header — type icon + title (left); vault selector + Save (right) */}
-        <SheetHeader className="flex-row items-center justify-between gap-2 border-b border-border px-4 py-3">
+        <SheetHeader className="border-border flex-row items-center justify-between gap-2 border-b px-4 py-3">
           <SheetTitle className="flex min-w-0 items-center gap-2.5 text-base font-semibold">
             <ItemTypeIcon type={form.type} size="sm" />
-            <span className="truncate">{isEditing ? "Edit item" : "New item"}</span>
+            <span className="truncate">
+              {isEditing ? "Edit item" : "New item"}
+            </span>
           </SheetTitle>
           <div className="flex shrink-0 items-center gap-1.5">
             {/* Vault selector — multi-select dropdown (an item can belong to
@@ -186,9 +245,13 @@ export function ItemEditor() {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-2 text-xs text-foreground transition-colors hover:bg-muted/60"
+                  className="border-border bg-background text-foreground hover:bg-muted/60 flex h-8 items-center gap-1.5 rounded-md border px-2 text-xs transition-colors"
                   aria-label="Select vaults"
-                  title={selectedVaults.length > 0 ? selectedVaults.map((v) => v.name).join(", ") : "No vault"}
+                  title={
+                    selectedVaults.length > 0
+                      ? selectedVaults.map((v) => v.name).join(", ")
+                      : "No vault"
+                  }
                 >
                   {selectedVaults.length > 0 ? (
                     <span className="relative inline-flex h-[18px] w-[18px] items-center justify-center">
@@ -209,7 +272,7 @@ export function ItemEditor() {
                       ))}
                     </span>
                   ) : (
-                    <span className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-md bg-muted text-[10px] text-muted-foreground">
+                    <span className="bg-muted text-muted-foreground inline-flex h-[18px] w-[18px] items-center justify-center rounded-md text-[10px]">
                       —
                     </span>
                   )}
@@ -220,12 +283,12 @@ export function ItemEditor() {
                         ? selectedVaults[0].name
                         : `${selectedVaults.length} vaults`}
                   </span>
-                  <ChevronsUpDown className="h-3 w-3 text-muted-foreground" />
+                  <ChevronsUpDown className="text-muted-foreground h-3 w-3" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-[200px]">
                 {vaults.length === 0 && (
-                  <div className="px-2 py-3 text-center text-xs text-muted-foreground">
+                  <div className="text-muted-foreground px-2 py-3 text-center text-xs">
                     Create a vault first
                   </div>
                 )}
@@ -236,13 +299,20 @@ export function ItemEditor() {
                       key={v.id}
                       // Use onSelect with preventDefault so the menu stays open
                       // — lets the user toggle multiple vaults in one open.
-                      onSelect={(e) => { e.preventDefault(); toggleVault(v.id); }}
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        toggleVault(v.id);
+                      }}
                       className="gap-2"
                     >
-                      <span className={cn(
-                        "flex h-4 w-4 items-center justify-center rounded border transition-colors",
-                        checked ? "border-primary bg-primary text-primary-foreground" : "border-border",
-                      )}>
+                      <span
+                        className={cn(
+                          "flex h-4 w-4 items-center justify-center rounded border transition-colors",
+                          checked
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border",
+                        )}
+                      >
                         {checked && <Check className="h-3 w-3" />}
                       </span>
                       <VaultIcon icon={v.icon} color={v.color} size={18} />
@@ -254,8 +324,11 @@ export function ItemEditor() {
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      onSelect={(e) => { e.preventDefault(); update({ vaultIds: [] }); }}
-                      className="gap-2 text-muted-foreground"
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        update({ vaultIds: [] });
+                      }}
+                      className="text-muted-foreground gap-2"
                     >
                       <span className="flex h-4 w-4 items-center justify-center">
                         <Trash2 className="h-3 w-3" />
@@ -275,18 +348,33 @@ export function ItemEditor() {
               className="min-w-[72px]"
               form="lcked-item-editor-form"
             >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : isEditing ? "Save" : "Create"}
+              {busy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isEditing ? (
+                "Save"
+              ) : (
+                "Create"
+              )}
             </Button>
           </div>
         </SheetHeader>
         <SheetDescription className="sr-only">
-          {isEditing ? "Edit the selected vault item." : "Create a new vault item."}
+          {isEditing
+            ? "Edit the selected vault item."
+            : "Create a new vault item."}
         </SheetDescription>
 
         {/* Body — flat scrollable form. The <form> wraps the body + footer so
                         Enter inside any input triggers handleSave (type="submit" button
                         in the header references this form via the `form` attribute). */}
-        <form id="lcked-item-editor-form" onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="flex min-h-0 flex-1 flex-col">
+        <form
+          id="lcked-item-editor-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleSave();
+          }}
+          className="flex min-h-0 flex-1 flex-col"
+        >
           <div className="lcked-scroll flex-1 overflow-y-auto p-4">
             {/* Type selector — only when creating */}
             {!isEditing && (
@@ -313,17 +401,26 @@ export function ItemEditor() {
             {/* Name + favorite star — inline to save space */}
             <div className="mb-4">
               <div className="mb-1 flex items-center justify-between">
-                <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                <div className="text-muted-foreground/70 text-[10px] font-medium tracking-wider uppercase">
                   Name
                 </div>
                 <button
                   type="button"
                   onClick={() => update({ favorite: !form.favorite })}
-                  className="flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-muted"
-                  aria-label={form.favorite ? "Remove favorite" : "Add favorite"}
+                  className="hover:bg-muted flex h-6 w-6 items-center justify-center rounded-md transition-colors"
+                  aria-label={
+                    form.favorite ? "Remove favorite" : "Add favorite"
+                  }
                   title={form.favorite ? "Remove favorite" : "Add favorite"}
                 >
-                  <Star className={cn("h-4 w-4 transition-colors", form.favorite ? "fill-amber-400 text-amber-400" : "text-muted-foreground")} />
+                  <Star
+                    className={cn(
+                      "h-4 w-4 transition-colors",
+                      form.favorite
+                        ? "fill-amber-400 text-amber-400"
+                        : "text-muted-foreground",
+                    )}
+                  />
                 </button>
               </div>
               <input
@@ -332,7 +429,7 @@ export function ItemEditor() {
                 onChange={(e) => update({ name: e.target.value })}
                 placeholder="e.g. GitHub, Bank card, WiFi password"
                 autoFocus
-                className="w-full border-0 bg-transparent dark:bg-transparent px-0 py-0.5 text-base font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+                className="text-foreground placeholder:text-muted-foreground/60 w-full border-0 bg-transparent px-0 py-0.5 text-base font-medium focus:outline-none dark:bg-transparent"
                 aria-label="Item name"
               />
             </div>
@@ -352,15 +449,24 @@ export function ItemEditor() {
             )}
 
             {form.type === "note" && (
-              <NoteFields details={form.details} updateDetails={updateNoteDetails} />
+              <NoteFields
+                details={form.details}
+                updateDetails={updateNoteDetails}
+              />
             )}
 
             {form.type === "card" && (
-              <CardFields details={form.details} updateDetails={updateCardDetails} />
+              <CardFields
+                details={form.details}
+                updateDetails={updateCardDetails}
+              />
             )}
 
             {form.type === "identity" && (
-              <IdentityFields details={form.details} updateDetails={updateIdentityDetails} />
+              <IdentityFields
+                details={form.details}
+                updateDetails={updateIdentityDetails}
+              />
             )}
 
             {/* Custom fields */}
@@ -374,7 +480,7 @@ export function ItemEditor() {
           </div>
 
           {/* Footer — Cancel only (Save/Create is in the header) */}
-          <div className="border-t border-border px-4 py-3">
+          <div className="border-border border-t px-4 py-3">
             <Button
               type="button"
               variant="ghost"

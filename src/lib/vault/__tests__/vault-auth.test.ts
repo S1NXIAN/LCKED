@@ -1,23 +1,21 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  createVault,
-  unlockVault,
-  clearSession,
-  changeMasterPassword,
-  exportEncrypted,
-  decryptLckedExport,
-} from "@/lib/vault/vault-auth";
-import type {
-  VaultItem,
-  VaultDef,
-  VaultMeta,
-  VaultSettings,
-} from "@/lib/types";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import type { LckedExport } from "@/lib/import";
+import type { VaultDef, VaultItem, VaultMeta } from "@/lib/types";
+import {
+  changeMasterPassword,
+  clearSession,
+  createVault,
+  decryptLckedExport,
+  exportEncrypted,
+  unlockVault,
+} from "@/lib/vault/vault-auth";
 
 /* ─── Mocks ─────────────────────────────────────────────── */
 
-const mockMasterKey = { algorithm: { name: "AES-GCM" } } as unknown as CryptoKey;
+const mockMasterKey = {
+  algorithm: { name: "AES-GCM" },
+} as unknown as CryptoKey;
 const mockVaultKey = { algorithm: { name: "AES-GCM" } } as unknown as CryptoKey;
 
 vi.mock("@/lib/crypto", () => ({
@@ -47,7 +45,7 @@ vi.mock("@/lib/crypto", () => ({
 }));
 
 vi.mock("@/lib/vault/vault-db", () => ({
-  saveVaultMeta: vi.fn(async () => { }),
+  saveVaultMeta: vi.fn(async () => {}),
   loadVaultMeta: vi.fn(async (): Promise<VaultMeta | undefined> => ({
     id: "singleton",
     salt: "test-salt",
@@ -74,13 +72,13 @@ vi.mock("@/lib/vault/vault-db", () => ({
       sortFavoritesFirst: false,
       hoverItemActions: true,
       blurEmailMode: "off",
-    } as VaultSettings,
+    },
     vaults: [],
   })),
   loadAllStoredItems: vi.fn(async () => []),
-  putStoredItem: vi.fn(async () => { }),
-  deleteStoredItem: vi.fn(async () => { }),
-  wipeVault: vi.fn(async () => { }),
+  putStoredItem: vi.fn(async () => {}),
+  deleteStoredItem: vi.fn(async () => {}),
+  wipeVault: vi.fn(async () => {}),
 }));
 
 beforeEach(() => {
@@ -174,7 +172,14 @@ describe("unlockVault", () => {
     const { decryptJson } = await import("@/lib/crypto");
     const item = makeItem({ id: "stored-1" });
     vi.mocked(loadAllStoredItems).mockResolvedValueOnce([
-      { id: "stored-1", type: "login", ciphertext: "ct", iv: "iv", createdAt: 1000, updatedAt: 1000 },
+      {
+        id: "stored-1",
+        type: "login",
+        ciphertext: "ct",
+        iv: "iv",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
     ]);
     vi.mocked(decryptJson).mockResolvedValueOnce(item);
 
@@ -188,7 +193,8 @@ describe("unlockVault", () => {
   });
 
   it("deletes expired trashed items", async () => {
-    const { loadAllStoredItems, deleteStoredItem } = await import("@/lib/vault/vault-db");
+    const { loadAllStoredItems, deleteStoredItem } =
+      await import("@/lib/vault/vault-db");
     const { decryptJson } = await import("@/lib/crypto");
     const expired = makeItem({
       id: "expired",
@@ -196,7 +202,14 @@ describe("unlockVault", () => {
       trashedAt: Date.now() - 31 * 24 * 60 * 60 * 1000,
     });
     vi.mocked(loadAllStoredItems).mockResolvedValueOnce([
-      { id: "expired", type: "login", ciphertext: "ct", iv: "iv", createdAt: 1000, updatedAt: 1000 },
+      {
+        id: "expired",
+        type: "login",
+        ciphertext: "ct",
+        iv: "iv",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
     ]);
     vi.mocked(decryptJson).mockResolvedValueOnce(expired);
 
@@ -206,13 +219,21 @@ describe("unlockVault", () => {
   });
 
   it("migrates items missing newer fields", async () => {
-    const { loadAllStoredItems, putStoredItem } = await import("@/lib/vault/vault-db");
+    const { loadAllStoredItems, putStoredItem } =
+      await import("@/lib/vault/vault-db");
     const { decryptJson } = await import("@/lib/crypto");
     // Simulate an item without vaultIds (pre-migration).
     const partial = makeItem({ id: "migrate-me" });
     delete (partial as any).vaultIds;
     vi.mocked(loadAllStoredItems).mockResolvedValueOnce([
-      { id: "migrate-me", type: "login", ciphertext: "ct", iv: "iv", createdAt: 1000, updatedAt: 1000 },
+      {
+        id: "migrate-me",
+        type: "login",
+        ciphertext: "ct",
+        iv: "iv",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
     ]);
     vi.mocked(decryptJson).mockResolvedValueOnce(partial);
 
@@ -260,7 +281,11 @@ describe("changeMasterPassword", () => {
     const { checkVerifier } = await import("@/lib/crypto");
     vi.mocked(checkVerifier).mockResolvedValueOnce(false);
 
-    const result = await changeMasterPassword("wrong-pw", "new-pw", mockVaultKey);
+    const result = await changeMasterPassword(
+      "wrong-pw",
+      "new-pw",
+      mockVaultKey,
+    );
 
     expect(result).toBeNull();
   });
@@ -280,7 +305,9 @@ describe("changeMasterPassword", () => {
 describe("exportEncrypted", () => {
   it("returns a JSON string with the expected envelope format", async () => {
     const items = [makeItem()];
-    const vaults: VaultDef[] = [{ id: "v1", name: "V", color: "blue", icon: "lock", createdAt: 1000 }];
+    const vaults: VaultDef[] = [
+      { id: "v1", name: "V", color: "blue", icon: "lock", createdAt: 1000 },
+    ];
 
     const json = await exportEncrypted(items, vaults, "export-pw");
     const envelope = JSON.parse(json);

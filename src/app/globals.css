@@ -151,47 +151,47 @@
   --radius: 0.625rem;
 
   /* ── Latte (light) — Catppuccin · paper with violet atmosphere ─────────── */
-  --background: #eff1f5;          /* base    — app canvas (lightest) */
-  --foreground: #4c4f69;          /* text    */
-  --card: #e6e9ef;                /* mantle  — raised surface */
+  --background: #eff1f5; /* base    — app canvas (lightest) */
+  --foreground: #4c4f69; /* text    */
+  --card: #e6e9ef; /* mantle  — raised surface */
   --card-foreground: #4c4f69;
-  --popover: #ccd0da;             /* surface0 — floating layer (DIFFERENT from card) */
+  --popover: #ccd0da; /* surface0 — floating layer (DIFFERENT from card) */
   --popover-foreground: #4c4f69;
-  --primary: #8839ef;             /* mauve   — signature */
+  --primary: #8839ef; /* mauve   — signature */
   --primary-foreground: #eff1f5;
-  --secondary: #dce0e8;           /* crust   — subtle muted fill (recessed) */
+  --secondary: #dce0e8; /* crust   — subtle muted fill (recessed) */
   --secondary-foreground: #4c4f69;
-  --muted: #e6e9ef;               /* mantle  */
-  --muted-foreground: #6c6f85;    /* subtext0 */
-  --accent: #dce0e8;              /* crust   — LIGHTER than popover (hover reads clearly) */
+  --muted: #e6e9ef; /* mantle  */
+  --muted-foreground: #6c6f85; /* subtext0 */
+  --accent: #dce0e8; /* crust   — LIGHTER than popover (hover reads clearly) */
   --accent-foreground: #4c4f69;
-  --destructive: #d20f39;         /* red     */
-  --border: #bcc0cc;              /* surface1 — one step darker than card */
-  --input: #e6e9ef;               /* = card  */
+  --destructive: #d20f39; /* red     */
+  --border: #bcc0cc; /* surface1 — one step darker than card */
+  --input: #e6e9ef; /* = card  */
   --ring: #8839ef;
-  --chart-1: #8839ef;             /* mauve   */
-  --chart-2: #40a02b;             /* green   */
-  --chart-3: #fe640b;             /* peach   */
-  --chart-4: #ea76cb;             /* pink    */
-  --chart-5: #1e66f5;             /* blue    */
-  --sidebar: #e6e9ef;             /* mantle  */
+  --chart-1: #8839ef; /* mauve   */
+  --chart-2: #40a02b; /* green   */
+  --chart-3: #fe640b; /* peach   */
+  --chart-4: #ea76cb; /* pink    */
+  --chart-5: #1e66f5; /* blue    */
+  --sidebar: #e6e9ef; /* mantle  */
   --sidebar-foreground: #4c4f69;
   --sidebar-primary: #8839ef;
   --sidebar-primary-foreground: #eff1f5;
-  --sidebar-accent: #dce0e8;      /* = accent */
+  --sidebar-accent: #dce0e8; /* = accent */
   --sidebar-accent-foreground: #4c4f69;
   --sidebar-border: #bcc0cc;
   --sidebar-ring: #8839ef;
 
   /* Surface ramp — 5 perceptually-uniform steps (lightest → darkest) */
-  --surface-base: #eff1f5;        /* background (base) */
-  --surface-raised: #dce0e8;      /* secondary (crust — recessed fill) */
-  --surface-overlay: #e6e9ef;     /* card (mantle) */
-  --surface-popover: #ccd0da;     /* popover (surface0) */
-  --surface-tooltip: #bcc0cc;     /* tooltip / border (surface1) */
+  --surface-base: #eff1f5; /* background (base) */
+  --surface-raised: #dce0e8; /* secondary (crust — recessed fill) */
+  --surface-overlay: #e6e9ef; /* card (mantle) */
+  --surface-popover: #ccd0da; /* popover (surface0) */
+  --surface-tooltip: #bcc0cc; /* tooltip / border (surface1) */
 
   /* Sunset accent — warm, ≤5% per screen */
-  --sunset: #df8e1d;              /* yellow  */
+  --sunset: #df8e1d; /* yellow  */
 
   /* Catppuccin Latte named palette (utility colors) */
   --catppuccin-rosewater: #dc8a78;
@@ -240,159 +240,159 @@
   --nord-15: #b48ead;
 
   /* Proton Pass signal colors — functional indicators, identical in every theme */
-  --signal-success: #4AB89A;
-  --signal-warning: #FFB84D;
-  --signal-danger: #F08FA4;
-  --signal-info: #4AC0FF;
+  --signal-success: #4ab89a;
+  --signal-warning: #ffb84d;
+  --signal-danger: #f08fa4;
+  --signal-info: #4ac0ff;
 
   /* Vault color palette — Proton Pass's 10 vault colors. Same hex in every
    * theme so a vault's identity is stable across light/dark. */
-  --vault-heliotrope: #A779FF;
-  --vault-mauvelous: #F29292;
-  --vault-marigold: #F7D775;
-  --vault-de-york: #91C799;
-  --vault-jordy-blue: #92B3F2;
-  --vault-lavender-magenta: #EB8DD6;
-  --vault-chestnut-rose: #CD5A6F;
-  --vault-porsche: #E4A367;
-  --vault-mercury: #E6E6E6;
-  --vault-water-leaf: #9EE2E6;
+  --vault-heliotrope: #a779ff;
+  --vault-mauvelous: #f29292;
+  --vault-marigold: #f7d775;
+  --vault-de-york: #91c799;
+  --vault-jordy-blue: #92b3f2;
+  --vault-lavender-magenta: #eb8dd6;
+  --vault-chestnut-rose: #cd5a6f;
+  --vault-porsche: #e4a367;
+  --vault-mercury: #e6e6e6;
+  --vault-water-leaf: #9ee2e6;
 }
 
 /* ── Mocha (dark) — Catppuccin · default dark theme ──────────────────────── */
 .dark {
-  --background: #1e1e2e;          /* base    — app canvas (darkest) */
-  --foreground: #cdd6f4;          /* text    */
-  --card: #313244;                /* surface0 — raised surface */
+  --background: #1e1e2e; /* base    — app canvas (darkest) */
+  --foreground: #cdd6f4; /* text    */
+  --card: #313244; /* surface0 — raised surface */
   --card-foreground: #cdd6f4;
-  --popover: #45475a;             /* surface1 — floating layer (DIFFERENT from card) */
+  --popover: #45475a; /* surface1 — floating layer (DIFFERENT from card) */
   --popover-foreground: #cdd6f4;
-  --primary: #cba6f7;             /* mauve   — signature */
-  --primary-foreground: #1e1e2e;  /* base — readable on light mauve */
-  --secondary: #181825;           /* mantle  — recessed (darker than base) */
+  --primary: #cba6f7; /* mauve   — signature */
+  --primary-foreground: #1e1e2e; /* base — readable on light mauve */
+  --secondary: #181825; /* mantle  — recessed (darker than base) */
   --secondary-foreground: #cdd6f4;
-  --muted: #313244;               /* surface0 */
-  --muted-foreground: #a6adc8;    /* subtext0 */
-  --accent: #585b70;              /* surface2 — LIGHTER than popover (hover reads clearly) */
+  --muted: #313244; /* surface0 */
+  --muted-foreground: #a6adc8; /* subtext0 */
+  --accent: #585b70; /* surface2 — LIGHTER than popover (hover reads clearly) */
   --accent-foreground: #cdd6f4;
-  --destructive: #f38ba8;         /* red     */
-  --border: #45475a;              /* surface1 — one step lighter than card (visible in dark) */
-  --input: #313244;               /* = card  */
+  --destructive: #f38ba8; /* red     */
+  --border: #45475a; /* surface1 — one step lighter than card (visible in dark) */
+  --input: #313244; /* = card  */
   --ring: #cba6f7;
-  --chart-1: #cba6f7;             /* mauve   */
-  --chart-2: #a6e3a1;             /* green   */
-  --chart-3: #fab387;             /* peach   */
-  --chart-4: #f5c2e7;             /* pink    */
-  --chart-5: #89b4fa;             /* blue    */
-  --sidebar: #181825;             /* mantle  */
+  --chart-1: #cba6f7; /* mauve   */
+  --chart-2: #a6e3a1; /* green   */
+  --chart-3: #fab387; /* peach   */
+  --chart-4: #f5c2e7; /* pink    */
+  --chart-5: #89b4fa; /* blue    */
+  --sidebar: #181825; /* mantle  */
   --sidebar-foreground: #cdd6f4;
   --sidebar-primary: #cba6f7;
   --sidebar-primary-foreground: #1e1e2e;
-  --sidebar-accent: #585b70;      /* = accent */
+  --sidebar-accent: #585b70; /* = accent */
   --sidebar-accent-foreground: #cdd6f4;
   --sidebar-border: #45475a;
   --sidebar-ring: #cba6f7;
 
   /* Surface ramp — 5 perceptually-uniform steps (darkest → lightest) */
-  --surface-base: #1e1e2e;        /* background (base) */
-  --surface-raised: #181825;      /* secondary (mantle — recessed fill) */
-  --surface-overlay: #313244;     /* card (surface0) */
-  --surface-popover: #45475a;     /* popover (surface1) */
-  --surface-tooltip: #585b70;     /* accent (surface2) */
+  --surface-base: #1e1e2e; /* background (base) */
+  --surface-raised: #181825; /* secondary (mantle — recessed fill) */
+  --surface-overlay: #313244; /* card (surface0) */
+  --surface-popover: #45475a; /* popover (surface1) */
+  --surface-tooltip: #585b70; /* accent (surface2) */
 
   /* Sunset accent — warm, ≤5% per screen */
-  --sunset: #fab387;              /* peach   */
+  --sunset: #fab387; /* peach   */
 }
 
 /* ── Nord — arctic, north-blues ──────────────────────────────────────────── */
 .nord {
-  --background: #2e3440;          /* nord0   — app canvas (darkest) */
-  --foreground: #eceff4;          /* nord6   */
-  --card: #3b4252;                /* nord1   — raised surface */
+  --background: #2e3440; /* nord0   — app canvas (darkest) */
+  --foreground: #eceff4; /* nord6   */
+  --card: #3b4252; /* nord1   — raised surface */
   --card-foreground: #eceff4;
-  --popover: #434c5e;             /* nord2   — floating layer (DIFFERENT from card) */
+  --popover: #434c5e; /* nord2   — floating layer (DIFFERENT from card) */
   --popover-foreground: #eceff4;
-  --primary: #88c0d0;             /* nord8   — signature frost */
-  --primary-foreground: #2e3440;  /* nord0   — readable on frost */
-  --secondary: #3b4252;           /* nord1   — subtle muted fill */
+  --primary: #88c0d0; /* nord8   — signature frost */
+  --primary-foreground: #2e3440; /* nord0   — readable on frost */
+  --secondary: #3b4252; /* nord1   — subtle muted fill */
   --secondary-foreground: #eceff4;
-  --muted: #3b4252;               /* nord1   */
-  --muted-foreground: #d8dee9;    /* nord4   */
-  --accent: #4c566a;              /* nord3   — LIGHTER than popover (hover reads clearly) */
+  --muted: #3b4252; /* nord1   */
+  --muted-foreground: #d8dee9; /* nord4   */
+  --accent: #4c566a; /* nord3   — LIGHTER than popover (hover reads clearly) */
   --accent-foreground: #eceff4;
-  --destructive: #bf616a;         /* nord11  */
-  --border: #434c5e;              /* nord2   — one step lighter than card (visible in dark) */
-  --input: #3b4252;               /* = card  */
+  --destructive: #bf616a; /* nord11  */
+  --border: #434c5e; /* nord2   — one step lighter than card (visible in dark) */
+  --input: #3b4252; /* = card  */
   --ring: #88c0d0;
-  --chart-1: #88c0d0;             /* nord8   */
-  --chart-2: #a3be8c;             /* nord14  */
-  --chart-3: #ebcb8b;             /* nord13  */
-  --chart-4: #b48ead;             /* nord15  */
-  --chart-5: #5e81ac;             /* nord10  */
-  --sidebar: #2e3440;             /* nord0   */
+  --chart-1: #88c0d0; /* nord8   */
+  --chart-2: #a3be8c; /* nord14  */
+  --chart-3: #ebcb8b; /* nord13  */
+  --chart-4: #b48ead; /* nord15  */
+  --chart-5: #5e81ac; /* nord10  */
+  --sidebar: #2e3440; /* nord0   */
   --sidebar-foreground: #eceff4;
   --sidebar-primary: #88c0d0;
   --sidebar-primary-foreground: #2e3440;
-  --sidebar-accent: #4c566a;      /* = accent */
+  --sidebar-accent: #4c566a; /* = accent */
   --sidebar-accent-foreground: #eceff4;
   --sidebar-border: #434c5e;
   --sidebar-ring: #88c0d0;
 
   /* Surface ramp — 5 steps (darkest → lightest) */
-  --surface-base: #2e3440;        /* background (nord0) */
-  --surface-raised: #3b4252;      /* secondary (nord1) */
-  --surface-overlay: #3b4252;     /* card (nord1) */
-  --surface-popover: #434c5e;     /* popover (nord2) */
-  --surface-tooltip: #4c566a;     /* accent (nord3) */
+  --surface-base: #2e3440; /* background (nord0) */
+  --surface-raised: #3b4252; /* secondary (nord1) */
+  --surface-overlay: #3b4252; /* card (nord1) */
+  --surface-popover: #434c5e; /* popover (nord2) */
+  --surface-tooltip: #4c566a; /* accent (nord3) */
 
   /* Sunset accent — warm, ≤5% per screen */
-  --sunset: #ebcb8b;              /* nord13  */
+  --sunset: #ebcb8b; /* nord13  */
 }
 
 /* ── Proton — Proton Pass · violet-on-near-black ─────────────────────────── */
 .proton {
-  --background: #1f1f31;          /* bg-norm — app canvas (darkest) */
-  --foreground: #ffffff;          /* text    */
-  --card: #282839;                /* card-norm — raised surface */
+  --background: #1f1f31; /* bg-norm — app canvas (darkest) */
+  --foreground: #ffffff; /* text    */
+  --card: #282839; /* card-norm — raised surface */
   --card-foreground: #ffffff;
-  --popover: #302d45;             /* popover-norm — floating layer (DIFFERENT from card) */
+  --popover: #302d45; /* popover-norm — floating layer (DIFFERENT from card) */
   --popover-foreground: #ffffff;
-  --primary: #7777f8;             /* interaction-norm — signature violet */
+  --primary: #7777f8; /* interaction-norm — signature violet */
   --primary-foreground: #ffffff;
-  --secondary: #282839;           /* subtle muted fill (= card) */
+  --secondary: #282839; /* subtle muted fill (= card) */
   --secondary-foreground: #ffffff;
-  --muted: #282839;               /* card-norm */
-  --muted-foreground: #bfb9d8;    /* text-weak */
-  --accent: #38384c;              /* LIGHTER than popover — hover reads clearly */
+  --muted: #282839; /* card-norm */
+  --muted-foreground: #bfb9d8; /* text-weak */
+  --accent: #38384c; /* LIGHTER than popover — hover reads clearly */
   --accent-foreground: #ffffff;
-  --destructive: #F08FA4;
+  --destructive: #f08fa4;
   /* Borders at 50% opacity — felt, not seen (Linear principle) */
-  --border: #38384c;              /* border-norm */
-  --input: #282839;               /* = card  */
+  --border: #38384c; /* border-norm */
+  --input: #282839; /* = card  */
   --ring: #7777f8;
-  --chart-1: #7777f8;             /* interaction-norm */
-  --chart-2: #4AB89A;             /* signal-success */
-  --chart-3: #FFB84D;             /* signal-warning */
-  --chart-4: #EB8DD6;             /* vault-lavender-magenta */
-  --chart-5: #4AC0FF;             /* signal-info */
-  --sidebar: #191926;             /* sidebar-norm (slightly darker than canvas) */
+  --chart-1: #7777f8; /* interaction-norm */
+  --chart-2: #4ab89a; /* signal-success */
+  --chart-3: #ffb84d; /* signal-warning */
+  --chart-4: #eb8dd6; /* vault-lavender-magenta */
+  --chart-5: #4ac0ff; /* signal-info */
+  --sidebar: #191926; /* sidebar-norm (slightly darker than canvas) */
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #7777f8;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #38384c;      /* = accent */
+  --sidebar-accent: #38384c; /* = accent */
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #38384c;
   --sidebar-ring: #7777f8;
 
   /* Surface ramp — 5 steps (darkest → lightest) */
-  --surface-base: #1f1f31;        /* background */
-  --surface-raised: #282839;      /* secondary (= card) */
-  --surface-overlay: #282839;     /* card */
-  --surface-popover: #302d45;     /* popover */
-  --surface-tooltip: #38384c;     /* accent / border */
+  --surface-base: #1f1f31; /* background */
+  --surface-raised: #282839; /* secondary (= card) */
+  --surface-overlay: #282839; /* card */
+  --surface-popover: #302d45; /* popover */
+  --surface-tooltip: #38384c; /* accent / border */
 
   /* Sunset accent — warm, ≤5% per screen */
-  --sunset: #FFB84D;              /* signal-warning */
+  --sunset: #ffb84d; /* signal-warning */
 }
 
 /* Dark themes share Catppuccin Mocha values for the `--catppuccin-*` utility
@@ -461,7 +461,9 @@
   .font-secret {
     font-family: var(--font-geist-mono), ui-monospace, monospace;
     letter-spacing: 0.02em;
-    font-feature-settings: "tnum" 1, "zero" 1;
+    font-feature-settings:
+      "tnum" 1,
+      "zero" 1;
   }
   /* No cursor:pointer on non-link controls — native-feel (Raycast discipline) */
   button:not(:disabled),
@@ -563,15 +565,34 @@
 /* Lock screen + empty-state glow (sunset-warmed violet) */
 .lcked-glow {
   background-image:
-    radial-gradient(60% 50% at 50% 0%, oklch(0.62 0.20 295 / 0.16) 0%, transparent 70%),
-    radial-gradient(35% 35% at 100% 100%, oklch(0.78 0.15 75 / 0.08) 0%, transparent 70%),
-    radial-gradient(30% 30% at 0% 80%, oklch(0.68 0.24 330 / 0.06) 0%, transparent 70%);
+    radial-gradient(
+      60% 50% at 50% 0%,
+      oklch(0.62 0.2 295 / 0.16) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      35% 35% at 100% 100%,
+      oklch(0.78 0.15 75 / 0.08) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      30% 30% at 0% 80%,
+      oklch(0.68 0.24 330 / 0.06) 0%,
+      transparent 70%
+    );
 }
 
 /* Animated vault-lock icon pulse */
 @keyframes lcked-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(0.96); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(0.96);
+  }
 }
 .lcked-pulse {
   animation: lcked-pulse 2.4s ease-in-out infinite;
@@ -620,12 +641,20 @@
  * runs on both enter (delayed + instant) and exit (closed).
  */
 @keyframes lcked-tooltip-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 @keyframes lcked-tooltip-fade-out {
-  from { opacity: 1; }
-  to   { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 .lcked-tooltip-content[data-state="delayed-open"],
 .lcked-tooltip-content[data-state="instant-open"] {

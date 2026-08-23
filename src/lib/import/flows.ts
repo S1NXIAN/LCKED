@@ -12,6 +12,7 @@
  */
 
 import { toast } from "sonner";
+
 import { download } from "@/lib/browser-utils";
 import { detectFormat, type ImportFormat } from "@/lib/import";
 import type { ImportResult } from "@/lib/types";
@@ -91,11 +92,18 @@ export async function downloadEncryptedExport(opts: {
   try {
     const json = await opts.exportEncrypted(opts.passphrase);
     const ext = opts.zip ? "zip" : "json";
-    download(vaultFileName(ext), json, opts.zip ? "application/zip" : "application/json");
-    toast.success(opts.zip ? "Encrypted ZIP downloaded" : "Encrypted export downloaded", {
-      description:
-        "Keep this file and the passphrase safe — both are required to restore.",
-    });
+    download(
+      vaultFileName(ext),
+      json,
+      opts.zip ? "application/zip" : "application/json",
+    );
+    toast.success(
+      opts.zip ? "Encrypted ZIP downloaded" : "Encrypted export downloaded",
+      {
+        description:
+          "Keep this file and the passphrase safe — both are required to restore.",
+      },
+    );
     return true;
   } catch (err) {
     console.error(err);

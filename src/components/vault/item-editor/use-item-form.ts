@@ -1,18 +1,20 @@
 "use client";
 
 /**
-  * LCKED — ItemEditor form lifecycle.
-  *
-  * Owns the draft form state plus everything tied to its lifecycle: the
-  * initial snapshot used for dirty-checking (IE-4), stable row keys for the
-  * URL + custom-field lists (IE-2), and the per-type details cache that
-  * preserves typed values when switching item type (IE-3).
-  */
+ * LCKED — ItemEditor form lifecycle.
+ *
+ * Owns the draft form state plus everything tied to its lifecycle: the
+ * initial snapshot used for dirty-checking (IE-4), stable row keys for the
+ * URL + custom-field lists (IE-2), and the per-type details cache that
+ * preserves typed values when switching item type (IE-3).
+ */
 
 import * as React from "react";
-import { useVault } from "@/store/vault";
+
+import { ITEM_DEFAULTS, toItemInput } from "@/lib/items/item-crud";
 import { type ItemType, type NewItemInput } from "@/lib/types";
-import { toItemInput, ITEM_DEFAULTS } from "@/lib/items/item-crud";
+import { useVault } from "@/store/vault";
+
 import { consumeNewItemType } from "../new-item-stash";
 
 function blankItem(type: ItemType): NewItemInput {
@@ -21,7 +23,11 @@ function blankItem(type: ItemType): NewItemInput {
     ...ITEM_DEFAULTS,
   };
   if (type === "login") {
-    return { ...base, type, details: { username: "", password: "", urls: [""], totp: "", notes: "" } };
+    return {
+      ...base,
+      type,
+      details: { username: "", password: "", urls: [""], totp: "", notes: "" },
+    };
   }
   if (type === "note") {
     return { ...base, type, details: { content: "" } };
@@ -30,15 +36,33 @@ function blankItem(type: ItemType): NewItemInput {
     return {
       ...base,
       type,
-      details: { cardholder: "", number: "", brand: "", cvv: "", expiry: "", pin: "", notes: "" },
+      details: {
+        cardholder: "",
+        number: "",
+        brand: "",
+        cvv: "",
+        expiry: "",
+        pin: "",
+        notes: "",
+      },
     };
   }
   return {
     ...base,
     type,
     details: {
-      firstName: "", lastName: "", email: "", phone: "", company: "",
-      address1: "", address2: "", city: "", state: "", zip: "", country: "", notes: "",
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      company: "",
+      address1: "",
+      address2: "",
+      city: "",
+      state: "",
+      zip: "",
+      country: "",
+      notes: "",
     },
   };
 }
@@ -62,7 +86,9 @@ export function useItemForm() {
   // the user already typed for each type. Without this, switching Login →
   // Card → Login would wipe the Login fields (only name survived). The
   // cache is keyed by ItemType and stores the `details` object.
-  const detailsCache = React.useRef<Partial<Record<ItemType, NewItemInput["details"]>>>({});
+  const detailsCache = React.useRef<
+    Partial<Record<ItemType, NewItemInput["details"]>>
+  >({});
   // The detailsCache is cleared whenever the editor opens fresh.
 
   // Initialise form when the sheet opens. Depends ONLY on [open, editorItemId]
@@ -79,11 +105,17 @@ export function useItemForm() {
     }
     if (editorItemId) {
       // Read via getState() so we don't depend on the items array.
-      const existing = useVault.getState().items.find((i) => i.id === editorItemId);
+      const existing = useVault
+        .getState()
+        .items.find((i) => i.id === editorItemId);
       if (existing) {
         const input = toItemInput(existing);
         setForm(input);
-        setUrlKeys((existing.details as { urls?: string[] }).urls?.map(() => nextKey()) ?? []);
+        setUrlKeys(
+          (existing.details as { urls?: string[] }).urls?.map(() =>
+            nextKey(),
+          ) ?? [],
+        );
         setCfKeys(existing.customFields.map(() => nextKey()));
         setInitialForm(JSON.stringify(input));
         detailsCache.current = { [existing.type]: existing.details };
@@ -98,7 +130,11 @@ export function useItemForm() {
     // "All Items"). Only real vault ids count — "all"/"favorites"/"trash" are
     // filters, not vaults.
     const activeVault = useVault.getState().activeVault;
-    const isRealVault = activeVault && activeVault !== "all" && activeVault !== "favorites" && activeVault !== "trash";
+    const isRealVault =
+      activeVault &&
+      activeVault !== "all" &&
+      activeVault !== "favorites" &&
+      activeVault !== "trash";
     if (isRealVault && vaults.some((v) => v.id === activeVault)) {
       blank.vaultIds = [activeVault];
     }
@@ -128,14 +164,22 @@ export function useItemForm() {
         folder: f.folder,
         customFields: f.customFields,
         vaultIds: f.vaultIds,
-        details: (cachedDetails ?? blank.details) as NewItemInput["details"],
+        details: cachedDetails ?? blank.details,
       } as NewItemInput;
     });
   };
 
   return {
-    open, editorItemId, form, setForm,
-    urlKeys, setUrlKeys, cfKeys, setCfKeys,
-    nextKey, initialForm, switchType,
+    open,
+    editorItemId,
+    form,
+    setForm,
+    urlKeys,
+    setUrlKeys,
+    cfKeys,
+    setCfKeys,
+    nextKey,
+    initialForm,
+    switchType,
   };
 }

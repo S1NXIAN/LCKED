@@ -3,8 +3,10 @@
 /** LCKED — secure-note field section: a single free-form content textarea. */
 
 import { StickyNote } from "lucide-react";
+
 import { Textarea } from "@/components/ui/textarea";
 import { type NoteDetails } from "@/lib/types";
+
 import { FieldCluster, FieldRowInput, flatTextareaCls } from "../field-cluster";
 
 export function NoteFields({

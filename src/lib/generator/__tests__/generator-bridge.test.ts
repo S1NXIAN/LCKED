@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import {
-  setGeneratorCallback,
-  getGeneratorCallback,
-  consumeGeneratorCallback,
   clearGeneratorCallback,
+  consumeGeneratorCallback,
+  getGeneratorCallback,
+  setGeneratorCallback,
 } from "@/lib/generator/generator-bridge";
 
 describe("generator-bridge", () => {

@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
-import { parseKeePassXcXml } from "@/lib/import/keepassxc";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
 import { importFromText } from "@/lib/import/index";
+import { parseKeePassXcXml } from "@/lib/import/keepassxc";
 
 // Build a minimal fake DOM element — just enough for
 // readKeePassXcEntry to traverse children by tagName.
@@ -11,10 +12,7 @@ function el(tag: string, children?: any[], text?: string) {
 // Given a list of { key, value } pairs, produce a <String>
 // element with nested <Key> and <Value> children.
 function kv(key: string, value: string) {
-  return el("String", [
-    el("Key", [], key),
-    el("Value", [], value),
-  ]);
+  return el("String", [el("Key", [], key), el("Value", [], value)]);
 }
 
 // Replace DOMParser with a version that returns a controllable doc.
@@ -23,7 +21,9 @@ beforeAll(() => {
   vi.stubGlobal(
     "DOMParser",
     class {
-      parseFromString() { return currentDoc; }
+      parseFromString() {
+        return currentDoc;
+      }
     },
   );
 });

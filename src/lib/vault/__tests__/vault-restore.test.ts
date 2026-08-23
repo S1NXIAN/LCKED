@@ -1,11 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { VaultDef, VaultItem } from "@/lib/types";
 import {
   buildVaultIdMap,
   remapVaultIds,
-  restoreVault,
   type RestoreDeps,
+  restoreVault,
 } from "@/lib/vault/vault-restore";
-import type { VaultDef, VaultItem } from "@/lib/types";
 
 // Mock the decryptor and format detector; the restore module's own
 // choreography is what's under test.
@@ -45,9 +46,11 @@ function makeVault(id: string, name: string): VaultDef {
 
 function makeDeps(overrides: Partial<RestoreDeps> = {}): RestoreDeps {
   return {
-    setupVault: vi.fn(async () => { }),
-    createCustomVault: vi.fn(async (name: string) => makeVault(`new-${name}`, name)),
-    saveItem: vi.fn(async () => { }),
+    setupVault: vi.fn(async () => {}),
+    createCustomVault: vi.fn(async (name: string) =>
+      makeVault(`new-${name}`, name),
+    ),
+    saveItem: vi.fn(async () => {}),
     importItems: vi.fn(async () => ({ imported: 0 })),
     ...overrides,
   };
@@ -59,7 +62,10 @@ beforeEach(() => {
 
 describe("buildVaultIdMap", () => {
   it("matches by name+color+icon and returns old→new ids", () => {
-    const oldVaults = [makeVault("old-1", "Work"), makeVault("old-2", "Personal")];
+    const oldVaults = [
+      makeVault("old-1", "Work"),
+      makeVault("old-2", "Personal"),
+    ];
     const newVaults = [
       { ...makeVault("new-9", "Personal") },
       { ...makeVault("new-1", "Work") },
@@ -72,7 +78,10 @@ describe("buildVaultIdMap", () => {
   });
 
   it("leaves a vault id unmapped when no fresh vault matches", () => {
-    const map = buildVaultIdMap([makeVault("old-1", "Work")], [makeVault("new-1", "Other")]);
+    const map = buildVaultIdMap(
+      [makeVault("old-1", "Work")],
+      [makeVault("new-1", "Other")],
+    );
     expect(map.has("old-1")).toBe(false);
   });
 
@@ -114,8 +123,14 @@ describe("remapVaultIds", () => {
 
 describe("restoreVault — encrypted backup", () => {
   it("returns wrong-password and creates NO vault when the password is wrong", async () => {
-    vi.mocked(importFromText).mockReturnValue({ result: { format: "lcked-json" }, items: [] } as never);
-    vi.mocked(decryptLckedExport).mockResolvedValue({ ok: false, reason: "wrong-password" });
+    vi.mocked(importFromText).mockReturnValue({
+      result: { format: "lcked-json" },
+      items: [],
+    } as never);
+    vi.mocked(decryptLckedExport).mockResolvedValue({
+      ok: false,
+      reason: "wrong-password",
+    });
 
     const deps = makeDeps();
     const result = await restoreVault({
@@ -132,8 +147,14 @@ describe("restoreVault — encrypted backup", () => {
   });
 
   it("returns invalid-file and creates NO vault for a corrupt backup", async () => {
-    vi.mocked(importFromText).mockReturnValue({ result: { format: "lcked-json" }, items: [] } as never);
-    vi.mocked(decryptLckedExport).mockResolvedValue({ ok: false, reason: "corrupt" });
+    vi.mocked(importFromText).mockReturnValue({
+      result: { format: "lcked-json" },
+      items: [],
+    } as never);
+    vi.mocked(decryptLckedExport).mockResolvedValue({
+      ok: false,
+      reason: "corrupt",
+    });
 
     const deps = makeDeps();
     const result = await restoreVault({
@@ -150,11 +171,23 @@ describe("restoreVault — encrypted backup", () => {
   it("creates the vault before custom vaults, remaps memberships, and counts imports", async () => {
     const vaults = [makeVault("old-1", "Work"), makeVault("old-2", "Personal")];
     const items = [
-      makeItem({ id: "i1", vaultIds: ["old-1"], createdAt: 1111, updatedAt: 2222 }),
+      makeItem({
+        id: "i1",
+        vaultIds: ["old-1"],
+        createdAt: 1111,
+        updatedAt: 2222,
+      }),
       makeItem({ id: "i2", vaultIds: ["old-2", "ghost"] }),
     ];
-    vi.mocked(importFromText).mockReturnValue({ result: { format: "lcked-json" }, items: [] } as never);
-    vi.mocked(decryptLckedExport).mockResolvedValue({ ok: true, items, vaults });
+    vi.mocked(importFromText).mockReturnValue({
+      result: { format: "lcked-json" },
+      items: [],
+    } as never);
+    vi.mocked(decryptLckedExport).mockResolvedValue({
+      ok: true,
+      items,
+      vaults,
+    });
 
     const deps = makeDeps();
     const result = await restoreVault({
@@ -182,7 +215,10 @@ describe("restoreVault — encrypted backup", () => {
   });
 
   it("keeps importing best-effort when one item write fails", async () => {
-    vi.mocked(importFromText).mockReturnValue({ result: { format: "lcked-json" }, items: [] } as never);
+    vi.mocked(importFromText).mockReturnValue({
+      result: { format: "lcked-json" },
+      items: [],
+    } as never);
     vi.mocked(decryptLckedExport).mockResolvedValue({
       ok: true,
       items: [makeItem({ id: "i1" }), makeItem({ id: "i2" })],
@@ -209,7 +245,10 @@ describe("restoreVault — encrypted backup", () => {
 
 describe("restoreVault — plain import and no-file paths", () => {
   it("routes a plain (non-encrypted) file through importItems", async () => {
-    vi.mocked(importFromText).mockReturnValue({ result: { format: "bitwarden-json" }, items: [] } as never);
+    vi.mocked(importFromText).mockReturnValue({
+      result: { format: "bitwarden-json" },
+      items: [],
+    } as never);
     const importItems = vi.fn(async () => ({ imported: 3 }));
     const deps = makeDeps({ importItems });
 

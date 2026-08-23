@@ -1,9 +1,9 @@
 "use client";
 
 /**
-  * LCKED — confirm-discard dialog (IE-4): shown when the user closes the
-  * editor while the form has unsaved edits.
-  */
+ * LCKED — confirm-discard dialog (IE-4): shown when the user closes the
+ * editor while the form has unsaved edits.
+ */
 
 import {
   AlertDialog,

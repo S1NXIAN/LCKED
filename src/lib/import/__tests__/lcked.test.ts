@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { parseLckedJson } from "@/lib/import/lcked";
+import { describe, expect, it } from "vitest";
+
+import { parseLckedJson, type LckedExport } from "@/lib/import/lcked";
 
 describe("parseLckedJson", () => {
   it("parses a valid LCKED export envelope", () => {
@@ -23,7 +24,7 @@ describe("parseLckedJson", () => {
     expect(result.warnings).toEqual([]);
     expect(result.format).toBe("lcked-json");
     expect(result.raw).toBeDefined();
-    expect(result.raw.format).toBe("lcked-encrypted-v1");
+    expect((result.raw as LckedExport).format).toBe("lcked-encrypted-v1");
   });
 
   it("rejects unknown formats", () => {

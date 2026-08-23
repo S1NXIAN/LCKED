@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+
 import { cn } from "@/lib/utils";
 
 interface DiamondMarkProps {
@@ -36,7 +37,11 @@ function dispatchDiamondSpin(el: Element | null) {
   );
 }
 
-export function DiamondMark({ className, size = 64, glow = false }: DiamondMarkProps) {
+export function DiamondMark({
+  className,
+  size = 64,
+  glow = false,
+}: DiamondMarkProps) {
   const svgRef = React.useRef<SVGSVGElement>(null);
   const [spin, setSpin] = React.useState<SpinState>("idle");
   const completingRef = React.useRef(false);
@@ -89,7 +94,8 @@ export function DiamondMark({ className, size = 64, glow = false }: DiamondMarkP
   } else {
     // Identical string for `spinning` and `completing` so React's style diff
     // does not reset the running animation.
-    groupStyle.animation = "lcked-spin-3x 1.5s cubic-bezier(0.25, 0.1, 0.25, 1) infinite";
+    groupStyle.animation =
+      "lcked-spin-3x 1.5s cubic-bezier(0.25, 0.1, 0.25, 1) infinite";
   }
 
   return (
@@ -101,7 +107,8 @@ export function DiamondMark({ className, size = 64, glow = false }: DiamondMarkP
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={cn(
-        glow && "drop-shadow-[0_0_18px_color-mix(in_oklab,currentColor_35%,transparent)]",
+        glow &&
+          "drop-shadow-[0_0_18px_color-mix(in_oklab,currentColor_35%,transparent)]",
         className,
       )}
       onMouseEnter={handleEnter}
@@ -109,22 +116,69 @@ export function DiamondMark({ className, size = 64, glow = false }: DiamondMarkP
       aria-hidden="true"
     >
       <defs>
-        <linearGradient id="lcked-facet" x1="20" y1="8" x2="44" y2="56" gradientUnits="userSpaceOnUse">
+        <linearGradient
+          id="lcked-facet"
+          x1="20"
+          y1="8"
+          x2="44"
+          y2="56"
+          gradientUnits="userSpaceOnUse"
+        >
           <stop offset="0" stopColor="currentColor" stopOpacity="0.95" />
           <stop offset="0.5" stopColor="currentColor" stopOpacity="0.65" />
           <stop offset="1" stopColor="currentColor" stopOpacity="0.45" />
         </linearGradient>
-        <linearGradient id="lcked-light" x1="32" y1="8" x2="32" y2="36" gradientUnits="userSpaceOnUse">
+        <linearGradient
+          id="lcked-light"
+          x1="32"
+          y1="8"
+          x2="32"
+          y2="36"
+          gradientUnits="userSpaceOnUse"
+        >
           <stop offset="0" stopColor="currentColor" stopOpacity="0.4" />
           <stop offset="1" stopColor="currentColor" stopOpacity="0" />
         </linearGradient>
       </defs>
 
       <g style={groupStyle}>
-        <rect x="13" y="13" width="38" height="38" rx="5" fill="url(#lcked-facet)" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.5" />
-        <rect x="13" y="13" width="38" height="22" rx="5" fill="url(#lcked-light)" />
-        <line x1="13" y1="32" x2="51" y2="32" stroke="currentColor" strokeOpacity="0.18" strokeWidth="1" />
-        <line x1="32" y1="13" x2="32" y2="51" stroke="currentColor" strokeOpacity="0.18" strokeWidth="1" />
+        <rect
+          x="13"
+          y="13"
+          width="38"
+          height="38"
+          rx="5"
+          fill="url(#lcked-facet)"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeOpacity="0.5"
+        />
+        <rect
+          x="13"
+          y="13"
+          width="38"
+          height="22"
+          rx="5"
+          fill="url(#lcked-light)"
+        />
+        <line
+          x1="13"
+          y1="32"
+          x2="51"
+          y2="32"
+          stroke="currentColor"
+          strokeOpacity="0.18"
+          strokeWidth="1"
+        />
+        <line
+          x1="32"
+          y1="13"
+          x2="32"
+          y2="51"
+          stroke="currentColor"
+          strokeOpacity="0.18"
+          strokeWidth="1"
+        />
       </g>
 
       <g fill="currentColor">

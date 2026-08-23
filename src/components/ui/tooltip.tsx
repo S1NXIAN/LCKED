@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as TooltipPrimitive from "@radix-ui/react-tooltip"
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import * as React from "react";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 function TooltipProvider({
   delayDuration = 0,
@@ -15,7 +15,7 @@ function TooltipProvider({
       delayDuration={delayDuration}
       {...props}
     />
-  )
+  );
 }
 
 function Tooltip({
@@ -25,13 +25,13 @@ function Tooltip({
     <TooltipProvider>
       <TooltipPrimitive.Root data-slot="tooltip" {...props} />
     </TooltipProvider>
-  )
+  );
 }
 
 function TooltipTrigger({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
 }
 
 function TooltipContent({
@@ -47,16 +47,16 @@ function TooltipContent({
         sideOffset={sideOffset}
         className={cn(
           // Theme-aware surface — popover layer (distinct from --card)
-          "lcked-tooltip-content bg-popover text-popover-foreground border border-border",
+          "lcked-tooltip-content bg-popover text-popover-foreground border-border border",
           // Geometry
           "rounded-[var(--radius-sm)] px-2.5 py-1.5 text-xs",
           // Sizing — wrap text and cap width so long copy stays readable
-          "max-w-[200px] break-words text-balance",
+          "max-w-[200px] text-balance break-words",
           // Subtle, theme-matched elevation
           "shadow-[0_2px_8px_rgba(0,0,0,0.12)]",
           // Stacking
           "z-50",
-          className
+          className,
         )}
         {...props}
       >
@@ -64,7 +64,7 @@ function TooltipContent({
         <TooltipPrimitive.Arrow className="bg-popover fill-popover z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]" />
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
-  )
+  );
 }
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
+export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger };

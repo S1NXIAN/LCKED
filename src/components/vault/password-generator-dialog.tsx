@@ -9,26 +9,35 @@
  * shows a "Copy" button instead.
  */
 
+import { ArrowRight, Check, Copy, Dice5, RefreshCw } from "lucide-react";
 import * as React from "react";
-import { RefreshCw, Copy, Check, Dice5, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { copyWithAutoClear } from "@/lib/clipboard";
-import { useVault } from "@/store/vault";
-import { consumeGeneratorCallback, clearGeneratorCallback, getGeneratorCallback } from "@/lib/generator/generator-bridge";
-import { generatePassword, generatePassphrase } from "@/lib/generator/generator";
-import { PasswordStrengthMeter } from "./password-strength-meter";
+import {
+  generatePassphrase,
+  generatePassword,
+} from "@/lib/generator/generator";
+import {
+  clearGeneratorCallback,
+  consumeGeneratorCallback,
+  getGeneratorCallback,
+} from "@/lib/generator/generator-bridge";
 import { cn } from "@/lib/utils";
+import { useVault } from "@/store/vault";
+
+import { PasswordStrengthMeter } from "./password-strength-meter";
 
 export function PasswordGeneratorDialog() {
   const open = useVault((s) => s.generatorOpen);
@@ -78,7 +87,7 @@ export function PasswordGeneratorDialog() {
       toast.success("Password inserted");
     } else {
       // No callback — copy instead.
-      handleCopy();
+      void handleCopy();
     }
   };
 
@@ -92,20 +101,28 @@ export function PasswordGeneratorDialog() {
   };
 
   const atLeastOneSet =
-    options.uppercase || options.lowercase || options.numbers || options.symbols;
+    options.uppercase ||
+    options.lowercase ||
+    options.numbers ||
+    options.symbols;
 
   return (
-    <Sheet open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+    <Sheet
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) handleClose();
+      }}
+    >
       <SheetContent
         side="right"
-        className="w-full gap-0 overflow-hidden border-l border-border bg-background p-0 sm:max-w-[454px] [&>button[data-slot=dialog-close]]:hidden"
+        className="border-border bg-background w-full gap-0 overflow-hidden border-l p-0 sm:max-w-[454px] [&>button[data-slot=dialog-close]]:hidden"
       >
         {/* Header — title only. No close X, no copy/use button (those live in
             the footer now). The radix Sheet's built-in close button is hidden
             via the [&>button[data-slot=dialog-close]]:hidden class above. */}
-        <SheetHeader className="flex-row items-center justify-center border-b border-border px-4 py-3">
+        <SheetHeader className="border-border flex-row items-center justify-center border-b px-4 py-3">
           <SheetTitle className="flex items-center gap-2 text-base font-semibold">
-            <Dice5 className="h-4 w-4 text-primary" />
+            <Dice5 className="text-primary h-4 w-4" />
             Generator
           </SheetTitle>
           <SheetDescription className="sr-only">
@@ -116,7 +133,7 @@ export function PasswordGeneratorDialog() {
         {/* Body */}
         <div className="lcked-scroll flex-1 space-y-5 overflow-y-auto p-4">
           {/* Mode toggle */}
-          <div className="flex rounded-lg border border-border bg-muted/30 p-1">
+          <div className="border-border bg-muted/30 flex rounded-lg border p-1">
             {(["random", "passphrase"] as const).map((m) => (
               <button
                 key={m}
@@ -124,7 +141,7 @@ export function PasswordGeneratorDialog() {
                 className={cn(
                   "flex-1 rounded-md px-3 py-1.5 text-center text-xs font-medium capitalize transition-colors duration-100",
                   mode === m
-                    ? "bg-card text-foreground shadow-sm ring-1 ring-border"
+                    ? "bg-card text-foreground ring-border shadow-sm ring-1"
                     : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
                 )}
               >
@@ -135,9 +152,9 @@ export function PasswordGeneratorDialog() {
 
           {/* Output — large, monospace. No regenerate button here — the
               footer already has a Regenerate button. */}
-          <div className="overflow-hidden rounded-lg border border-border bg-secondary/20 p-4 dark:bg-secondary/20">
+          <div className="border-border bg-secondary/20 dark:bg-secondary/20 overflow-hidden rounded-lg border p-4">
             <div
-              className="break-all font-secret text-xl font-medium leading-snug tracking-wide"
+              className="font-secret text-xl leading-snug font-medium tracking-wide break-all"
               style={{ fontFeatureSettings: '"tnum" 1, "zero" 1' }}
             >
               {password || "—"}
@@ -147,7 +164,7 @@ export function PasswordGeneratorDialog() {
           {mode === "random" ? (
             <PasswordStrengthMeter password={password} />
           ) : (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Memorable words are easier to type while retaining strong entropy.
             </p>
           )}
@@ -157,8 +174,10 @@ export function PasswordGeneratorDialog() {
             <>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">Length</Label>
-                  <span className="font-secret text-sm font-semibold text-primary">
+                  <Label className="text-muted-foreground text-xs">
+                    Length
+                  </Label>
+                  <span className="font-secret text-primary text-sm font-semibold">
                     {options.length}
                   </span>
                 </div>
@@ -171,29 +190,59 @@ export function PasswordGeneratorDialog() {
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <ToggleRow label="A–Z Uppercase" checked={options.uppercase} onChange={(v) => updateGenerator({ uppercase: v })} />
-                <ToggleRow label="a–z Lowercase" checked={options.lowercase} onChange={(v) => updateGenerator({ lowercase: v })} />
-                <ToggleRow label="0–9 Numbers" checked={options.numbers} onChange={(v) => updateGenerator({ numbers: v })} />
-                <ToggleRow label="!@# Symbols" checked={options.symbols} onChange={(v) => updateGenerator({ symbols: v })} />
+                <ToggleRow
+                  label="A–Z Uppercase"
+                  checked={options.uppercase}
+                  onChange={(v) => updateGenerator({ uppercase: v })}
+                />
+                <ToggleRow
+                  label="a–z Lowercase"
+                  checked={options.lowercase}
+                  onChange={(v) => updateGenerator({ lowercase: v })}
+                />
+                <ToggleRow
+                  label="0–9 Numbers"
+                  checked={options.numbers}
+                  onChange={(v) => updateGenerator({ numbers: v })}
+                />
+                <ToggleRow
+                  label="!@# Symbols"
+                  checked={options.symbols}
+                  onChange={(v) => updateGenerator({ symbols: v })}
+                />
               </div>
-              <ToggleRow label="Avoid ambiguous characters (0/O, 1/l/I)" checked={options.avoidAmbiguous} onChange={(v) => updateGenerator({ avoidAmbiguous: v })} />
+              <ToggleRow
+                label="Avoid ambiguous characters (0/O, 1/l/I)"
+                checked={options.avoidAmbiguous}
+                onChange={(v) => updateGenerator({ avoidAmbiguous: v })}
+              />
               {!atLeastOneSet && (
-                <p className="text-xs text-amber-400">Enable at least one character set.</p>
+                <p className="text-xs text-amber-400">
+                  Enable at least one character set.
+                </p>
               )}
             </>
           ) : (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-muted-foreground">Words</Label>
-                <span className="font-secret text-sm font-semibold text-primary">{wordCount}</span>
+                <Label className="text-muted-foreground text-xs">Words</Label>
+                <span className="font-secret text-primary text-sm font-semibold">
+                  {wordCount}
+                </span>
               </div>
-              <Slider value={[wordCount]} min={3} max={8} step={1} onValueChange={(v) => setWordCount(v[0])} />
+              <Slider
+                value={[wordCount]}
+                min={3}
+                max={8}
+                step={1}
+                onValueChange={(v) => setWordCount(v[0])}
+              />
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex gap-2 border-t border-border px-4 py-3">
+        <div className="border-border flex gap-2 border-t px-4 py-3">
           <Button variant="outline" className="flex-1" onClick={regenerate}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Regenerate
@@ -204,8 +253,16 @@ export function PasswordGeneratorDialog() {
               Use this password
             </Button>
           ) : (
-            <Button className="flex-1" onClick={handleCopy} disabled={!password}>
-              {copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
+            <Button
+              className="flex-1"
+              onClick={handleCopy}
+              disabled={!password}
+            >
+              {copied ? (
+                <Check className="mr-2 h-4 w-4" />
+              ) : (
+                <Copy className="mr-2 h-4 w-4" />
+              )}
               Copy
             </Button>
           )}
@@ -225,8 +282,8 @@ function ToggleRow({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-2 rounded-md border border-border/60 bg-secondary/20 px-3 py-2 hover:bg-secondary/40 dark:bg-secondary/20">
-      <span className="text-xs text-muted-foreground">{label}</span>
+    <label className="border-border/60 bg-secondary/20 hover:bg-secondary/40 dark:bg-secondary/20 flex cursor-pointer items-center justify-between gap-2 rounded-md border px-3 py-2">
+      <span className="text-muted-foreground text-xs">{label}</span>
       <Switch checked={checked} onCheckedChange={onChange} />
     </label>
   );

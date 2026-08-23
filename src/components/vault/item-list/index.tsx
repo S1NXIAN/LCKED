@@ -1,31 +1,37 @@
 "use client";
 
-import * as React from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Plus } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import * as React from "react";
+import { toast } from "sonner";
+
 import {
   ContextMenu,
-  ContextMenuTrigger,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSub,
-  ContextMenuSubTrigger,
   ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { cn } from "@/lib/utils";
 import { copyWithAutoClear } from "@/lib/clipboard";
-import { useVault } from "@/store/vault";
 import { searchItems } from "@/lib/search/fuzzy-search";
-import { ActiveHighlight } from "../active-highlight";
-import { toast } from "sonner";
 import type { FilterType, ItemType } from "@/lib/types";
-import { ITEM_TYPE_LABELS, ITEM_TYPE_ICONS, ITEM_TYPE_COLORS } from "../item-icons";
+import { cn } from "@/lib/utils";
+import { useVault } from "@/store/vault";
+
+import { ActiveHighlight } from "../active-highlight";
+import {
+  ITEM_TYPE_COLORS,
+  ITEM_TYPE_ICONS,
+  ITEM_TYPE_LABELS,
+} from "../item-icons";
 import { stashNewItemType } from "../new-item-stash";
-import { useItemSort } from "./use-item-sort";
-import { SortBar } from "./sort-bar";
-import { MultiSelectBar } from "./multi-select-bar";
-import { ItemRow } from "./item-row";
 import { EmptyList } from "./empty-list";
+import { ItemRow } from "./item-row";
+import { MultiSelectBar } from "./multi-select-bar";
+import { SortBar } from "./sort-bar";
+import { useItemSort } from "./use-item-sort";
 
 export function ItemList({
   filter,
@@ -37,7 +43,7 @@ export function ItemList({
   filter: FilterType;
   setFilter: (f: FilterType) => void;
   /** Active vault filter from the store — passed explicitly so the list re-
-    *  renders when the sidebar switches between All/Favorites/Trash/vault. */
+   *  renders when the sidebar switches between All/Favorites/Trash/vault. */
   activeVault?: string;
   /** Mobile-only callback when the user taps Back from a Trash detail. */
   onMobileBack?: () => void;
@@ -105,7 +111,8 @@ export function ItemList({
     let list = items;
     // Vault-level filter.
     if (activeVault === "trash") list = list.filter((i) => i.trashed);
-    else if (activeVault === "favorites") list = list.filter((i) => !i.trashed && i.favorite);
+    else if (activeVault === "favorites")
+      list = list.filter((i) => !i.trashed && i.favorite);
     else if (activeVault && activeVault !== "all")
       list = list.filter((i) => !i.trashed && i.vaultIds.includes(activeVault));
     else list = list.filter((i) => !i.trashed);
@@ -145,7 +152,9 @@ export function ItemList({
   // (IL-6) so it doesn't find elements in other list instances.
   React.useEffect(() => {
     if (!selectedId) return;
-    const el = listRef.current?.querySelector(`[data-item-id="${CSS.escape(selectedId)}"]`);
+    const el = listRef.current?.querySelector(
+      `[data-item-id="${CSS.escape(selectedId)}"]`,
+    );
     el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [selectedId]);
 
@@ -171,10 +180,13 @@ export function ItemList({
   /* ------------------------------- item helpers ------------------------------- */
   // Helper used by the empty-area context menu (and any other caller that
   // wants to spawn the editor pre-seeded with a type).
-  const createItem = React.useCallback((type: ItemType) => {
-    stashNewItemType(type);
-    setEditorOpen(true);
-  }, [setEditorOpen]);
+  const createItem = React.useCallback(
+    (type: ItemType) => {
+      stashNewItemType(type);
+      setEditorOpen(true);
+    },
+    [setEditorOpen],
+  );
 
   const copyField = React.useCallback(
     async (value: string | undefined, label: string) => {
@@ -225,7 +237,12 @@ export function ItemList({
             // border. Bare digit keys are preventDefault-ed; digits pressed
             // together with ⌘/Ctrl/Alt fall through untouched.
             onKeyDown={(e) => {
-              if (/^[0-9]$/.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey) {
+              if (
+                /^[0-9]$/.test(e.key) &&
+                !e.metaKey &&
+                !e.ctrlKey &&
+                !e.altKey
+              ) {
                 e.preventDefault();
               }
             }}
@@ -288,7 +305,9 @@ export function ItemList({
                                 : [item.id]
                             }
                             onPick={() =>
-                              multiSelect ? toggleSelected(item.id) : setSelected(item.id)
+                              multiSelect
+                                ? toggleSelected(item.id)
+                                : setSelected(item.id)
                             }
                             onToggleSelected={() => toggleSelected(item.id)}
                             onRestore={() =>
@@ -312,7 +331,9 @@ export function ItemList({
                             }
                             onCopyToVault={(vaultId) =>
                               copyItemToVault(item.id, vaultId).then(() =>
-                                toast.success(`Copied to ${vaults.find((v) => v.id === vaultId)?.name ?? "vault"}`),
+                                toast.success(
+                                  `Copied to ${vaults.find((v) => v.id === vaultId)?.name ?? "vault"}`,
+                                ),
                               )
                             }
                           />
@@ -348,10 +369,7 @@ export function ItemList({
 
       {/* Mobile back hint (only in trash view, for screen-reader friendliness) */}
       {isTrashView && onMobileBack && (
-        <button
-          onClick={onMobileBack}
-          className="sr-only focus:not-sr-only"
-        >
+        <button onClick={onMobileBack} className="sr-only focus:not-sr-only">
           Back to All Items
         </button>
       )}

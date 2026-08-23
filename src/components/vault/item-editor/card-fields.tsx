@@ -1,17 +1,18 @@
 "use client";
 
 /**
-  * LCKED — card field section: cardholder, number (with brand detection),
-  * CVV, expiry (auto-formatted MM/YY), PIN, notes.
-  */
+ * LCKED — card field section: cardholder, number (with brand detection),
+ * CVV, expiry (auto-formatted MM/YY), PIN, notes.
+ */
 
-import { User, CreditCard, Lock, Calendar, KeyRound } from "lucide-react";
+import { Calendar, CreditCard, KeyRound, Lock, User } from "lucide-react";
+
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { PasswordField } from "../password-field";
 import { detectCardBrand } from "@/lib/import";
 import { type CardDetails } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
 import {
   FieldCluster,
   FieldClusterWithLabel,
@@ -20,6 +21,7 @@ import {
   flatPasswordInputCls,
   flatTextareaCls,
 } from "../field-cluster";
+import { PasswordField } from "../password-field";
 
 export function CardFields({
   details,
@@ -53,10 +55,12 @@ export function CardFields({
             inputClassName={flatPasswordInputCls}
           />
           {details.brand && (
-            <p className="mt-1 text-xs text-muted-foreground">Detected: {details.brand}</p>
+            <p className="text-muted-foreground mt-1 text-xs">
+              Detected: {details.brand}
+            </p>
           )}
         </FieldRowInput>
-        <div className="grid grid-cols-2 divide-x divide-border/50">
+        <div className="divide-border/50 grid grid-cols-2 divide-x">
           <FieldRowInput label="CVV" icon={Lock} first>
             <PasswordField
               value={details.cvv}

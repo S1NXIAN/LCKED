@@ -1,33 +1,32 @@
 "use client";
 
 /**
-  * LCKED — VaultsSidebar
-  * ---------------------------------------------------------------------------
-  * Proton Pass–style vault selector. Renders the fixed rows (All / Favorites /
-  * Trash) plus every user-defined vault. Each row is a drag-and-drop drop
-  * target so an item dragged from the list can be moved between vaults.
-  *
-  * Pattern notes:
-  *   • Rows that host a ⋮ dropdown are rendered as <div role="button"> (NOT
-  *     <button>) so the trigger button doesn't nest inside another button —
-  *     nested buttons are invalid HTML and break accessibility tree.
-  *   • A fixed-width slot is reserved for the menu button on EVERY row (even
-  *     the menu-less ones) so all the right-aligned counts line up.
-  *   • "Rename" opens the vault editor sheet via setVaultEditorOpen(true, id);
-  *     "Delete" calls deleteVault (which orphan-rescues any items inside).
-  *   • Each row wrapper carries a `data-vault-key` attribute consumed by the
-  *     shared sliding ActiveHighlight (rAF spring — same component used by
-  *     item-list). TWO instances are rendered: one inside the scroll area's
-  *     content wrapper (for All / Favorites / custom vaults) and one inside
-  *     the Trash wrapper (Trash lives outside the scroll area). Because the
-  *     scroll-area instance lives INSIDE the scrolling content, it is
-  *     naturally clipped by `overflow` when the active vault row scrolls out
-  *     of view — exactly like the item-list indicator. No floating overlay.
-  *   • CustomVaultRow is wrapped in <ContextMenu> mirroring the 3-dots
-  *     dropdown: Edit, Move all items (submenu), Delete vault.
-  */
+ * LCKED — VaultsSidebar
+ * ---------------------------------------------------------------------------
+ * Proton Pass–style vault selector. Renders the fixed rows (All / Favorites /
+ * Trash) plus every user-defined vault. Each row is a drag-and-drop drop
+ * target so an item dragged from the list can be moved between vaults.
+ *
+ * Pattern notes:
+ *   • Rows that host a ⋮ dropdown are rendered as <div role="button"> (NOT
+ *     <button>) so the trigger button doesn't nest inside another button —
+ *     nested buttons are invalid HTML and break accessibility tree.
+ *   • A fixed-width slot is reserved for the menu button on EVERY row (even
+ *     the menu-less ones) so all the right-aligned counts line up.
+ *   • "Rename" opens the vault editor sheet via setVaultEditorOpen(true, id);
+ *     "Delete" calls deleteVault (which orphan-rescues any items inside).
+ *   • Each row wrapper carries a `data-vault-key` attribute consumed by the
+ *     shared sliding ActiveHighlight (rAF spring — same component used by
+ *     item-list). TWO instances are rendered: one inside the scroll area's
+ *     content wrapper (for All / Favorites / custom vaults) and one inside
+ *     the Trash wrapper (Trash lives outside the scroll area). Because the
+ *     scroll-area instance lives INSIDE the scrolling content, it is
+ *     naturally clipped by `overflow` when the active vault row scrolls out
+ *     of view — exactly like the item-list indicator. No floating overlay.
+ *   • CustomVaultRow is wrapped in <ContextMenu> mirroring the 3-dots
+ *     dropdown: Edit, Move all items (submenu), Delete vault.
+ */
 
-import * as React from "react";
 import {
   LayoutGrid,
   Plus,
@@ -37,16 +36,19 @@ import {
   StarOff,
   Trash2,
 } from "lucide-react";
+import * as React from "react";
 import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import type { VaultDef } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useVault } from "@/store/vault";
-import type { VaultDef } from "@/lib/types";
+
 import { ActiveHighlight } from "../active-highlight";
 import { OrganizeVaultDialog } from "../organize-vault-dialog";
-import { Button } from "@/components/ui/button";
+import { CustomVaultRow, RowMenu } from "./custom-vault-row";
 import { exitMultiSelect, parseDraggedIds } from "./drag-drop";
 import { VaultRow } from "./vault-row";
-import { CustomVaultRow, RowMenu } from "./custom-vault-row";
 
 export function VaultsSidebar() {
   const items = useVault((s) => s.items);
@@ -94,7 +96,9 @@ export function VaultsSidebar() {
     } else if (cleared > 0 && failed > 0) {
       toast.warning(`Cleared ${cleared}, ${failed} failed`);
     } else if (failed > 0) {
-      toast.error(`Could not clear ${failed} favorite${failed === 1 ? "" : "s"}`);
+      toast.error(
+        `Could not clear ${failed} favorite${failed === 1 ? "" : "s"}`,
+      );
     }
   };
 
@@ -109,23 +113,35 @@ export function VaultsSidebar() {
 
   const handleRestoreAllTrash = async () => {
     const { restored, failed } = await restoreAllTrash();
-    if (restored > 0) toast.success(`Restored ${restored} item${restored === 1 ? "" : "s"}`);
-    if (failed > 0) toast.error(`Could not restore ${failed} item${failed === 1 ? "" : "s"}`);
+    if (restored > 0)
+      toast.success(`Restored ${restored} item${restored === 1 ? "" : "s"}`);
+    if (failed > 0)
+      toast.error(`Could not restore ${failed} item${failed === 1 ? "" : "s"}`);
   };
 
   const handleMoveAll = async (source: VaultDef, target: string | null) => {
-    const targets = items.filter((i) => !i.trashed && i.vaultIds.includes(source.id));
+    const targets = items.filter(
+      (i) => !i.trashed && i.vaultIds.includes(source.id),
+    );
     if (targets.length === 0) {
       toast.info(`“${source.name}” has no items to move`);
       return;
     }
     const label =
-      target === null ? "All Items" : vaults.find((v) => v.id === target)?.name ?? "target vault";
+      target === null
+        ? "All Items"
+        : (vaults.find((v) => v.id === target)?.name ?? "target vault");
     const { moveItemsToVault } = useVault.getState();
-    const { moved, failed } = await moveItemsToVault(targets.map((i) => i.id), target);
-    if (moved > 0 && failed === 0) toast.success(`Moved ${moved} item${moved === 1 ? "" : "s"} to ${label}`);
-    else if (moved > 0 && failed > 0) toast.warning(`Moved ${moved}, ${failed} failed`);
-    else if (failed > 0) toast.error(`Could not move ${failed} item${failed === 1 ? "" : "s"}`);
+    const { moved, failed } = await moveItemsToVault(
+      targets.map((i) => i.id),
+      target,
+    );
+    if (moved > 0 && failed === 0)
+      toast.success(`Moved ${moved} item${moved === 1 ? "" : "s"} to ${label}`);
+    else if (moved > 0 && failed > 0)
+      toast.warning(`Moved ${moved}, ${failed} failed`);
+    else if (failed > 0)
+      toast.error(`Could not move ${failed} item${failed === 1 ? "" : "s"}`);
   };
 
   const renderCustomVault = (v: VaultDef) => (
@@ -187,13 +203,13 @@ export function VaultsSidebar() {
     <div className="flex h-full flex-col gap-1 px-2 py-2">
       {/* Header */}
       <div className="relative flex items-center justify-between px-3 py-2">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        <span className="text-muted-foreground text-[10px] font-semibold tracking-[0.18em] uppercase">
           Vaults
         </span>
         <Button
           size="icon"
           variant="ghost"
-          className="h-6 w-6 text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground h-6 w-6"
           onClick={() => setCreateVaultDialogOpen(true)}
           aria-label="Create vault"
         >
@@ -216,7 +232,9 @@ export function VaultsSidebar() {
                             by the scroll area's overflow when the row scrolls away. */}
           <ActiveHighlight
             containerRef={listRef}
-            activeKey={settingsOpen || activeVault === "trash" ? null : activeVault}
+            activeKey={
+              settingsOpen || activeVault === "trash" ? null : activeVault
+            }
             selectorAttr="data-vault-key"
           />
 
@@ -230,8 +248,14 @@ export function VaultsSidebar() {
               if (ids.length === 0) return;
               const { moveItemsToVault } = useVault.getState();
               const { moved, failed } = await moveItemsToVault(ids, null);
-              if (moved > 0) toast.success(`Moved ${moved} item${moved === 1 ? "" : "s"} to All Items`);
-              else if (failed > 0) toast.error(`Could not move ${failed} item${failed === 1 ? "" : "s"}`);
+              if (moved > 0)
+                toast.success(
+                  `Moved ${moved} item${moved === 1 ? "" : "s"} to All Items`,
+                );
+              else if (failed > 0)
+                toast.error(
+                  `Could not move ${failed} item${failed === 1 ? "" : "s"}`,
+                );
               if (ids.length > 1 && moved > 0) exitMultiSelect();
             }}
           >
@@ -270,14 +294,24 @@ export function VaultsSidebar() {
               if (ids.length === 0) return;
               const store = useVault.getState();
               // Only favorite items that aren't already favorites.
-              const toFav = store.items.filter((i) => ids.includes(i.id) && !i.favorite);
+              const toFav = store.items.filter(
+                (i) => ids.includes(i.id) && !i.favorite,
+              );
               if (toFav.length === 0) {
-                toast.info(ids.length === 1 ? "Already a favorite" : "All already favorites");
+                toast.info(
+                  ids.length === 1
+                    ? "Already a favorite"
+                    : "All already favorites",
+                );
                 return;
               }
               try {
-                await Promise.all(toFav.map((it) => store.toggleFavorite(it.id)));
-                toast.success(`Added ${toFav.length} item${toFav.length === 1 ? "" : "s"} to Favorites`);
+                await Promise.all(
+                  toFav.map((it) => store.toggleFavorite(it.id)),
+                );
+                toast.success(
+                  `Added ${toFav.length} item${toFav.length === 1 ? "" : "s"} to Favorites`,
+                );
                 if (ids.length > 1) exitMultiSelect();
               } catch {
                 toast.error("Could not favorite items");
@@ -318,7 +352,8 @@ export function VaultsSidebar() {
             </div>
           )}
         </div>
-      </div>{/* End scrollable vault list area */}
+      </div>
+      {/* End scrollable vault list area */}
 
       {/* Trash — pinned at the bottom, OUTSIDE the scroll area.
                     A thin border-t separates it from the scrollable vault list.
@@ -329,7 +364,7 @@ export function VaultsSidebar() {
       <div
         ref={trashRef}
         data-vault-key="trash"
-        className="relative shrink-0 border-t border-border/60 pt-1"
+        className="border-border/60 relative shrink-0 border-t pt-1"
         {...dropHoverHandlers("trash")}
         onDrop={async (e) => {
           setOverKey(null);
@@ -337,9 +372,16 @@ export function VaultsSidebar() {
           if (ids.length === 0) return;
           const { trashItems } = useVault.getState();
           const { moved, failed } = await trashItems(ids);
-          if (moved > 0) toast.success(`Moved ${moved} item${moved === 1 ? "" : "s"} to Trash`);
-          else if (ids.length > 0 && moved === 0) toast.info("Already in Trash");
-          if (failed > 0) toast.error(`Could not move ${failed} item${failed === 1 ? "" : "s"}`);
+          if (moved > 0)
+            toast.success(
+              `Moved ${moved} item${moved === 1 ? "" : "s"} to Trash`,
+            );
+          else if (ids.length > 0 && moved === 0)
+            toast.info("Already in Trash");
+          if (failed > 0)
+            toast.error(
+              `Could not move ${failed} item${failed === 1 ? "" : "s"}`,
+            );
           if (ids.length > 1 && moved > 0) exitMultiSelect();
         }}
       >

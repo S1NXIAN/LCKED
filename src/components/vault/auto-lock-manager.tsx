@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+
 import { useVault } from "@/store/vault";
 
 /**
@@ -55,6 +56,9 @@ export function AutoLockManager() {
     };
     document.addEventListener("visibilitychange", onHide);
     return () => document.removeEventListener("visibilitychange", onHide);
+    // Deliberate: `lock` is a stable store action; re-subscribing on its
+    // identity would add churn without changing behaviour.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, lockOnVisibility]);
 
   // Clear keys when the tab is closing.

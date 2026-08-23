@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import {
   FolderInput,
   MoreVertical,
@@ -8,8 +7,8 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import type { VaultDef } from "@/lib/types";
+import * as React from "react";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +39,9 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { VaultDef } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
 import { VaultIcon } from "../vault-icon";
 import { VaultRow } from "./vault-row";
 
@@ -57,7 +59,10 @@ interface MenuParts {
   Separator: React.ComponentType<{ className?: string }>;
   Sub: React.ComponentType<{ children?: React.ReactNode }>;
   SubTrigger: React.ComponentType<{ children?: React.ReactNode }>;
-  SubContent: React.ComponentType<{ className?: string; children?: React.ReactNode }>;
+  SubContent: React.ComponentType<{
+    className?: string;
+    children?: React.ReactNode;
+  }>;
 }
 
 const DROPDOWN_MENU_PARTS: MenuParts = {
@@ -95,20 +100,26 @@ type MenuEntry =
   | MenuItemSpec
   | { type: "separator" }
   | {
-    type: "move-all";
-    /** Other vaults (excluding this one), threaded from the parent (VS-2). */
-    otherVaults: VaultDef[];
-    onMoveAll: (targetVaultId: string | null) => void;
-  };
+      type: "move-all";
+      /** Other vaults (excluding this one), threaded from the parent (VS-2). */
+      otherVaults: VaultDef[];
+      onMoveAll: (targetVaultId: string | null) => void;
+    };
 
 /**
-  * Render a row menu's entries through one radix menu family — "dropdown"
-  * (⋮ menu) or "context" (right-click menu). Every sidebar row draws its
-  * menu from here so mirrored entry points stay in lock-step without
-  * duplication. `move-all` carries the parent-threaded vault list (VS-2) —
-  * no useVault.getState() calls during render.
-  */
-export function VaultMenuItems({ kind, entries }: { kind: MenuKind; entries: MenuEntry[] }) {
+ * Render a row menu's entries through one radix menu family — "dropdown"
+ * (⋮ menu) or "context" (right-click menu). Every sidebar row draws its
+ * menu from here so mirrored entry points stay in lock-step without
+ * duplication. `move-all` carries the parent-threaded vault list (VS-2) —
+ * no useVault.getState() calls during render.
+ */
+export function VaultMenuItems({
+  kind,
+  entries,
+}: {
+  kind: MenuKind;
+  entries: MenuEntry[];
+}) {
   const Parts = kind === "dropdown" ? DROPDOWN_MENU_PARTS : CONTEXT_MENU_PARTS;
   return (
     <>
@@ -125,12 +136,15 @@ export function VaultMenuItems({ kind, entries }: { kind: MenuKind; entries: Men
                 </Parts.SubTrigger>
                 <Parts.SubContent className="w-48">
                   <Parts.Item onSelect={() => entry.onMoveAll(null)}>
-                    <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                    <ShieldCheck className="text-primary h-3.5 w-3.5" />
                     All Items
                   </Parts.Item>
                   {entry.otherVaults.length > 0 && <Parts.Separator />}
                   {entry.otherVaults.map((v) => (
-                    <Parts.Item key={v.id} onSelect={() => entry.onMoveAll(v.id)}>
+                    <Parts.Item
+                      key={v.id}
+                      onSelect={() => entry.onMoveAll(v.id)}
+                    >
                       <VaultIcon icon={v.icon} color={v.color} size={18} />
                       <span className="truncate">{v.name}</span>
                     </Parts.Item>
@@ -157,12 +171,12 @@ export function VaultMenuItems({ kind, entries }: { kind: MenuKind; entries: Men
 }
 
 /**
-  * The ⋮ dropdown a sidebar row hosts: a MoreVertical trigger button plus a
-  * w-44 content drawn from VaultMenuItems, so every row's trigger and menu
-  * shell stay identical. `dimmed` softens the trigger while the row is
-  * active; `fade` hides it until row hover when the hover-item-actions
-  * setting is on.
-  */
+ * The ⋮ dropdown a sidebar row hosts: a MoreVertical trigger button plus a
+ * w-44 content drawn from VaultMenuItems, so every row's trigger and menu
+ * shell stay identical. `dimmed` softens the trigger while the row is
+ * active; `fade` hides it until row hover when the hover-item-actions
+ * setting is on.
+ */
 export function RowMenu({
   label,
   dimmed,
@@ -180,9 +194,10 @@ export function RowMenu({
         <button
           type="button"
           className={cn(
-            "flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground",
+            "text-muted-foreground hover:bg-muted hover:text-foreground flex h-6 w-6 items-center justify-center rounded-md transition-all duration-150",
             dimmed && "opacity-60",
-            fade && "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+            fade &&
+              "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
           )}
           aria-label={label}
           onClick={(e) => e.stopPropagation()}
@@ -204,7 +219,7 @@ interface CustomVaultRowProps {
   dragOver: boolean;
   hoverActions: boolean;
   /** Other vaults (excluding this one) — threaded from the parent so we
-    *  don't call useVault.getState() during render (VS-2). */
+   *  don't call useVault.getState() during render (VS-2). */
   otherVaults: VaultDef[];
   onSelect: () => void;
   onRename: () => void;
@@ -216,11 +231,11 @@ interface CustomVaultRowProps {
 }
 
 /**
-  * A custom-vault row with a ⋮ menu (Edit / Move all items / Delete) AND a
-  * right-click ContextMenu mirroring the same items. Uses local state to
-  * control the delete-confirm AlertDialog; the delete is async and the
-  * dialog stays open (with a spinner) until it resolves (VS-3).
-  */
+ * A custom-vault row with a ⋮ menu (Edit / Move all items / Delete) AND a
+ * right-click ContextMenu mirroring the same items. Uses local state to
+ * control the delete-confirm AlertDialog; the delete is async and the
+ * dialog stays open (with a spinner) until it resolves (VS-3).
+ */
 export function CustomVaultRow({
   vault,
   active,
@@ -257,10 +272,23 @@ export function CustomVaultRow({
   // (preventDefault on select); the context menu closes before the dialog
   // opens. Preserve each pre-existing behaviour exactly.
   const menuEntries = (onDeleteSelect: (event: Event) => void): MenuEntry[] => [
-    { type: "item", key: "edit", icon: <Pencil className="h-3.5 w-3.5" />, label: "Edit", onSelect: onRename },
+    {
+      type: "item",
+      key: "edit",
+      icon: <Pencil className="h-3.5 w-3.5" />,
+      label: "Edit",
+      onSelect: onRename,
+    },
     { type: "move-all", otherVaults, onMoveAll },
     { type: "separator" },
-    { type: "item", key: "delete-vault", icon: <Trash2 className="h-3.5 w-3.5" />, label: "Delete vault", destructive: true, onSelect: onDeleteSelect },
+    {
+      type: "item",
+      key: "delete-vault",
+      icon: <Trash2 className="h-3.5 w-3.5" />,
+      label: "Delete vault",
+      destructive: true,
+      onSelect: onDeleteSelect,
+    },
   ];
 
   return (
@@ -294,11 +322,19 @@ export function CustomVaultRow({
           />
         </ContextMenuTrigger>
         <ContextMenuContent className="w-44">
-          <VaultMenuItems kind="context" entries={menuEntries(() => setConfirmOpen(true))} />
+          <VaultMenuItems
+            kind="context"
+            entries={menuEntries(() => setConfirmOpen(true))}
+          />
         </ContextMenuContent>
       </ContextMenu>
 
-      <AlertDialog open={confirmOpen} onOpenChange={(o) => { if (!deleting) setConfirmOpen(o); }}>
+      <AlertDialog
+        open={confirmOpen}
+        onOpenChange={(o) => {
+          if (!deleting) setConfirmOpen(o);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete “{vault.name}”?</AlertDialogTitle>
@@ -314,7 +350,7 @@ export function CustomVaultRow({
               disabled={deleting}
               onClick={(e) => {
                 e.preventDefault();
-                confirmDelete();
+                void confirmDelete();
               }}
             >
               {deleting ? "Deleting…" : "Delete vault"}

@@ -7,6 +7,7 @@
  */
 
 import type { ImportResult, NewItemInput } from "@/lib/types";
+
 import { parseCsv, rowToObject } from "./csv";
 import { makeLogin, makeNote } from "./helpers";
 
@@ -42,7 +43,14 @@ export function parseOnePasswordCsv(text: string): ImportResult {
           }),
         );
       } else {
-        items.push(makeNote({ name: title, content: notes, folder: "", favorite: false }));
+        items.push(
+          makeNote({
+            name: title,
+            content: notes,
+            folder: "",
+            favorite: false,
+          }),
+        );
       }
       result.imported++;
     } catch {
