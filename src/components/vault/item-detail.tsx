@@ -44,23 +44,10 @@ import { useVault } from "@/store/vault";
 import { ItemTypeIcon, ITEM_TYPE_LABELS } from "./item-icons";
 import { TOTPDisplay } from "./totp-display";
 import { FaviconIcon } from "./favicon-icon";
-import { VaultIcon } from "./vaults-sidebar";
+import { VaultIcon } from "./vault-icon";
 import { format } from "date-fns";
 import { cn, isEmail } from "@/lib/utils";
-
-/* -------------------- Field Cluster (Proton-style grouping) ----------------- */
-
-/**
- * A group of related fields sharing a single bordered card with 1px dividers
- * between rows. Matches Proton Pass's FieldsetCluster pattern.
- */
-function FieldCluster({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-border bg-secondary/10 dark:bg-secondary/10">
-      {children}
-    </div>
-  );
-}
+import { FieldCluster } from "./field-cluster";
 
 /** A single field row inside a FieldCluster. */
 function FieldRow({
@@ -73,9 +60,9 @@ function FieldRow({
   first,
   onCopy,
   /** When true, the value is masked by default (like a password) even if the
-   *  field isn't inherently sensitive. Used for email/username rows when the
-   *  blurEmailMode setting is "full" — the email is hidden until the user
-   *  clicks the reveal (eye) button. */
+    *  field isn't inherently sensitive. Used for email/username rows when the
+    *  blurEmailMode setting is "full" — the email is hidden until the user
+    *  clicks the reveal (eye) button. */
   forceMask = false,
 }: {
   label: string;
@@ -176,19 +163,19 @@ function FieldRow({
 /* -------------------- Rotating vault chip ----------------- */
 
 /**
- * A vault chip that cycles through every vault an item belongs to every 1.5s.
- * The icon and name crossfade with a GPU-friendly opacity+transform transition.
- * Designed to be "oddly satisfying": a slow, rhythmic pulse that draws the eye
- * without being distracting. Pauses on hover so the user can click the exact
- * vault they want.
- *
- * Performance notes:
- *  • Uses a single setInterval (cleared on unmount / vault-count change).
- *  • The crossfade is pure CSS (opacity + translateY) — no layout thrash.
- *  • AnimatePresence with mode="popLayout" keeps the transition smooth even
- *    when the chip width changes between vaults.
- *  • Reduced-motion users get a static chip (no rotation).
- */
+  * A vault chip that cycles through every vault an item belongs to every 1.5s.
+  * The icon and name crossfade with a GPU-friendly opacity+transform transition.
+  * Designed to be "oddly satisfying": a slow, rhythmic pulse that draws the eye
+  * without being distracting. Pauses on hover so the user can click the exact
+  * vault they want.
+  *
+  * Performance notes:
+  *  • Uses a single setInterval (cleared on unmount / vault-count change).
+  *  • The crossfade is pure CSS (opacity + translateY) — no layout thrash.
+  *  • AnimatePresence with mode="popLayout" keeps the transition smooth even
+  *    when the chip width changes between vaults.
+  *  • Reduced-motion users get a static chip (no rotation).
+  */
 function RotatingVaultChip({
   vaults,
   onSelect,
@@ -288,8 +275,8 @@ export function ItemDetail() {
   // in the spotlight (icon + name crossfade).
   const itemVaults = item
     ? item.vaultIds
-        .map((id) => vaults.find((v) => v.id === id))
-        .filter((v): v is NonNullable<typeof v> => Boolean(v))
+      .map((id) => vaults.find((v) => v.id === id))
+      .filter((v): v is NonNullable<typeof v> => Boolean(v))
     : [];
 
   // Handlers — defined as consts referencing `item` via closure. They're
@@ -335,7 +322,7 @@ export function ItemDetail() {
             <div className="border-b border-border px-5 py-4">
               <div className="flex items-center gap-3.5">
                 {/* Favicon for logins (gated by showFavicons setting),
-                    type-icon otherwise. */}
+                                        type-icon otherwise. */}
                 {showFavicons && item.type === "login" && item.details.urls[0] ? (
                   <FaviconIcon
                     url={item.details.urls[0]}
@@ -364,11 +351,11 @@ export function ItemDetail() {
                       {ITEM_TYPE_LABELS[item.type]}
                     </button>
                     {/* Vault chip — rotates through every vault this item
-                        belongs to (multi-vault). Each vault gets 1.5s in the
-                        spotlight with a smooth icon+name crossfade. Clicking
-                        the chip navigates to the currently-shown vault. If
-                        the item belongs to only one vault (or none), no
-                        rotation — the chip is static. */}
+                                                belongs to (multi-vault). Each vault gets 1.5s in the
+                                                spotlight with a smooth icon+name crossfade. Clicking
+                                                the chip navigates to the currently-shown vault. If
+                                                the item belongs to only one vault (or none), no
+                                                rotation — the chip is static. */}
                     {itemVaults.length > 0 && (
                       <RotatingVaultChip vaults={itemVaults} onSelect={(id) => setActiveVault(id)} />
                     )}
@@ -453,7 +440,7 @@ export function ItemDetail() {
               {item.type === "login" && (
                 <div className="space-y-4">
                   {/* Credentials cluster — username label + icon switch on
-                      whether the value looks like an email. */}
+                                            whether the value looks like an email. */}
                   <FieldCluster>
                     <FieldRow
                       label={isEmail(item.details.username) ? "Email" : "Username"}

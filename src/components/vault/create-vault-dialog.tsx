@@ -1,27 +1,27 @@
 "use client";
 
 /**
- * LCKED — CreateVaultDialog
- * ---------------------------------------------------------------------------
- * A right-side Sheet that handles BOTH create and edit modes for a user-
- * defined vault. Driven by two store flags so any component can open it:
- *
- *   • createVaultDialogOpen  → blank form, "New vault" title, no delete btn
- *   • vaultEditorOpen + editingVaultId  → pre-filled form, "Edit vault" title
- *
- * Design language matches the item-list + item-editor aesthetic:
- *   • Header: live vault-icon swatch + title + Save/Create button (NO close X —
- *     the built-in radix close button is hidden via `[&>button:last-child]:hidden`).
- *   • Body: a flat borderless name input (no surrounding border, big text),
- *     followed by labeled swatch pickers for color and icon.
- *   • Footer: Cancel (left) + Delete vault (right, edit mode only, with an
- *     AlertDialog confirmation).
- *
- * Save calls createVault() or updateVault() depending on the active mode. The
- * sheet uses the same `bg-background border-l border-border` styling as the
- * item editor so the surface language stays consistent across all editing
- * panels.
- */
+  * LCKED — CreateVaultDialog
+  * ---------------------------------------------------------------------------
+  * A right-side Sheet that handles BOTH create and edit modes for a user-
+  * defined vault. Driven by two store flags so any component can open it:
+  *
+  *   • createVaultDialogOpen  → blank form, "New vault" title, no delete btn
+  *   • vaultEditorOpen + editingVaultId  → pre-filled form, "Edit vault" title
+  *
+  * Design language matches the item-list + item-editor aesthetic:
+  *   • Header: live vault-icon swatch + title + Save/Create button (NO close X —
+  *     the built-in radix close button is hidden via `[&>button:last-child]:hidden`).
+  *   • Body: a flat borderless name input (no surrounding border, big text),
+  *     followed by labeled swatch pickers for color and icon.
+  *   • Footer: Cancel (left) + Delete vault (right, edit mode only, with an
+  *     AlertDialog confirmation).
+  *
+  * Save calls createVault() or updateVault() depending on the active mode. The
+  * sheet uses the same `bg-background border-l border-border` styling as the
+  * item editor so the surface language stays consistent across all editing
+  * panels.
+  */
 
 import * as React from "react";
 import { Trash2, Loader2, Check, Home } from "lucide-react";
@@ -53,7 +53,7 @@ import {
   DEFAULT_VAULT_ICON,
   vaultColorHex,
 } from "@/lib/vault/vault-assets";
-import { VaultIcon } from "./vaults-sidebar";
+import { VaultIcon } from "./vault-icon";
 import { VAULT_LUCIDE_BY_ID } from "./vault-lucide-icons";
 
 export function CreateVaultDialog() {
