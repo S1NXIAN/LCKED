@@ -51,7 +51,7 @@ vi.mock("@/lib/crypto", () => ({
 // In-memory vault meta mirroring real IndexedDB persistence: what
 // saveVaultMeta writes is what the next loadVaultMeta reads. The store's
 // custom-vault creation depends on that round-trip.
-const metaStore = vi.hoisted(() => ({ current: null as unknown }));
+const metaStore = vi.hoisted((): { current: unknown } => ({ current: null }));
 
 vi.mock("@/lib/vault/vault-db", () => ({
   saveVaultMeta: vi.fn(async (m: unknown) => {

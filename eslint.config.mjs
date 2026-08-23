@@ -9,6 +9,18 @@ import tseslint from "typescript-eslint";
 // because ESLint resolves rule→plugin references per config object.
 const tsPlugin = { "@typescript-eslint": tseslint.plugin };
 
+// Shared stanza for every block that runs type-aware TS rules.
+const typedTsFiles = {
+  files: ["**/*.{ts,tsx}"],
+  plugins: tsPlugin,
+  languageOptions: {
+    parserOptions: {
+      projectService: true,
+      tsconfigRootDir: import.meta.dirname,
+    },
+  },
+};
+
 export default defineConfig([
   ...nextCoreWebVitals,
 
@@ -16,28 +28,19 @@ export default defineConfig([
   // service (ADR 0002). Rules are lifted out of tseslint's presets (rather
   // than spreading them) so next's preset and ours share one registration.
   {
-    files: ["**/*.{ts,tsx}"],
-    plugins: tsPlugin,
-    languageOptions: {
-      parserOptions: {
-        projectService: true,
-        tsconfigRootDir: import.meta.dirname,
-      },
-    },
+    ...typedTsFiles,
     rules: Object.assign(
       {},
       ...tseslint.configs.recommendedTypeChecked.map((c) => c.rules ?? {}),
     ),
   },
 
-  // Mechanical import order — packages/absolute, then relative. Autofixable.
+  // Mechanical import order. Default plugin groups: side-effect, node,
+  // packages/absolute, relative — kept stock so PR contributors match docs.
   {
     plugins: { "simple-import-sort": simpleImportSort },
     rules: {
-      "simple-import-sort/imports": [
-        "error",
-        { groups: [["^\\u0000", "^node:", "^@?\\w"], ["^"], ["^\\."]] },
-      ],
+      "simple-import-sort/imports": "error",
       "simple-import-sort/exports": "error",
     },
   },
@@ -45,16 +48,9 @@ export default defineConfig([
   // Type-aware overrides — need the TS parser + project service, so this
   // block only targets TypeScript files.
   {
-    files: ["**/*.{ts,tsx}"],
-    plugins: tsPlugin,
-    languageOptions: {
-      parserOptions: {
-        projectService: true,
-        tsconfigRootDir: import.meta.dirname,
-      },
-    },
+    ...typedTsFiles,
     rules: {
-      // ── Restored signal (previously off) ────────────────────────────
+      // ── Restored signal (previously off) ──────────────────────────────
       // Unused vars and let-that-should-be-const are noise-free wins.
       "@typescript-eslint/no-unused-vars": [
         "error",
@@ -71,25 +67,20 @@ export default defineConfig([
         "error",
         { checksVoidReturn: { attributes: false, properties: false } },
       ],
-
-      // ── Deliberate repo-wide choices ─────────────────────────────────
-      "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-non-null-assertion": "off",
-      "@typescript-eslint/ban-ts-comment": "off",
-      "@typescript-eslint/prefer-as-const": "off",
     },
   },
 
   {
     rules: {
-      "react-hooks/purity": "off",
-      "react/no-unescaped-entities": "off",
+      // Framework/lint rules whose defaults fight deliberate repo patterns:
+      "react-hooks/purity": "off", // render-time store reads are intentional
       "react/display-name": "off",
-      "react/prop-types": "off",
-      "react-compiler/react-compiler": "off",
-      "@next/next/no-img-element": "off",
+      "react/prop-types": "off", // props typed by TS, not propTypes
+      "react-compiler/react-compiler": "off", // compiler enabled in build
+      "@next/next/no-img-element": "off", // favicons/provider icons by design
       "@next/next/no-html-link-for-pages": "off",
-      "no-console": "off",
+      // Runtime guards already cover these core checks:
+      "no-console": "off", // local-first app logs to console deliberately
       "no-debugger": "off",
       "no-empty": "off",
       "no-irregular-whitespace": "off",
@@ -97,7 +88,7 @@ export default defineConfig([
       "no-fallthrough": "off",
       "no-mixed-spaces-and-tabs": "off",
       "no-redeclare": "off",
-      "no-undef": "off",
+      "no-undef": "off", // tsc owns undefined-name detection
       "no-unreachable": "off",
       "no-useless-escape": "off",
       // Core rule stays off so only the TS flavour reports (no doubles).
@@ -125,10 +116,12 @@ export default defineConfig([
 
   // Trust boundaries: these parsers ingest third-party JSON of unknown
   // shape (Bitwarden exports, LCKED backups) and validate structure at
-  // runtime by design — the unsafe-any family stays off here.
+  // runtime by design — the unsafe-any family and explicit any stay off
+  // here; everywhere else `any` is an error.
   {
     files: ["src/lib/import/bitwarden.ts", "src/lib/import/lcked.ts"],
     rules: {
+      "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-call": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",

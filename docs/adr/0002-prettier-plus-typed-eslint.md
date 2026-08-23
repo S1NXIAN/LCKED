@@ -19,9 +19,14 @@ no pre-commit hooks or CI at this repo size.
   pockets, each scoped rather than global-off: test mocks (`vi.fn(async …)`,
   unbound methods in `expect()`) relax the typed family inside `__tests__`;
   third-party import parsers (`bitwarden.ts`, `lcked.ts`) parse untyped JSON
-  of unknown shape by design, so `no-unsafe-*` is off there; async JSX event
-  handlers keep `no-misused-promises` but with `checksVoidReturn`
-  attributes/properties off.
+  of unknown shape by design, so `no-unsafe-*` **and** `no-explicit-any` are
+  off there (and only there — explicit `any` is an error everywhere else);
+  async JSX event handlers keep `no-misused-promises` but with
+  `checksVoidReturn` attributes/properties off. Everything else in the
+  preset runs at shipped defaults, including `no-explicit-any`,
+  `ban-ts-comment`, and `prefer-as-const`.
+- **Merging simple-import-sort's default groups** — rejected; the plugin's
+  stock five groups ship unchanged so contributors match the docs.
 - **Pre-commit hooks (husky/lint-staged)** — deferred until a second
   regular contributor exists.
 

@@ -5,7 +5,13 @@ import { parseKeePassXcXml } from "@/lib/import/keepassxc";
 
 // Build a minimal fake DOM element — just enough for
 // readKeePassXcEntry to traverse children by tagName.
-function el(tag: string, children?: any[], text?: string) {
+type FakeNode = {
+  tagName: string;
+  children: FakeNode[];
+  textContent: string | null;
+};
+
+function el(tag: string, children?: FakeNode[], text?: string): FakeNode {
   return { tagName: tag, children: children ?? [], textContent: text ?? null };
 }
 
@@ -15,8 +21,12 @@ function kv(key: string, value: string) {
   return el("String", [el("Key", [], key), el("Value", [], value)]);
 }
 
-// Replace DOMParser with a version that returns a controllable doc.
-let currentDoc: any;
+// The fake Document the parser talks to (querySelector/getElementsByTagName).
+type FakeDoc = {
+  querySelector: (selector: string) => unknown;
+  getElementsByTagName: (tag: string) => unknown[];
+};
+let currentDoc: FakeDoc | null = null;
 beforeAll(() => {
   vi.stubGlobal(
     "DOMParser",

@@ -224,7 +224,7 @@ describe("unlockVault", () => {
     const { decryptJson } = await import("@/lib/crypto");
     // Simulate an item without vaultIds (pre-migration).
     const partial = makeItem({ id: "migrate-me" });
-    delete (partial as any).vaultIds;
+    delete (partial as Partial<VaultItem>).vaultIds;
     vi.mocked(loadAllStoredItems).mockResolvedValueOnce([
       {
         id: "migrate-me",
