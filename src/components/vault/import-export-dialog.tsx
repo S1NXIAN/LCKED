@@ -11,7 +11,6 @@ import {
   Loader2,
   FileUp,
 } from "lucide-react";
-import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -25,8 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useVault } from "@/store/vault";
-import { detectFormat } from "@/lib/import";
-import { download } from "@/lib/browser-utils";
+import { runImport, readPickedFile, downloadEncryptedExport, downloadCsvExport } from "@/lib/import/flows";
 
 export function ImportExportDialog() {
   const open = useVault((s) => s.importExportOpen);
@@ -47,65 +45,34 @@ export function ImportExportDialog() {
 
   const handleFile = async (f: File) => {
     setFile(f);
-    const text = await f.text();
-    setFilePreview(text.slice(0, 600));
-    setDetectedFormat(detectFormat(f.name, text));
+    const picked = await readPickedFile(f);
+    setDetectedFormat(picked?.format ?? "");
+    if (picked) setFilePreview(picked.text.slice(0, 600));
   };
 
   const handleImport = async () => {
     if (!file) return;
     setImporting(true);
-    try {
-      const text = await file.text();
-      const result = await importItems(file.name, text);
-      toast.success(`Imported ${result.imported} item${result.imported === 1 ? "" : "s"}`, {
-        description:
-          result.skipped > 0
-            ? `${result.skipped} skipped. ${result.warnings[0] ?? ""}`
-            : undefined,
-      });
-      if (result.warnings.length > 0 && result.skipped > 0) {
-        console.warn("Import warnings:", result.warnings);
-      }
+    if (await runImport(file, importItems)) {
       setOpen(false);
       setFile(null);
       setFilePreview("");
-    } catch (err) {
-      console.error(err);
-      toast.error("Import failed", { description: "The file may be corrupted or unsupported." });
-    } finally {
-      setImporting(false);
     }
+    setImporting(false);
   };
 
   const handleExportEncrypted = async () => {
-    if (exportPassword.length < 8) {
-      toast.error("Export password must be at least 8 characters");
-      return;
-    }
     setExporting(true);
-    try {
-      const json = await exportEncrypted(exportPassword);
-      const stamp = new Date().toISOString().slice(0, 10);
-      download(`lcked-vault-${stamp}.json`, json, "application/json");
-      toast.success("Encrypted export downloaded", {
-        description: "Keep this file and the password safe — both are required to restore.",
-      });
+    const ok = await downloadEncryptedExport({ exportEncrypted, passphrase: exportPassword });
+    setExporting(false);
+    if (ok) {
       setExportPassword("");
       setOpen(false);
-    } catch (err) {
-      console.error(err);
-      toast.error("Export failed");
-    } finally {
-      setExporting(false);
     }
   };
 
   const handleExportCsv = () => {
-    const csv = exportCsv();
-    const stamp = new Date().toISOString().slice(0, 10);
-    download(`lcked-vault-${stamp}.csv`, csv, "text/csv");
-    toast.success("CSV export downloaded");
+    downloadCsvExport(exportCsv);
     setCsvConfirm(false);
     setOpen(false);
   };

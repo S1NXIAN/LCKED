@@ -3,11 +3,10 @@
 import * as React from "react";
 import { FileUp, Loader2, Upload } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { toast } from "sonner";
+import { readPickedFile, runImport } from "@/lib/import/flows";
 import { Button } from "@/components/ui/button";
 import { useVault } from "@/store/vault";
 import { IMPORT_SOURCES } from "@/lib/import/sources";
-import { detectFormat } from "@/lib/import";
 import { cn } from "@/lib/utils";
 
 export function ImportTab() {
@@ -28,41 +27,19 @@ export function ImportTab() {
 
   const handleFile = async (f: File) => {
     setFile(f);
-    try {
-      const text = await f.text();
-      setDetectedFmt(detectFormat(f.name, text));
-    } catch {
-      setDetectedFmt("");
-    }
+    const picked = await readPickedFile(f);
+    setDetectedFmt(picked?.format ?? "");
   };
 
   const handleImport = async () => {
     if (!file) return;
     setImporting(true);
-    try {
-      const text = await file.text();
-      const result = await importItems(file.name, text);
-      toast.success(
-        `Imported ${result.imported} item${result.imported === 1 ? "" : "s"}`,
-        {
-          description:
-            result.skipped > 0
-              ? `${result.skipped} skipped. ${result.warnings[0] ?? ""}`
-              : undefined,
-        },
-      );
+    if (await runImport(file, importItems)) {
       setFile(null);
       setPendingSource(null);
       setDetectedFmt("");
-    } catch (err) {
-      console.error(err);
-      toast.error("Import failed", {
-        description:
-          "The file may be corrupted or in an unsupported format.",
-      });
-    } finally {
-      setImporting(false);
     }
+    setImporting(false);
   };
 
   return (

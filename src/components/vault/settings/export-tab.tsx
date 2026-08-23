@@ -13,12 +13,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useVault } from "@/store/vault";
-import { download } from "@/lib/browser-utils";
+import { downloadCsvExport, downloadEncryptedExport } from "@/lib/import/flows";
 import { cn } from "@/lib/utils";
 
 const TRANSITION = { duration: 0.12, ease: [0.16, 1, 0.3, 1] } as const;
@@ -76,53 +75,22 @@ export function ExportTab() {
     passphrase.length >= 8 && passphrase === confirm;
 
   const handleEncryptedExport = async (which: "pgp" | "zip") => {
-    if (!passphrasesMatch) {
-      toast.error(
-        "Passphrase must be at least 8 characters and match",
-      );
-      return;
-    }
     setBusy(true);
-    try {
-      const json = await exportEncrypted(passphrase);
-      const stamp = new Date().toISOString().slice(0, 10);
-      if (which === "pgp") {
-        download(
-          `lcked-vault-${stamp}.json`,
-          json,
-          "application/json",
-        );
-      } else {
-        download(
-          `lcked-vault-${stamp}.zip`,
-          json,
-          "application/zip",
-        );
-      }
-      toast.success(
-        which === "pgp"
-          ? "Encrypted export downloaded"
-          : "Encrypted ZIP downloaded",
-        {
-          description:
-            "Keep this file and the passphrase safe — both are required to restore.",
-        },
-      );
+    const ok = await downloadEncryptedExport({
+      exportEncrypted,
+      passphrase,
+      confirm,
+      zip: which === "zip",
+    });
+    setBusy(false);
+    if (ok) {
       setPassphrase("");
       setConfirm("");
-    } catch (err) {
-      console.error(err);
-      toast.error("Export failed");
-    } finally {
-      setBusy(false);
     }
   };
 
   const handleCsvExport = () => {
-    const csv = exportCsv();
-    const stamp = new Date().toISOString().slice(0, 10);
-    download(`lcked-vault-${stamp}.csv`, csv, "text/csv");
-    toast.success("CSV export downloaded");
+    downloadCsvExport(exportCsv);
     setCsvConfirm(false);
   };
 
