@@ -1,10 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  cancelClipboardClear,
-  clearAllClipboardTimers,
-  copyWithAutoClear,
-} from "@/lib/clipboard";
+import { clearAllClipboardTimers, copyWithAutoClear } from "@/lib/clipboard";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -91,20 +87,6 @@ describe("copyWithAutoClear", () => {
     expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith("");
     // Both timers ran readText (k1 read "beta" and skipped, k2 read "beta" and cleared).
     expect(navigator.clipboard.readText).toHaveBeenCalledTimes(2);
-  });
-});
-
-describe("cancelClipboardClear", () => {
-  it("prevents the timer from clearing the clipboard", async () => {
-    await copyWithAutoClear("sekrit", "default", 10_000);
-    cancelClipboardClear("default");
-
-    vi.advanceTimersByTime(10_000);
-    await vi.advanceTimersByTimeAsync(0);
-
-    // The timer should NOT have fired — only the initial writeText.
-    expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(1);
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith("sekrit");
   });
 });
 

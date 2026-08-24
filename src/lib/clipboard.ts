@@ -42,18 +42,6 @@ export async function copyWithAutoClear(
   clipboardTimers.set(key, timer);
 }
 
-/**
- * Cancel a pending clipboard auto-clear timer for a given key. The clipboard
- * value is NOT wiped — the caller retains the value on the clipboard.
- */
-export function cancelClipboardClear(key = "default"): void {
-  const t = clipboardTimers.get(key);
-  if (t) {
-    clearTimeout(t);
-    clipboardTimers.delete(key);
-  }
-}
-
 /** Clear ALL pending clipboard auto-clear timers + wipe the clipboard if it
  *  still holds a value we copied. Called from `lock()` so a password copied
  *  just before locking doesn't linger for up to 30s. */

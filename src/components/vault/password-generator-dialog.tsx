@@ -30,9 +30,9 @@ import {
   generatePassword,
 } from "@/lib/generator/generator";
 import {
-  clearGeneratorCallback,
   consumeGeneratorCallback,
-  getGeneratorCallback,
+  hasGeneratorCallback,
+  setGeneratorCallback,
 } from "@/lib/generator/generator-bridge";
 import { cn } from "@/lib/utils";
 import { useVault } from "@/store/vault";
@@ -63,7 +63,7 @@ export function PasswordGeneratorDialog() {
   // dragging the Length slider doesn't flicker the password on every step (D-3).
   React.useEffect(() => {
     if (!open) return;
-    setHasCallback(!!getGeneratorCallback());
+    setHasCallback(hasGeneratorCallback());
     const timer = setTimeout(() => regenerate(), 120);
     return () => clearTimeout(timer);
   }, [open, regenerate]);
@@ -92,11 +92,11 @@ export function PasswordGeneratorDialog() {
   };
 
   const handleClose = () => {
-    // Clear the callback WITHOUT firing it (D-1). The old code called
+    // Null the callback WITHOUT firing it (D-1). The old code called
     // `consumeGeneratorCallback("")` which fired the callback with an empty
-    // string, wiping the source password field. `clearGeneratorCallback`
-    // just nulls the reference so the source field is left untouched.
-    clearGeneratorCallback();
+    // string, wiping the source password field. Setting `null` leaves the
+    // source field untouched.
+    setGeneratorCallback(null);
     setOpen(false);
   };
 

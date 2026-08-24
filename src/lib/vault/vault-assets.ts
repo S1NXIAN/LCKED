@@ -4,10 +4,9 @@
  * Static catalogs for user-defined vaults (Proton Pass–style colored
  * containers). Each `VaultDef` stores a `color` and `icon` id; this module is
  * the single source of truth that maps those ids to actual values.
- *
  * Colors are the 10 Proton Pass vault colors (named after the closest CSS color
- * name to keep the variable names stable). Icons are 30 ids; the matching
- * Lucide components live in `vault-lucide-icons.ts` (`VAULT_LUCIDE_BY_ID`).
+ * name to keep the variable names stable). Vault icon ids + labels + their
+ * Lucide components live in `src/components/vault/vault-lucide-icons.ts`.
  */
 
 export interface VaultColor {
@@ -17,13 +16,6 @@ export interface VaultColor {
   label: string;
   /** Hex value used inline + as the matching CSS variable. */
   hex: string;
-}
-
-export interface VaultIcon {
-  /** Stable id — persisted on the VaultDef. Never rename. */
-  id: string;
-  /** Picker label. */
-  label: string;
 }
 
 /**
@@ -43,43 +35,8 @@ export const VAULT_COLORS: VaultColor[] = [
   { id: "water-leaf", label: "Water Leaf", hex: "#9EE2E6" },
 ];
 
-/** 30 vault icon ids that cover the common vault use-cases. */
-export const VAULT_ICONS: VaultIcon[] = [
-  { id: "home", label: "Home" },
-  { id: "briefcase", label: "Work" },
-  { id: "gift", label: "Gifts" },
-  { id: "shopping-cart", label: "Shopping" },
-  { id: "heart", label: "Personal" },
-  { id: "star", label: "Favorites" },
-  { id: "shield", label: "Security" },
-  { id: "lock", label: "Private" },
-  { id: "key", label: "Keys" },
-  { id: "eye", label: "Watch" },
-  { id: "user", label: "Identity" },
-  { id: "users", label: "Family" },
-  { id: "building", label: "Business" },
-  { id: "bank", label: "Banking" },
-  { id: "credit-card", label: "Cards" },
-  { id: "wallet", label: "Wallet" },
-  { id: "plane", label: "Travel" },
-  { id: "car", label: "Vehicle" },
-  { id: "fuel", label: "Fuel" },
-  { id: "globe", label: "Web" },
-  { id: "mail", label: "Email" },
-  { id: "phone", label: "Phone" },
-  { id: "smartphone", label: "Mobile" },
-  { id: "laptop", label: "Devices" },
-  { id: "server", label: "Servers" },
-  { id: "cloud", label: "Cloud" },
-  { id: "database", label: "Data" },
-  { id: "hard-drive", label: "Storage" },
-  { id: "cpu", label: "Systems" },
-  { id: "network", label: "Network" },
-];
-
-/** Default color + icon used when creating a vault without explicit choices. */
+/** Default color used when creating a vault without an explicit choice. */
 export const DEFAULT_VAULT_COLOR = VAULT_COLORS[0].id; // heliotrope
-export const DEFAULT_VAULT_ICON = VAULT_ICONS[0].id; // home
 
 /**
  * Resolve a vault color id to its hex value. Falls back to the default

@@ -1,11 +1,9 @@
 /**
- * LCKED — Shared vault-icon → Lucide component map
+ * LCKED — Vault icon catalog
  * ---------------------------------------------------------------------------
- * Single source of truth for the vault-icon id → Lucide component lookup.
- * Mirrors `VAULT_ICONS` in `src/lib/vault/vault-assets.ts` 1:1 — keep both in sync
- * when adding a new vault icon. Consumed by `VaultsSidebar` (rendered inside
- * the colored swatch) and `CreateVaultDialog` (rendered as a raw glyph in the
- * picker grid).
+ * Single source of truth for vault icon ids, picker labels, and their Lucide
+ * components. Consumed by `VaultIcon` (swatch glyph), `OrganizeVaultDialog`,
+ * and `CreateVaultDialog`'s icon picker grid.
  */
 import {
   Banknote,
@@ -41,35 +39,52 @@ import {
   Wallet,
 } from "lucide-react";
 
-export const VAULT_LUCIDE_BY_ID: Record<string, LucideIcon> = {
-  home: Home,
-  briefcase: Briefcase,
-  gift: Gift,
-  "shopping-cart": ShoppingCart,
-  heart: Heart,
-  star: Star,
-  shield: Shield,
-  lock: Lock,
-  key: Key,
-  eye: Eye,
-  user: User,
-  users: Users,
-  building: Building,
-  bank: Banknote,
-  "credit-card": CreditCard,
-  wallet: Wallet,
-  plane: Plane,
-  car: Car,
-  fuel: Fuel,
-  globe: Globe,
-  mail: Mail,
-  phone: Phone,
-  smartphone: Smartphone,
-  laptop: Laptop,
-  server: Server,
-  cloud: Cloud,
-  database: Database,
-  "hard-drive": HardDrive,
-  cpu: Cpu,
-  network: Network,
-};
+export interface VaultIconDef {
+  /** Stable id — persisted on the VaultDef. Never rename. */
+  id: string;
+  /** Picker label / aria-label. */
+  label: string;
+  /** Lucide glyph rendered in the swatch + picker. */
+  Icon: LucideIcon;
+}
+
+/** 30 vault icon ids that cover the common vault use-cases. */
+export const VAULT_ICONS: VaultIconDef[] = [
+  { id: "home", label: "Home", Icon: Home },
+  { id: "briefcase", label: "Work", Icon: Briefcase },
+  { id: "gift", label: "Gifts", Icon: Gift },
+  { id: "shopping-cart", label: "Shopping", Icon: ShoppingCart },
+  { id: "heart", label: "Personal", Icon: Heart },
+  { id: "star", label: "Favorites", Icon: Star },
+  { id: "shield", label: "Security", Icon: Shield },
+  { id: "lock", label: "Private", Icon: Lock },
+  { id: "key", label: "Keys", Icon: Key },
+  { id: "eye", label: "Watch", Icon: Eye },
+  { id: "user", label: "Identity", Icon: User },
+  { id: "users", label: "Family", Icon: Users },
+  { id: "building", label: "Business", Icon: Building },
+  { id: "bank", label: "Banking", Icon: Banknote },
+  { id: "credit-card", label: "Cards", Icon: CreditCard },
+  { id: "wallet", label: "Wallet", Icon: Wallet },
+  { id: "plane", label: "Travel", Icon: Plane },
+  { id: "car", label: "Vehicle", Icon: Car },
+  { id: "fuel", label: "Fuel", Icon: Fuel },
+  { id: "globe", label: "Web", Icon: Globe },
+  { id: "mail", label: "Email", Icon: Mail },
+  { id: "phone", label: "Phone", Icon: Phone },
+  { id: "smartphone", label: "Mobile", Icon: Smartphone },
+  { id: "laptop", label: "Devices", Icon: Laptop },
+  { id: "server", label: "Servers", Icon: Server },
+  { id: "cloud", label: "Cloud", Icon: Cloud },
+  { id: "database", label: "Data", Icon: Database },
+  { id: "hard-drive", label: "Storage", Icon: HardDrive },
+  { id: "cpu", label: "Systems", Icon: Cpu },
+  { id: "network", label: "Network", Icon: Network },
+];
+
+/** Default icon used when creating a vault without an explicit choice. */
+export const DEFAULT_VAULT_ICON = VAULT_ICONS[0].id; // home
+
+/** id → Lucide component lookup (derived from VAULT_ICONS). */
+export const VAULT_LUCIDE_BY_ID: Record<string, LucideIcon> =
+  Object.fromEntries(VAULT_ICONS.map((ic) => [ic.id, ic.Icon]));

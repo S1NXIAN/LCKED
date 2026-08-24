@@ -92,7 +92,7 @@ export interface VaultDef {
   name: string;
   /** Vault color id from VAULT_COLORS (see src/lib/vault/vault-assets.ts). */
   color: string;
-  /** Vault icon id from VAULT_ICONS (see src/lib/vault/vault-assets.ts). */
+  /** Vault icon id from VAULT_ICONS (see src/components/vault/vault-lucide-icons.ts). */
   icon: string;
   createdAt: number;
 }

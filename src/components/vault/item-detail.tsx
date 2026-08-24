@@ -1,6 +1,5 @@
 "use client";
 
-import { format } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Building2,
@@ -50,6 +49,13 @@ import { FieldCluster } from "./field-cluster";
 import { ITEM_TYPE_LABELS, ItemTypeIcon } from "./item-icons";
 import { TOTPDisplay } from "./totp-display";
 import { VaultIcon } from "./vault-icon";
+
+/** Shared "MMM d, yyyy" formatter — hoisted so re-renders never rebuild it. */
+const DATE_FMT = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
 
 /** A single field row inside a FieldCluster. */
 function FieldRow({
@@ -796,11 +802,11 @@ export function ItemDetail() {
               <div className="border-border/40 text-muted-foreground/70 mt-6 flex items-center gap-4 border-t pt-4 text-[11px]">
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-3 w-3" />
-                  Created {format(new Date(item.createdAt), "MMM d, yyyy")}
+                  Created {DATE_FMT.format(new Date(item.createdAt))}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-3 w-3" />
-                  Updated {format(new Date(item.updatedAt), "MMM d, yyyy")}
+                  Updated {DATE_FMT.format(new Date(item.updatedAt))}
                 </span>
               </div>
             </div>

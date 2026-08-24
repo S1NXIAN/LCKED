@@ -23,7 +23,7 @@
  * panels.
  */
 
-import { Check, Home, Loader2, Trash2 } from "lucide-react";
+import { Check, Loader2, Trash2 } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 
@@ -48,15 +48,13 @@ import {
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_VAULT_COLOR,
-  DEFAULT_VAULT_ICON,
   VAULT_COLORS,
-  VAULT_ICONS,
   vaultColorHex,
 } from "@/lib/vault/vault-assets";
 import { useVault } from "@/store/vault";
 
 import { VaultIcon } from "./vault-icon";
-import { VAULT_LUCIDE_BY_ID } from "./vault-lucide-icons";
+import { DEFAULT_VAULT_ICON, VAULT_ICONS } from "./vault-lucide-icons";
 
 export function CreateVaultDialog() {
   // Both modes share the same Sheet; we open whenever either flag is set.
@@ -271,7 +269,7 @@ export function CreateVaultDialog() {
             <div className="grid grid-cols-6 gap-1.5">
               {VAULT_ICONS.map((ic) => {
                 const selected = ic.id === icon;
-                const Glyph = VAULT_LUCIDE_BY_ID[ic.id] ?? Home;
+                const Glyph = ic.Icon;
                 return (
                   <button
                     key={ic.id}

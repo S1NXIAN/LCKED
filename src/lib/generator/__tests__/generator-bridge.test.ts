@@ -1,21 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
-  clearGeneratorCallback,
   consumeGeneratorCallback,
-  getGeneratorCallback,
+  hasGeneratorCallback,
   setGeneratorCallback,
 } from "@/lib/generator/generator-bridge";
 
 describe("generator-bridge", () => {
-  beforeEach(() => {
-    clearGeneratorCallback();
-  });
-
-  it("sets a callback and retrieves it", () => {
-    const fn = vi.fn();
-    setGeneratorCallback(fn);
-    expect(getGeneratorCallback()).toBe(fn);
+  it("sets a callback and reports it pending", () => {
+    setGeneratorCallback(vi.fn());
+    expect(hasGeneratorCallback()).toBe(true);
   });
 
   it("consume fires the callback and clears it", () => {
@@ -26,7 +20,7 @@ describe("generator-bridge", () => {
 
     expect(result).toBe(true);
     expect(fn).toHaveBeenCalledWith("my-password");
-    expect(getGeneratorCallback()).toBeNull();
+    expect(hasGeneratorCallback()).toBe(false);
   });
 
   it("consume with no callback returns false", () => {
@@ -35,16 +29,16 @@ describe("generator-bridge", () => {
     const result = consumeGeneratorCallback("any-password");
 
     expect(result).toBe(false);
-    expect(getGeneratorCallback()).toBeNull();
+    expect(hasGeneratorCallback()).toBe(false);
   });
 
-  it("clear without consuming removes the callback", () => {
+  it("setting null removes the callback without firing it", () => {
     const fn = vi.fn();
     setGeneratorCallback(fn);
 
-    clearGeneratorCallback();
+    setGeneratorCallback(null);
 
-    expect(getGeneratorCallback()).toBeNull();
+    expect(hasGeneratorCallback()).toBe(false);
     // Should not have been called.
     expect(fn).not.toHaveBeenCalled();
   });
@@ -55,9 +49,7 @@ describe("generator-bridge", () => {
     setGeneratorCallback(fn1);
     setGeneratorCallback(fn2);
 
-    // old one is gone
-    expect(getGeneratorCallback()).toBe(fn2);
-    expect(getGeneratorCallback()).not.toBe(fn1);
+    expect(hasGeneratorCallback()).toBe(true);
 
     consumeGeneratorCallback("pw");
     expect(fn2).toHaveBeenCalledWith("pw");
