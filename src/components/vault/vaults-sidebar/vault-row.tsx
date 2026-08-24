@@ -61,13 +61,13 @@ export function VaultRow({
     const ids = parseDraggedIds(e);
     if (ids.length === 0) return;
     const { moveItemsToVault } = useVault.getState();
-    const { done } = await runBulk(
+    const outcome = await runBulk(
       () => moveItemsToVault(ids, dropVaultId ?? null),
       "Moved",
       { tail: `to ${label}` },
     );
     // Exit multi-select if more than one item was dragged.
-    if (ids.length > 1 && done > 0) exitMultiSelect();
+    if (ids.length > 1 && outcome && outcome.done > 0) exitMultiSelect();
   };
   const handleDragOver = (e: React.DragEvent) => {
     if (dropVaultId === undefined) return;

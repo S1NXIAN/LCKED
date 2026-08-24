@@ -1,4 +1,4 @@
-# CODING_STANDARDS.md
+# CODING_STANDARD.md
 
 This document establishes the repository-level coding standards and quality gates for human developers and AI coding assistants.
 

@@ -224,14 +224,15 @@ export function VaultsSidebar() {
               const ids = parseDraggedIds(e);
               if (ids.length === 0) return;
               const { moveItemsToVault } = useVault.getState();
-              const { done } = await runBulk(
+              const outcome = await runBulk(
                 () => moveItemsToVault(ids, null),
                 "Moved",
                 {
                   tail: "to All Items",
                 },
               );
-              if (ids.length > 1 && done > 0) exitMultiSelect();
+              if (ids.length > 1 && outcome && outcome.done > 0)
+                exitMultiSelect();
             }}
           >
             <VaultRow
@@ -346,15 +347,13 @@ export function VaultsSidebar() {
           const ids = parseDraggedIds(e);
           if (ids.length === 0) return;
           const { trashItems } = useVault.getState();
-          const { done, failed } = await runBulk(
-            () => trashItems(ids),
-            "Moved",
-            {
-              tail: "to Trash",
-            },
-          );
-          if (done === 0 && failed === 0) toast.info("Already in Trash");
-          if (ids.length > 1 && done > 0) exitMultiSelect();
+          const outcome = await runBulk(() => trashItems(ids), "Moved", {
+            tail: "to Trash",
+          });
+          // A caught throw resolves null — never announce a no-op for it.
+          if (outcome && outcome.done === 0 && outcome.failed === 0)
+            toast.info("Already in Trash");
+          if (ids.length > 1 && outcome && outcome.done > 0) exitMultiSelect();
         }}
       >
         <ActiveHighlight

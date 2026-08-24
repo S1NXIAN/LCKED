@@ -5,6 +5,9 @@
  * to a uniform BulkResult and never reject for row-level failures; this
  * helper owns the await, the copy, and the catch. Callers keep flow control
  * (e.g. exiting multi-select) on their side of the seam.
+ *
+ * Resolves null when the action threw — distinct from a {done: 0, failed: 0}
+ * filtered no-op, so callers gating on counts can't mistake the two.
  */
 
 import { toast } from "sonner";
@@ -15,37 +18,37 @@ const plural = (n: number, what: string) => `${what}${n === 1 ? "" : "s"}`;
 
 /** Copy options: "Moved" + tail "to Trash" → "Moved 3 items to Trash". */
 export interface BulkCopy {
- /** Counted noun; defaults to "item". */
- what?: string;
- /** Trailing phrase appended after the noun ("to Trash", "to Work"). */
- tail?: string;
+  /** Counted noun; defaults to "item". */
+  what?: string;
+  /** Trailing phrase appended after the noun ("to Trash", "to Work"). */
+  tail?: string;
 }
 
 export async function runBulk(
- action: () => Promise<BulkResult>,
- did: string,
- copy: BulkCopy = {},
-): Promise<BulkResult> {
- const what = copy.what ?? "item";
- const tail = copy.tail ? ` ${copy.tail}` : "";
- let result: BulkResult;
- try {
-  result = await action();
- } catch {
-  toast.error(`${did} failed`);
-  return { done: 0, failed: 0 };
- }
+  action: () => Promise<BulkResult>,
+  did: string,
+  copy: BulkCopy = {},
+): Promise<BulkResult | null> {
+  const what = copy.what ?? "item";
+  const tail = copy.tail ? ` ${copy.tail}` : "";
+  let result: BulkResult;
+  try {
+    result = await action();
+  } catch {
+    toast.error(`${did} failed`);
+    return null;
+  }
 
- const { done, failed } = result;
- if (done === 0 && failed === 0) return result;
- if (failed === 0) {
-  toast.success(`${did} ${done} ${plural(done, what)}${tail}`);
- } else if (done === 0) {
-  toast.error(`${did} nothing; ${failed} ${plural(failed, what)} failed`);
- } else {
-  toast.warning(
-   `${did} ${done} ${plural(done, what)}${tail}; ${failed} failed`,
-  );
- }
- return result;
+  const { done, failed } = result;
+  if (done === 0 && failed === 0) return result;
+  if (failed === 0) {
+    toast.success(`${did} ${done} ${plural(done, what)}${tail}`);
+  } else if (done === 0) {
+    toast.error(`${did} nothing; ${failed} ${plural(failed, what)} failed`);
+  } else {
+    toast.warning(
+      `${did} ${done} ${plural(done, what)}${tail}; ${failed} failed`,
+    );
+  }
+  return result;
 }

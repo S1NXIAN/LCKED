@@ -27,10 +27,22 @@ describe("runBulk", () => {
     expect(toast.success).toHaveBeenCalledWith("Moved 3 items to Trash");
   });
 
-  it("singularizes a single item", async () => {
-    await runBulk(() => ok(1), "Moved");
+  it("errors without throwing when the action rejects", async () => {
+    const outcome = await runBulk(
+      () => Promise.reject(new Error("Vault is locked")),
+      "Moved",
+    );
 
-    expect(toast.success).toHaveBeenCalledWith("Moved 1 item");
+    expect(toast.error).toHaveBeenCalledWith("Moved failed");
+    expect(toast.warning).not.toHaveBeenCalled();
+    // null — so callers can't mistake a caught throw for a filtered no-op.
+    expect(outcome).toBeNull();
+  });
+
+  it("resolves the result on success for caller flow control", async () => {
+    const outcome = await runBulk(() => ok(2), "Moved");
+
+    expect(outcome).toEqual({ done: 2, failed: 0 });
   });
 
   it("warns on partial failure", async () => {
