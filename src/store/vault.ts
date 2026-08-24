@@ -13,7 +13,6 @@ import { clearAllClipboardTimers } from "@/lib/clipboard";
 import { exportToCsv, importFromText } from "@/lib/import";
 import {
   deleteStoredItems,
-  patchItem,
   patchItems,
   sortItems,
   toItemInput,
@@ -81,16 +80,16 @@ export interface VaultState {
   lock: () => void;
   resetVault: () => Promise<void>;
 
-  // item CRUD
+  // item CRUD — every mutation resolves to one uniform BulkResult
   saveItem: (input: NewItemInput, existingId?: string) => Promise<VaultItem>;
   /** Soft-delete — moves the item to Trash with a 30-day TTL. */
-  trashItem: (id: string) => Promise<void>;
-  restoreItem: (id: string) => Promise<void>;
-  permanentlyDeleteItem: (id: string) => Promise<void>;
+  trashItem: (id: string) => Promise<BulkResult>;
+  restoreItem: (id: string) => Promise<BulkResult>;
+  permanentlyDeleteItem: (id: string) => Promise<BulkResult>;
   emptyTrash: () => Promise<BulkResult>;
   restoreAllTrash: () => Promise<BulkResult>;
-  toggleFavorite: (id: string) => Promise<void>;
-  togglePin: (id: string) => Promise<void>;
+  toggleFavorite: (id: string) => Promise<BulkResult>;
+  togglePin: (id: string) => Promise<BulkResult>;
   /** Unfavorite ALL favorited items at once. */
   clearFavorites: () => Promise<BulkResult>;
   /** Replace vault memberships for multiple items (drag-and-drop move). */
@@ -103,12 +102,12 @@ export interface VaultState {
   restoreItems: (itemIds: string[]) => Promise<BulkResult>;
   /** Permanently delete the selected items (bulk counterpart of permanentlyDeleteItem). */
   permanentlyDeleteItems: (itemIds: string[]) => Promise<BulkResult>;
-  duplicateItem: (id: string) => Promise<void>;
+  duplicateItem: (id: string) => Promise<BulkResult>;
   /** Duplicate an item into a specific vault. The copy is a fully independent
    *  record (new ID) assigned to the target vault — deleting the original or
    *  the copy does NOT affect the other. Replaces the old "add to vault"
    *  membership approach which symlinked one item across vaults. */
-  copyItemToVault: (itemId: string, vaultId: string) => Promise<void>;
+  copyItemToVault: (itemId: string, vaultId: string) => Promise<BulkResult>;
   importItems: (filename: string, text: string) => Promise<ImportResult>;
   /** Restore an LCKED backup (or plain import) during setup. See vault-restore.ts. */
   restoreVault: (params: {
@@ -197,6 +196,48 @@ export const useVault = create<VaultState>()(
           }));
         }
         return { done: deletedIds.length, failed: failedIds.length };
+      };
+
+      /**
+       * One mutation transaction behind every Item-mutation action: select
+       * targets, filter no-ops, patch + persist, apply to state, fold the
+       * counts into the uniform BulkResult. Never rejects for row-level
+       * failures — a throw is reserved for the locked-vault invariant.
+       */
+      const mutateItems = async (
+        isTarget: (item: VaultItem) => boolean,
+        isNoOp: (item: VaultItem) => boolean,
+        patchFn: (item: VaultItem) => Partial<VaultItem>,
+      ): Promise<BulkResult> => {
+        const vaultKey = requireVaultKey();
+        const targets = get().items.filter((i) => isTarget(i) && !isNoOp(i));
+        if (targets.length === 0) return { done: 0, failed: 0 };
+        const { updated, failed } = await patchItems(
+          vaultKey,
+          targets,
+          patchFn,
+        );
+        applyItems(updated);
+        return { done: updated.length, failed };
+      };
+
+      // The one Trash stamp and its Untrash inverse, shared by the single
+      // and bulk actions so the patch shape is defined exactly once.
+      const trashPatch = () => ({ trashed: true, trashedAt: Date.now() });
+      const untrashPatch = () => ({ trashed: false, trashedAt: null });
+
+      /**
+       * Single-item create/copy behind BulkResult. The locked-vault invariant
+       * throws before the try, so it is never folded into a row failure.
+       */
+      const writeOne = async (input: NewItemInput): Promise<BulkResult> => {
+        requireVaultKey();
+        try {
+          await get().saveItem(input);
+          return { done: 1, failed: 0 };
+        } catch {
+          return { done: 0, failed: 1 };
+        }
       };
       return {
         status: "loading",
@@ -326,135 +367,79 @@ export const useVault = create<VaultState>()(
          * stays in IndexedDB (still encrypted) so it can be restored. Auto-purged
          * 30 days later on the next unlock.
          */
-        trashItem: async (id) => {
-          const vaultKey = requireVaultKey();
-          const item = get().items.find((i) => i.id === id);
-          if (!item) return;
-          const updated = await patchItem(vaultKey, item, {
-            trashed: true,
-            trashedAt: Date.now(),
-          });
-          applyItems([updated]);
-        },
+        trashItem: (id) =>
+          mutateItems(
+            (i) => i.id === id,
+            (i) => i.trashed,
+            trashPatch,
+          ),
 
-        restoreItem: async (id) => {
-          const vaultKey = requireVaultKey();
-          const item = get().items.find((i) => i.id === id);
-          if (!item) return;
-          const updated = await patchItem(vaultKey, item, {
-            trashed: false,
-            trashedAt: null,
-          });
-          applyItems([updated]);
-        },
+        restoreItem: (id) =>
+          mutateItems(
+            (i) => i.id === id,
+            (i) => !i.trashed,
+            untrashPatch,
+          ),
 
-        permanentlyDeleteItem: async (id) => {
-          const item = get().items.find((i) => i.id === id);
-          if (!item) return;
-          const result = await optimisticDelete([item]);
-          if (result.failed > 0) {
-            throw new Error(`Could not delete ${result.failed} item(s)`);
-          }
-        },
+        permanentlyDeleteItem: (id) =>
+          optimisticDelete(get().items.filter((i) => i.id === id)),
 
         emptyTrash: async () =>
           optimisticDelete(get().items.filter((i) => i.trashed)),
 
-        restoreAllTrash: async () => {
-          const vaultKey = requireVaultKey();
-          const trashed = get().items.filter((i) => i.trashed);
-          if (trashed.length === 0) return { done: 0, failed: 0 };
-          const { updated, failed } = await patchItems(
-            vaultKey,
-            trashed,
-            () => ({ trashed: false, trashedAt: null }),
-          );
-          applyItems(updated);
-          return { done: updated.length, failed };
-        },
+        restoreAllTrash: () =>
+          mutateItems(
+            (i) => i.trashed,
+            () => false,
+            untrashPatch,
+          ),
 
-        toggleFavorite: async (id) => {
-          const vaultKey = requireVaultKey();
-          const currentItem = get().items.find((i) => i.id === id);
-          if (!currentItem) return;
-          const updated = await patchItem(vaultKey, currentItem, {
-            favorite: !currentItem.favorite,
-          });
-          applyItems([updated]);
-        },
+        toggleFavorite: (id) =>
+          mutateItems(
+            (i) => i.id === id,
+            () => false,
+            (current) => ({ favorite: !current.favorite }),
+          ),
 
-        togglePin: async (id) => {
-          const vaultKey = requireVaultKey();
-          const currentItem = get().items.find((i) => i.id === id);
-          if (!currentItem) return;
-          const updated = await patchItem(vaultKey, currentItem, {
-            pinned: !currentItem.pinned,
-          });
-          applyItems([updated]);
-        },
+        togglePin: (id) =>
+          mutateItems(
+            (i) => i.id === id,
+            () => false,
+            (current) => ({ pinned: !current.pinned }),
+          ),
 
         /* ----------- bulk actions (multi-select drag-and-drop) ----------- */
 
-        clearFavorites: async () => {
-          const vaultKey = requireVaultKey();
-          const favs = get().items.filter((i) => i.favorite && !i.trashed);
-          if (favs.length === 0) return { done: 0, failed: 0 };
-          const { updated, failed } = await patchItems(vaultKey, favs, () => ({
-            favorite: false,
-          }));
-          applyItems(updated);
-          return { done: updated.length, failed };
-        },
+        clearFavorites: () =>
+          mutateItems(
+            (i) => i.favorite && !i.trashed,
+            () => false,
+            () => ({ favorite: false }),
+          ),
 
-        moveItemsToVault: async (itemIds, vaultId) => {
-          const vaultKey = requireVaultKey();
-          const targets = get().items.filter((i) => itemIds.includes(i.id));
+        moveItemsToVault: (itemIds, vaultId) => {
           const nextVaultIds = vaultId === null ? [] : [vaultId];
-          // Filter out no-ops: items already in exactly the target membership.
-          const toMove = targets.filter(
-            (i) => JSON.stringify(i.vaultIds) !== JSON.stringify(nextVaultIds),
-          );
-          if (toMove.length === 0) return { done: 0, failed: 0 };
-          const { updated, failed } = await patchItems(
-            vaultKey,
-            toMove,
+          // No-op when the item already sits in exactly the target membership.
+          return mutateItems(
+            (i) => itemIds.includes(i.id),
+            (i) => JSON.stringify(i.vaultIds) === JSON.stringify(nextVaultIds),
             () => ({ vaultIds: nextVaultIds }),
           );
-          applyItems(updated);
-          return { done: updated.length, failed };
         },
 
-        trashItems: async (itemIds) => {
-          const vaultKey = requireVaultKey();
-          // Filter out items already in trash.
-          const toTrash = get().items.filter(
-            (i) => itemIds.includes(i.id) && !i.trashed,
-          );
-          if (toTrash.length === 0) return { done: 0, failed: 0 };
-          const { updated, failed } = await patchItems(
-            vaultKey,
-            toTrash,
-            () => ({ trashed: true, trashedAt: Date.now() }),
-          );
-          applyItems(updated);
-          return { done: updated.length, failed };
-        },
+        trashItems: (itemIds) =>
+          mutateItems(
+            (i) => itemIds.includes(i.id),
+            (i) => i.trashed,
+            trashPatch,
+          ),
 
-        restoreItems: async (itemIds) => {
-          const vaultKey = requireVaultKey();
-          // Filter out items not in trash (no-ops).
-          const toRestore = get().items.filter(
-            (i) => itemIds.includes(i.id) && i.trashed,
-          );
-          if (toRestore.length === 0) return { done: 0, failed: 0 };
-          const { updated, failed } = await patchItems(
-            vaultKey,
-            toRestore,
-            () => ({ trashed: false, trashedAt: null }),
-          );
-          applyItems(updated);
-          return { done: updated.length, failed };
-        },
+        restoreItems: (itemIds) =>
+          mutateItems(
+            (i) => itemIds.includes(i.id),
+            (i) => !i.trashed,
+            untrashPatch,
+          ),
 
         permanentlyDeleteItems: async (itemIds) => {
           return optimisticDelete(
@@ -464,11 +449,11 @@ export const useVault = create<VaultState>()(
 
         duplicateItem: async (id) => {
           const item = get().items.find((i) => i.id === id);
-          if (!item) return;
+          if (!item) return { done: 0, failed: 0 };
           // Duplicates never inherit trashed or pinned state — they land in the
           // active view, unpinned, ready for the user to customize. Favorite and
           // vault membership are intentionally kept.
-          await get().saveItem({
+          return writeOne({
             ...toItemInput(item),
             pinned: false,
             trashed: false,
@@ -478,12 +463,12 @@ export const useVault = create<VaultState>()(
 
         copyItemToVault: async (itemId, vaultId) => {
           const item = get().items.find((i) => i.id === itemId);
-          if (!item) return;
+          if (!item) return { done: 0, failed: 0 };
           // Create a fully independent copy assigned to the target vault.
           // The copy gets a fresh ID, so deleting it never affects the original
           // (and vice versa). This replaces the old "symlink" membership model.
           // The copy is single-vault, unfavorited, unpinned and untrashed.
-          await get().saveItem({
+          return writeOne({
             ...toItemInput(item),
             vaultIds: [vaultId],
             favorite: false,

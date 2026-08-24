@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react"
+import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
 import { toast } from "sonner";
 
@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { useVault } from "@/store/vault";
 
 import { ActiveHighlight } from "../active-highlight";
+import { runBulk } from "../bulk-report";
 import {
   ITEM_TYPE_COLORS,
   ITEM_TYPE_ICONS,
@@ -311,13 +312,15 @@ export function ItemList({
                             }
                             onToggleSelected={() => toggleSelected(item.id)}
                             onRestore={() =>
-                              restoreItem(item.id).then(() =>
-                                toast.success("Item restored"),
+                              void runBulk(
+                                () => restoreItem(item.id),
+                                "Restored",
                               )
                             }
                             onPermanentDelete={() =>
-                              permanentlyDeleteItem(item.id).then(() =>
-                                toast.success("Permanently deleted"),
+                              void runBulk(
+                                () => permanentlyDeleteItem(item.id),
+                                "Permanently deleted",
                               )
                             }
                             onCopyField={copyField}
@@ -325,15 +328,17 @@ export function ItemList({
                             onTogglePin={() => togglePin(item.id)}
                             onEdit={() => setEditorOpen(true, item.id)}
                             onTrash={() =>
-                              trashItem(item.id).then(() =>
-                                toast.success("Moved to Trash"),
-                              )
+                              void runBulk(() => trashItem(item.id), "Moved", {
+                                tail: "to Trash",
+                              })
                             }
                             onCopyToVault={(vaultId) =>
-                              copyItemToVault(item.id, vaultId).then(() =>
-                                toast.success(
-                                  `Copied to ${vaults.find((v) => v.id === vaultId)?.name ?? "vault"}`,
-                                ),
+                              void runBulk(
+                                () => copyItemToVault(item.id, vaultId),
+                                "Copied",
+                                {
+                                  tail: `to ${vaults.find((v) => v.id === vaultId)?.name ?? "vault"}`,
+                                },
                               )
                             }
                           />

@@ -2,6 +2,12 @@
 
 A local-first password manager built with Next.js, Tailwind CSS, and Radix UI. Data stays in the browser — no backend, no sync.
 
+## Toolchain
+
+Bun owns this repo (`bun.lock`). Run one-off tool binaries via `bunx`, not
+`npx` — e.g. `bunx tsc --noEmit`, `bunx eslint <files>`,
+`bunx vitest run <file>`.
+
 ## Agent skills
 
 ### Issue tracker

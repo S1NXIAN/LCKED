@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { checkVerifier, decryptJson, encryptJson } from "@/lib/crypto";
+import {
+  checkVerifier,
+  decryptJson,
+  encryptJson,
+  randomId,
+} from "@/lib/crypto";
 import type { VaultItem } from "@/lib/types";
 import { deleteStoredItem, saveVaultMeta } from "@/lib/vault/vault-db";
 import { useVault } from "@/store/vault";
@@ -258,16 +263,17 @@ describe("emptyTrash — optimistic removal + rollback", () => {
 });
 
 describe("permanentlyDeleteItem — shared optimistic path", () => {
-  it("removes the item and clears a selectedId pointing at it", async () => {
+  it("removes the item, clears a selectedId pointing at it, reports counts", async () => {
     seed({ items: [makeItem({ id: "a" })], selectedId: "a" });
 
-    await useVault.getState().permanentlyDeleteItem("a");
+    const result = await useVault.getState().permanentlyDeleteItem("a");
 
+    expect(result).toEqual({ done: 1, failed: 0 });
     expect(useVault.getState().items).toEqual([]);
     expect(useVault.getState().selectedId).toBeNull();
   });
 
-  it("keeps the item and rethrows when the delete fails", async () => {
+  it("keeps the item and resolves {done: 0, failed: 1} — never throws", async () => {
     seed({
       items: [
         makeItem({ id: "a", updatedAt: 2000 }),
@@ -276,10 +282,119 @@ describe("permanentlyDeleteItem — shared optimistic path", () => {
     });
     vi.mocked(deleteStoredItem).mockRejectedValueOnce(new Error("idb fail"));
 
-    await expect(
-      useVault.getState().permanentlyDeleteItem("a"),
-    ).rejects.toThrow("Could not delete 1 item(s)");
+    const result = await useVault.getState().permanentlyDeleteItem("a");
+
+    expect(result).toEqual({ done: 0, failed: 1 });
     expect(useVault.getState().items.map((i) => i.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("single-item mutations speak BulkResult", () => {
+  it("trashItem trashes and reports {done: 1}", async () => {
+    seed({ items: [makeItem({ id: "a" })] });
+
+    const result = await useVault.getState().trashItem("a");
+
+    expect(result).toEqual({ done: 1, failed: 0 });
+    expect(useVault.getState().items.find((i) => i.id === "a")?.trashed).toBe(
+      true,
+    );
+  });
+
+  it("trashItem filters the already-trashed no-op", async () => {
+    seed({ items: [makeItem({ id: "a", trashed: true, trashedAt: 5 })] });
+
+    const result = await useVault.getState().trashItem("a");
+
+    expect(result).toEqual({ done: 0, failed: 0 });
+  });
+
+  it("restoreItem filters the not-trashed no-op", async () => {
+    seed({ items: [makeItem({ id: "a" })] });
+
+    const result = await useVault.getState().restoreItem("a");
+
+    expect(result).toEqual({ done: 0, failed: 0 });
+  });
+
+  it("toggleFavorite flips the flag and reports {done: 1}", async () => {
+    seed({ items: [makeItem({ id: "a" })] });
+
+    const result = await useVault.getState().toggleFavorite("a");
+
+    expect(result).toEqual({ done: 1, failed: 0 });
+    expect(useVault.getState().items.find((i) => i.id === "a")?.favorite).toBe(
+      true,
+    );
+  });
+
+  it("togglePin flips the flag and reports {done: 1}", async () => {
+    seed({ items: [makeItem({ id: "a" })] });
+
+    const result = await useVault.getState().togglePin("a");
+
+    expect(result).toEqual({ done: 1, failed: 0 });
+    expect(useVault.getState().items.find((i) => i.id === "a")?.pinned).toBe(
+      true,
+    );
+  });
+
+  it("duplicateItem copies unpinned and untrashed, reports {done: 1}", async () => {
+    seed({
+      items: [
+        makeItem({
+          id: "orig",
+          name: "Original",
+          pinned: true,
+          trashed: false,
+        }),
+      ],
+    });
+    vi.mocked(randomId).mockImplementationOnce(() => "copy-id");
+
+    const result = await useVault.getState().duplicateItem("orig");
+
+    expect(result).toEqual({ done: 1, failed: 0 });
+    const copy = useVault.getState().items.find((i) => i.id === "copy-id");
+    expect(copy?.name).toBe("Original");
+    expect(copy?.pinned).toBe(false);
+    expect(copy?.trashed).toBe(false);
+  });
+
+  it("duplicateItem folds a row-level write failure into the result", async () => {
+    seed({ items: [makeItem({ id: "orig" })] });
+    vi.mocked(encryptJson).mockRejectedValueOnce(new Error("idb fail"));
+
+    const result = await useVault.getState().duplicateItem("orig");
+
+    expect(result).toEqual({ done: 0, failed: 1 });
+  });
+
+  it("copyItemToVault writes an independent single-vault copy", async () => {
+    seed({
+      items: [
+        makeItem({ id: "orig", favorite: true, vaultIds: ["home"] }),
+      ],
+    });
+    vi.mocked(randomId).mockImplementationOnce(() => "copy-id");
+
+    const result = await useVault.getState().copyItemToVault("orig", "work");
+
+    expect(result).toEqual({ done: 1, failed: 0 });
+    const copy = useVault.getState().items.find((i) => i.id === "copy-id");
+    expect(copy?.vaultIds).toEqual(["work"]);
+    expect(copy?.favorite).toBe(false);
+  });
+
+  it("still throws only for the locked-vault invariant", async () => {
+    seed({ items: [makeItem({ id: "a" })], vaultKey: null });
+
+    await expect(useVault.getState().trashItem("a")).rejects.toThrow(
+      "Vault is locked",
+    );
+    await expect(useVault.getState().duplicateItem("a")).rejects.toThrow(
+      "Vault is locked",
+    );
   });
 });
 

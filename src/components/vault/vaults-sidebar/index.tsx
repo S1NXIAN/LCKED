@@ -281,17 +281,20 @@ export function VaultsSidebar() {
                 );
                 return;
               }
-              try {
-                await Promise.all(
-                  toFav.map((it) => store.toggleFavorite(it.id)),
-                );
-                toast.success(
-                  `Added ${toFav.length} item${toFav.length === 1 ? "" : "s"} to Favorites`,
-                );
-                if (ids.length > 1) exitMultiSelect();
-              } catch {
-                toast.error("Could not favorite items");
-              }
+              const outcome = await runBulk(
+                async () => {
+                  const results = await Promise.all(
+                    toFav.map((it) => store.toggleFavorite(it.id)),
+                  );
+                  return {
+                    done: results.reduce((n, r) => n + r.done, 0),
+                    failed: results.reduce((n, r) => n + r.failed, 0),
+                  };
+                },
+                "Added",
+                { tail: "to Favorites" },
+              );
+              if (outcome && ids.length > 1) exitMultiSelect();
             }}
           >
             <VaultRow

@@ -85,11 +85,13 @@ glossary's vocabulary — don't drift to synonyms.
   `VaultItem → NewItemInput`, encrypt-and-persist, and the canonical empty
   item all live in `src/lib/items/item-crud.ts`; use them rather than re-implementing
   the shape.
-- **Bulk actions** (trash, move, restore, clear favorites, permanently
-  delete, empty trash) live on the store, filter no-ops, and resolve to one
-  uniform `BulkResult { done, failed }` — never rejecting for row-level
-  failures; a throw is reserved for invariant violations ("Vault is
-  locked"). Optimistic delete rolls back only the rows whose IndexedDB
-  write failed, via one shared batch-delete path in the item module. The UI
-  toasts from those counts through a single reporting helper; it owns no
-  per-call result ladders of its own.
+- **Item mutations** (single or bulk — trash, restore, move, favorite/pin
+  toggles, duplicate, copy-to-vault, permanent delete, empty trash) live on
+  the store, filter no-ops, and resolve to one uniform
+  `BulkResult { done, failed }` — never rejecting for row-level failures;
+  a throw is reserved for invariant violations ("Vault is locked").
+  Optimistic delete rolls back only the rows whose IndexedDB write failed,
+  via one shared batch-delete path in the item module. Reporting is
+  per-surface: the UI toasts from those counts through a single reporting
+  helper where a report is wanted; instant-feedback toggles consume the
+  same result silently. No call site owns its own result ladder.

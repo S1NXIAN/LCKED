@@ -24,7 +24,7 @@ import {
   Trash2,
   User,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react"
+import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
 import { toast } from "sonner";
 
@@ -44,6 +44,7 @@ import { copyWithAutoClear } from "@/lib/clipboard";
 import { cn, isEmail } from "@/lib/utils";
 import { useVault } from "@/store/vault";
 
+import { runBulk } from "./bulk-report";
 import { FaviconIcon } from "./favicon-icon";
 import { FieldCluster } from "./field-cluster";
 import { ITEM_TYPE_LABELS, ItemTypeIcon } from "./item-icons";
@@ -307,41 +308,21 @@ export function ItemDetail() {
   // Handlers — defined as consts referencing `item` via closure. They're
   // only ever invoked from inside the `item ?` branch, so `item` is
   // guaranteed to be defined when they run.
-  const handleTrash = async () => {
+  const handleTrash = () => {
     if (!item) return;
-    try {
-      await trashItem(item.id);
-      toast.success("Moved to Trash");
-    } catch {
-      toast.error("Could not move to trash");
-    }
+    void runBulk(() => trashItem(item.id), "Moved", { tail: "to Trash" });
   };
-  const handleRestore = async () => {
+  const handleRestore = () => {
     if (!item) return;
-    try {
-      await restoreItem(item.id);
-      toast.success("Item restored");
-    } catch {
-      toast.error("Could not restore item");
-    }
+    void runBulk(() => restoreItem(item.id), "Restored");
   };
-  const handlePermanentDelete = async () => {
+  const handlePermanentDelete = () => {
     if (!item) return;
-    try {
-      await permanentlyDeleteItem(item.id);
-      toast.success("Item permanently deleted");
-    } catch {
-      toast.error("Could not delete item");
-    }
+    void runBulk(() => permanentlyDeleteItem(item.id), "Permanently deleted");
   };
-  const handleDuplicate = async () => {
+  const handleDuplicate = () => {
     if (!item) return;
-    try {
-      await duplicateItem(item.id);
-      toast.success("Item duplicated");
-    } catch {
-      toast.error("Could not duplicate item");
-    }
+    void runBulk(() => duplicateItem(item.id), "Duplicated");
   };
 
   return (
