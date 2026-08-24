@@ -286,10 +286,13 @@ export function VaultsSidebar() {
                   const results = await Promise.all(
                     toFav.map((it) => store.toggleFavorite(it.id)),
                   );
-                  return {
-                    done: results.reduce((n, r) => n + r.done, 0),
-                    failed: results.reduce((n, r) => n + r.failed, 0),
-                  };
+                  return results.reduce(
+                    (t, r) => ({
+                      done: t.done + r.done,
+                      failed: t.failed + r.failed,
+                    }),
+                    { done: 0, failed: 0 },
+                  );
                 },
                 "Added",
                 { tail: "to Favorites" },

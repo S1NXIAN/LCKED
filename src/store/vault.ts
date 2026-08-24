@@ -239,6 +239,24 @@ export const useVault = create<VaultState>()(
           return { done: 0, failed: 1 };
         }
       };
+
+      /**
+       * Independent copy of an existing item with policy overrides applied.
+       * The copy gets a fresh id; deleting either never affects the other.
+       */
+      const copyOf = async (
+        id: string,
+        overrides: Partial<
+          Pick<
+            VaultItem,
+            "vaultIds" | "favorite" | "pinned" | "trashed" | "trashedAt"
+          >
+        >,
+      ): Promise<BulkResult> => {
+        const item = get().items.find((i) => i.id === id);
+        if (!item) return { done: 0, failed: 0 };
+        return writeOne({ ...toItemInput(item), ...overrides });
+      };
       return {
         status: "loading",
         items: [],
@@ -447,36 +465,25 @@ export const useVault = create<VaultState>()(
           );
         },
 
-        duplicateItem: async (id) => {
-          const item = get().items.find((i) => i.id === id);
-          if (!item) return { done: 0, failed: 0 };
-          // Duplicates never inherit trashed or pinned state — they land in the
-          // active view, unpinned, ready for the user to customize. Favorite and
-          // vault membership are intentionally kept.
-          return writeOne({
-            ...toItemInput(item),
+        duplicateItem: (id) =>
+          copyOf(id, {
+            // Duplicates land unpinned and untrashed, ready for the user to
+            // customize; favorite and vault membership are intentionally kept.
             pinned: false,
             trashed: false,
             trashedAt: null,
-          });
-        },
+          }),
 
-        copyItemToVault: async (itemId, vaultId) => {
-          const item = get().items.find((i) => i.id === itemId);
-          if (!item) return { done: 0, failed: 0 };
-          // Create a fully independent copy assigned to the target vault.
-          // The copy gets a fresh ID, so deleting it never affects the original
-          // (and vice versa). This replaces the old "symlink" membership model.
-          // The copy is single-vault, unfavorited, unpinned and untrashed.
-          return writeOne({
-            ...toItemInput(item),
+        copyItemToVault: (itemId, vaultId) =>
+          copyOf(itemId, {
+            // Fully independent single-vault copy: unfavorited, unpinned,
+            // untrashed. Replaces the old "symlink" membership model.
             vaultIds: [vaultId],
             favorite: false,
             pinned: false,
             trashed: false,
             trashedAt: null,
-          });
-        },
+          }),
 
         importItems: async (filename, text) => {
           const vaultKey = requireVaultKey();
@@ -643,5 +650,3 @@ export const useVault = create<VaultState>()(
     },
   ),
 );
-
-export { decryptLckedExport } from "@/lib/vault/vault-auth";
