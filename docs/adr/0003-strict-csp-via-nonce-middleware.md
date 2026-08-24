@@ -20,10 +20,15 @@ alongside via the framework's response-header config.
 
 ## Consequences
 
-- Development relaxes `script-src`/`style-src` only (`NODE_ENV`-gated) so
-  hot reload keeps working; production stays strict. Dev is intentionally a
-  weaker environment than what users receive.
+- Development relaxes `script-src` (`unsafe-eval` for hot reload) and drops
+  `upgrade-insecure-requests` (dev serves plain HTTP), both `NODE_ENV`-gated;
+  production stays strict. Dev is intentionally a weaker environment than
+  what users receive.
+
 - Any future third-party script or origin (analytics, fonts, new icon host)
   requires a deliberate CSP edit and review — that friction is the point.
-- Verification must run against the production build (`next build &&
-`next start``), since dev never exercises the strict policy.
+  `next start`), since dev never exercises the strict policy. Implementation
+  lives in `src/proxy.ts` (per-request nonce + CSP construction — the single
+  place to edit when adding an origin) and the static header set in
+  `next.config.ts`; `scripts/security-headers-smoke.sh` asserts the served
+  headers.
