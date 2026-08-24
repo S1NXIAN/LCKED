@@ -80,7 +80,8 @@ export interface BaseItem {
    *  "All Items" only (no specific vault). An item may belong to several
    *  vaults at once. Migrated from the old singular `vaultId: string | null`. */
   vaultIds: string[];
-  /** Soft-delete flag — trashed items live 30 days before auto-purge. */
+  /** Soft-delete flag — the Item loader purges trashed items after
+   *  TRASH_TTL_MS (30 days) at the next unlock. */
   trashed: boolean;
   /** Epoch ms when the item was trashed (null if not trashed). */
   trashedAt: number | null;

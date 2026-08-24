@@ -23,11 +23,7 @@ import {
   wrapVaultKey,
 } from "@/lib/crypto";
 import type { LckedExport } from "@/lib/import";
-import {
-  encryptAndPersist,
-  ITEM_DEFAULTS,
-  sortItems,
-} from "@/lib/items/item-crud";
+import { loadDecryptedItems } from "@/lib/items/item-loader";
 import type {
   VaultDef,
   VaultItem,
@@ -35,12 +31,7 @@ import type {
   VaultSettings,
 } from "@/lib/types";
 import { DEFAULT_VAULT_SETTINGS } from "@/lib/types";
-import {
-  deleteStoredItem,
-  loadAllStoredItems,
-  loadVaultMeta,
-  saveVaultMeta,
-} from "@/lib/vault/vault-db";
+import { loadVaultMeta, saveVaultMeta } from "@/lib/vault/vault-db";
 
 /* ─── Types ─────────────────────────────────────────────── */
 
@@ -149,88 +140,9 @@ export async function unlockVault(
     masterKey,
   );
 
-  // Decrypt every stored item in parallel. Each item is decrypted, migrated,
-  // and TTL-checked in its own async task.
-  const TRASH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-  const now = Date.now();
-  const stored = await loadAllStoredItems();
-
-  type DecryptOutcome =
-    | { kind: "ok"; item: VaultItem; migrated: boolean }
-    | { kind: "expired"; id: string }
-    | { kind: "error"; id: string };
-
-  const outcomes = await Promise.all(
-    stored.map(async (s): Promise<DecryptOutcome> => {
-      try {
-        const item = await decryptJson<VaultItem>(s.ciphertext, s.iv, vaultKey);
-        let migrated = false;
-        // Missing newer fields inherit the canonical empty-item defaults so
-        // legacy records agree with freshly-created ones (ITEM_DEFAULTS).
-        const patch: Partial<VaultItem> = {};
-        if (item.vaultIds === undefined) {
-          patch.vaultIds = ITEM_DEFAULTS.vaultIds;
-          migrated = true;
-        }
-        if (item.trashed === undefined) {
-          patch.trashed = ITEM_DEFAULTS.trashed;
-          migrated = true;
-        }
-        if (item.trashedAt === undefined) {
-          patch.trashedAt = ITEM_DEFAULTS.trashedAt;
-          migrated = true;
-        }
-        if (item.customFields === undefined) {
-          patch.customFields = ITEM_DEFAULTS.customFields;
-          migrated = true;
-        }
-        if (item.favorite === undefined) {
-          patch.favorite = ITEM_DEFAULTS.favorite;
-          migrated = true;
-        }
-        if (item.pinned === undefined) {
-          patch.pinned = ITEM_DEFAULTS.pinned;
-          migrated = true;
-        }
-        if (item.folder === undefined) {
-          patch.folder = ITEM_DEFAULTS.folder;
-          migrated = true;
-        }
-        Object.assign(item, patch);
-        if (
-          item.trashed &&
-          item.trashedAt &&
-          now - item.trashedAt > TRASH_TTL_MS
-        ) {
-          return { kind: "expired", id: item.id };
-        }
-        return { kind: "ok", item, migrated };
-      } catch {
-        return { kind: "error", id: s.id };
-      }
-    }),
-  );
-
-  const items: VaultItem[] = [];
-  const toReencrypt: VaultItem[] = [];
-  for (const o of outcomes) {
-    if (o.kind === "ok") {
-      if (o.migrated) toReencrypt.push(o.item);
-      items.push(o.item);
-    } else if (o.kind === "expired") {
-      try {
-        await deleteStoredItem(o.id);
-      } catch {
-        /* best-effort */
-      }
-    }
-  }
-  if (toReencrypt.length > 0) {
-    await Promise.all(
-      toReencrypt.map(async (it) => encryptAndPersist(it, vaultKey)),
-    );
-  }
-  const sortedItems = sortItems(items);
+  // Item policy lives in the item domain: decrypt, migrate legacy records,
+  // purge expired Trash. Auth only answers "is this the Master Password?".
+  const items = await loadDecryptedItems(vaultKey);
 
   const vaults: VaultDef[] = Array.isArray(meta.vaults) ? meta.vaults : [];
 
@@ -239,9 +151,9 @@ export async function unlockVault(
     masterKey,
     vaultKey,
     masterPassword,
-    items: sortedItems,
     vaults,
     settings: { ...DEFAULT_VAULT_SETTINGS, ...meta.settings },
+    items,
   };
 }
 

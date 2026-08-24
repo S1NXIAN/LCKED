@@ -35,6 +35,10 @@ glossary's vocabulary — don't drift to synonyms.
   (`ITEM_DEFAULTS` in `src/lib/items/item-crud.ts`), and legacy records are migrated
   onto the same defaults at unlock.
 
+  - **Item loader** — load-time policy for stored Items: decrypt with the
+    Vault Key, migrate legacy records onto canonical defaults, purge expired
+    Trash (`loadDecryptedItems` in `src/lib/items/item-loader.ts`). Unlock
+    calls it; export/backup features should too.
 - **Export** — producing a file from the current items: a plain CSV
   (`exportToCsv`) or an encrypted **Backup**. `src/lib/import/` owns the
   parsers and exporters.
@@ -60,9 +64,9 @@ glossary's vocabulary — don't drift to synonyms.
   restore above.
 
 - **Trash** — soft-delete. Trashing marks an item `trashed` + `trashedAt`
-  (record stays encrypted in IndexedDB, so it can be untrashed). On the next
-  unlock, items trashed more than 30 days ago are purged (TTL). Permanent
-  delete removes the ciphertext outright.
+  (record stays encrypted in IndexedDB, so it can be untrashed). The Item
+  loader purges items trashed more than 30 days ago (TTL) at the next
+  unlock. Permanent delete removes the ciphertext outright.
 
 - **Favorites** — a per-item `favorite` flag with a bulk `clearFavorites`
   action.

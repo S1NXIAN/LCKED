@@ -92,7 +92,8 @@ export interface VaultState {
 
   // item CRUD — every mutation resolves to one uniform BulkResult
   saveItem: (input: NewItemInput, existingId?: string) => Promise<VaultItem>;
-  /** Soft-delete — moves the item to Trash with a 30-day TTL. */
+  /** Soft-delete — moves the item to Trash; the Item loader purges it
+   *  after TRASH_TTL_MS at the next unlock. */
   trashItem: (id: string) => Promise<BulkResult>;
   restoreItem: (id: string) => Promise<BulkResult>;
   permanentlyDeleteItem: (id: string) => Promise<BulkResult>;
@@ -416,8 +417,8 @@ export const useVault = create<VaultState>()(
 
         /**
          * Soft-delete: marks the item as trashed and stamps trashedAt. The record
-         * stays in IndexedDB (still encrypted) so it can be restored. Auto-purged
-         * 30 days later on the next unlock.
+         * stays in IndexedDB (still encrypted) so it can be untrashed. Purged by
+         * the Item loader after TRASH_TTL_MS at the next unlock.
          */
         trashItem: (id) =>
           mutateItems(
