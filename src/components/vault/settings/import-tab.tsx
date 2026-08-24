@@ -1,7 +1,7 @@
 "use client";
 
 import { FileUp, Loader2, Upload } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react"
+import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
@@ -52,10 +52,10 @@ export function ImportTab() {
         <p className="text-muted-foreground text-xs">
           Click your previous provider to choose an export file. Supported
           formats: Bitwarden{" "}
-          <span className="text-foreground/80">JSON / CSV</span>, Chrome /
-          Firefox / Proton Pass <span className="text-foreground/80">CSV</span>,
-          KeePassXC <span className="text-foreground/80">XML</span>. LCKED
-          auto-detects the format.
+          <span className="text-foreground/80">JSON / CSV</span>, Proton Pass{" "}
+          <span className="text-foreground/80">CSV</span>, KeePassXC{" "}
+          <span className="text-foreground/80">XML</span>. LCKED auto-detects
+          the format.
         </p>
       </header>
 

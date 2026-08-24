@@ -48,6 +48,8 @@ import * as vaultManager from "@/lib/vault/vault-manager";
 import type { RestoreResult } from "@/lib/vault/vault-restore";
 import * as vaultRestore from "@/lib/vault/vault-restore";
 
+export type SettingsTab = "general" | "security" | "import" | "export";
+
 export type VaultStatus = "loading" | "setup" | "locked" | "unlocked";
 
 export interface VaultState {
@@ -80,7 +82,9 @@ export interface VaultState {
    *  overwrites it, so a stale pick can never leak into a later open. */
   editorNewType: ItemType | null;
   generatorOpen: boolean;
-  importExportOpen: boolean;
+  /** Which Settings tab is showing; every open resets it unless a tab is
+   *  passed (the empty-list CTA deep-links to Import). */
+  settingsTab: SettingsTab;
   settingsOpen: boolean;
 
   // lifecycle
@@ -167,8 +171,7 @@ export interface VaultState {
     newType?: ItemType | null,
   ) => void;
   setGeneratorOpen: (open: boolean) => void;
-  setImportExportOpen: (open: boolean) => void;
-  setSettingsOpen: (open: boolean) => void;
+  setSettingsOpen: (open: boolean, tab?: SettingsTab) => void;
 }
 
 export const useVault = create<VaultState>()(
@@ -300,7 +303,7 @@ export const useVault = create<VaultState>()(
         editorItemId: null,
         editorNewType: null,
         generatorOpen: false,
-        importExportOpen: false,
+        settingsTab: "general",
         settingsOpen: false,
 
         /* ------------------------------ lifecycle ------------------------------ */
@@ -363,7 +366,7 @@ export const useVault = create<VaultState>()(
             editorOpen: false,
             editorNewType: null,
             generatorOpen: false,
-            importExportOpen: false,
+            settingsTab: "general",
             settingsOpen: false,
             vaultEditorOpen: false,
             editingVaultId: null,
@@ -389,7 +392,7 @@ export const useVault = create<VaultState>()(
             editorOpen: false,
             editorNewType: null,
             generatorOpen: false,
-            importExportOpen: false,
+            settingsTab: "general",
             settingsOpen: false,
             vaultEditorOpen: false,
             editingVaultId: null,
@@ -699,11 +702,13 @@ export const useVault = create<VaultState>()(
             editorNewType: newType,
           }),
         setGeneratorOpen: (open) => set({ generatorOpen: open }),
-        setImportExportOpen: (open) => set({ importExportOpen: open }),
-        // Opening settings no longer mutates `activeVault` (B-7). The
-        // vaults-sidebar hides the indicator when `settingsOpen` is true, and
-        // the user's active vault is preserved for when settings closes.
-        setSettingsOpen: (open) => set({ settingsOpen: open }),
+        // Opening Settings without an explicit tab always lands on General
+        // (sidebar button); the empty-list CTA passes "import" to deep-link.
+        setSettingsOpen: (open, tab = "general") =>
+          set({ settingsOpen: open, settingsTab: tab }),
+        // Opening Settings no longer mutates `activeVault` (B-7): the
+        // vaults-sidebar hides the indicator while `settingsOpen` is true,
+        // and the user's active vault is preserved for when Settings closes.
       };
     },
     {

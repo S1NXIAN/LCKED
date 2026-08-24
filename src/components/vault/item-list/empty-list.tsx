@@ -15,7 +15,7 @@ export function EmptyList({
   onCreate: () => void;
 }) {
   const setActiveVault = useVault((s) => s.setActiveVault);
-  const setImportExportOpen = useVault((s) => s.setImportExportOpen);
+  const setSettingsOpen = useVault((s) => s.setSettingsOpen);
   return (
     // Background matches the populated list exactly (no dotted grid) so the
     // transition between empty and non-empty is seamless — the dots-to-solid
@@ -45,9 +45,9 @@ export function EmptyList({
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => setImportExportOpen(true)}
+            onClick={() => setSettingsOpen(true, "import")}
           >
-            Import from Bitwarden / 1Password / Proton Pass
+            Import from another password manager
           </Button>
         </div>
       )}

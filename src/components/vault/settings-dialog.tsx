@@ -31,13 +31,12 @@ import {
   ShieldCheck,
   Upload,
 } from "lucide-react";
-import { motion } from "motion/react"
-import * as React from "react";
+import { motion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { useVault } from "@/store/vault";
+import { type SettingsTab, useVault } from "@/store/vault";
 
 import { ExportTab } from "./settings/export-tab";
 import { GeneralTab } from "./settings/general-tab";
@@ -46,10 +45,8 @@ import { SecurityTab } from "./settings/security-tab";
 
 /* --------------------------------- types --------------------------------- */
 
-type TabId = "general" | "security" | "import" | "export";
-
 interface TabDef {
-  id: TabId;
+  id: SettingsTab;
   label: string;
   icon: LucideIcon;
 }
@@ -64,9 +61,9 @@ const TABS: TabDef[] = [
 /* ============================== SettingsView ============================== */
 
 export function SettingsView() {
-  const setOpen = useVault((s) => s.setSettingsOpen);
+  const setSettingsOpen = useVault((s) => s.setSettingsOpen);
+  const tab = useVault((s) => s.settingsTab);
   const items = useVault((s) => s.items);
-  const [tab, setTab] = React.useState<TabId>("general");
 
   return (
     <div className="bg-background flex h-full min-h-0 w-full flex-col">
@@ -76,7 +73,7 @@ export function SettingsView() {
           variant="ghost"
           size="icon"
           className="text-muted-foreground h-8 w-8"
-          onClick={() => setOpen(false)}
+          onClick={() => setSettingsOpen(false)}
           aria-label="Back to vault"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -105,7 +102,7 @@ export function SettingsView() {
               key={t.id}
               role="tab"
               aria-selected={active}
-              onClick={() => setTab(t.id)}
+              onClick={() => setSettingsOpen(true, t.id)}
               className={cn(
                 "relative flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors",
                 active
@@ -130,7 +127,10 @@ export function SettingsView() {
       {/* Body: scrollable */}
       <div className="lcked-scroll min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-3xl px-4 py-6">
-          <Tabs value={tab} onValueChange={(v) => setTab(v as TabId)}>
+          <Tabs
+            value={tab}
+            onValueChange={(v) => setSettingsOpen(true, v as SettingsTab)}
+          >
             <TabsContent
               value="general"
               className="m-0 space-y-6 focus-visible:outline-none"

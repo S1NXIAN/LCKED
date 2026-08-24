@@ -475,6 +475,26 @@ describe("UI commands ride store transitions", () => {
     expect(useVault.getState().editorNewType).toBeNull();
   });
 
+  it("setSettingsOpen deep-links a tab; opening without one lands on General", () => {
+    useVault.getState().setSettingsOpen(true, "import");
+    expect(useVault.getState().settingsOpen).toBe(true);
+    expect(useVault.getState().settingsTab).toBe("import");
+
+    // The sidebar button opens without a tab — always General.
+    useVault.getState().setSettingsOpen(true);
+    expect(useVault.getState().settingsOpen).toBe(true);
+    expect(useVault.getState().settingsTab).toBe("general");
+  });
+
+  it("switching Settings tabs keeps the view open", () => {
+    useVault.getState().setSettingsOpen(true, "import");
+    useVault.getState().setSettingsOpen(true, "security");
+
+    const s = useVault.getState();
+    expect(s.settingsOpen).toBe(true);
+    expect(s.settingsTab).toBe("security");
+  });
+
   it("deleting the active vault also exits multi-select (IL-3)", async () => {
     const vault = await useVault.getState().createVault("Temp", "blue", "box");
     useVault.getState().setActiveVault(vault.id);
@@ -488,10 +508,11 @@ describe("UI commands ride store transitions", () => {
     expect(s.multiSelectIds.size).toBe(0);
   });
 
-  it("lock resets the filter, selection and editor handoff", () => {
+  it("lock resets the filter, selection, editor handoff and Settings view", () => {
     useVault.getState().setTypeFilter("login");
     useVault.getState().beginMultiSelect(["a"]);
     useVault.getState().setEditorOpen(true, null, "identity");
+    useVault.getState().setSettingsOpen(true, "export");
 
     useVault.getState().lock();
 
@@ -500,6 +521,8 @@ describe("UI commands ride store transitions", () => {
     expect(s.multiSelect).toBe(false);
     expect(s.multiSelectIds.size).toBe(0);
     expect(s.editorNewType).toBeNull();
+    expect(s.settingsOpen).toBe(false);
+    expect(s.settingsTab).toBe("general");
   });
 });
 

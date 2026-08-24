@@ -39,6 +39,15 @@ glossary's vocabulary — don't drift to synonyms.
     Vault Key, migrate legacy records onto canonical defaults, purge expired
     Trash (`loadDecryptedItems` in `src/lib/items/item-loader.ts`). Unlock
     calls it; export/backup features should too.
+
+- **Import** — bringing credentials from another password manager into the
+  Vault through the `src/lib/import/` parsers. One-way and best-effort: rows
+  map onto Item defaults, per-row failures are reported, never fatal. Not a
+  Backup round-trip — see Backup.
+- **Sources** — the catalog of origin password managers Import accepts
+  (`IMPORT_SOURCES` in `src/lib/import/sources.ts`: id, display label, icon,
+  file hint). UI renders the manager list from the catalog; no surface
+  hardcodes it.
 - **Export** — producing a file from the current items: a plain CSV
   (`exportToCsv`) or an encrypted **Backup**. `src/lib/import/` owns the
   parsers and exporters.

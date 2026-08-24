@@ -3,9 +3,8 @@
  * ---------------------------------------------------------------------------
  * The shared choreography behind every surface that triggers an import or an
  * export: file reading, format detection, validation, toasts, and export
- * filenames live here once. The import/export dialog and the settings tabs
- * are thin skins that keep only their own busy/file state and
- * close-or-reset behaviour.
+ * filenames live here once. The Settings tabs are thin skins that keep only
+ * their own busy/file state and close-or-reset behaviour.
  *
  * Every function takes its store actions as parameters — no store import —
  * so callers stay explicit and tests inject fakes.

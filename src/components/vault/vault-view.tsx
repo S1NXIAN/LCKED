@@ -15,7 +15,7 @@ import {
   StickyNote,
   UserRound,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react"
+import { AnimatePresence, motion } from "motion/react";
 import dynamic from "next/dynamic";
 import * as React from "react";
 
@@ -37,7 +37,6 @@ import { useVault } from "@/store/vault";
 
 import { AutoLockManager } from "./auto-lock-manager";
 import { DiamondMark } from "./diamond-mark";
-import { ImportExportDialog } from "./import-export-dialog";
 import { ItemDetail } from "./item-detail";
 import { ItemList } from "./item-list";
 import { ThemeToggle } from "./theme-toggle";
@@ -369,7 +368,6 @@ export function VaultView() {
       {/* Dialogs & overlays */}
       <ItemEditor />
       <PasswordGeneratorDialog />
-      <ImportExportDialog />
       <CreateVaultDialog />
     </TooltipProvider>
   );

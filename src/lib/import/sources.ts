@@ -14,8 +14,8 @@
  * To replace a placeholder icon with the real brand icon, just overwrite
  * the PNG file at /public/icons/pm/<id>.png — no code changes needed.
  *
- * No changes to settings-dialog.tsx or import-export-dialog.tsx are needed —
- * they both read from this catalog dynamically.
+ * No changes to settings-dialog.tsx are needed — it reads from this
+ * catalog dynamically.
  */
 
 export interface ImportSource {
@@ -35,13 +35,6 @@ export const IMPORT_SOURCES: ImportSource[] = [
     label: "Bitwarden",
     icon: "/icons/pm/bitwarden.png",
     hint: "JSON / CSV",
-  },
-  { id: "chrome", label: "Chrome", icon: "/icons/pm/chrome.png", hint: "CSV" },
-  {
-    id: "firefox",
-    label: "Firefox",
-    icon: "/icons/pm/firefox.png",
-    hint: "CSV",
   },
   {
     id: "proton-pass",
