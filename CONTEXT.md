@@ -43,7 +43,10 @@ glossary's vocabulary — don't drift to synonyms.
 - **Import** — bringing credentials from another password manager into the
   Vault through the `src/lib/import/` parsers. One-way and best-effort: rows
   map onto Item defaults, per-row failures are reported, never fatal. Not a
-  Backup round-trip — see Backup.
+  Backup round-trip — see Backup. A file whose shape matches no known source
+  is an **Unrecognized import** — a warning result with zero Items; nothing
+  is guessed.
+
 - **Sources** — the catalog of origin password managers Import accepts
   (`IMPORT_SOURCES` in `src/lib/import/sources.ts`: id, display label, icon,
   file hint). UI renders the manager list from the catalog; no surface

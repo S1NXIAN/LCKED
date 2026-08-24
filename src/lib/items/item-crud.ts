@@ -210,9 +210,9 @@ export async function writeItem(
  * Batch-create items with partial-failure resilience.
  * Each item is encrypted and persisted independently via allSettled.
  *
- * @param vaultKey  Decrypted vault CryptoKey.
- * @param items     Raw parsed items (no IDs; timestamps, if any, are
- *                  deliberately discarded — every import is stamped fresh).
+ * @param items     Raw parsed items (no IDs). Optional createdAt/updatedAt
+ *                  overrides are honored on create (restore-only, matching
+ *                  writeItem); absent ones are stamped fresh.
  * @returns         `{ succeeded, failed }` — succeeded are the fully-built
  *                  VaultItem instances (with id, createdAt, updatedAt set).
  */
@@ -227,8 +227,8 @@ export async function writeItems(
     ...ITEM_DEFAULTS,
     ...(input as VaultItem),
     id: randomId(),
-    createdAt: now,
-    updatedAt: now,
+    createdAt: input.createdAt ?? now,
+    updatedAt: input.updatedAt ?? now,
     trashed: ITEM_DEFAULTS.trashed,
     trashedAt: ITEM_DEFAULTS.trashedAt,
     vaultIds: (input as VaultItem).vaultIds ?? ITEM_DEFAULTS.vaultIds,

@@ -44,6 +44,14 @@ export async function runImport(
 ): Promise<boolean> {
   try {
     const result = await importItems(file.name, await file.text());
+    // Nothing recognized (unknown format, or every row rejected): warn loudly
+    // instead of a green "Imported 0 items" that could pass for success.
+    if (result.imported === 0 && result.warnings.length > 0) {
+      toast.warning("File not recognized", {
+        description: result.warnings[0],
+      });
+      return false;
+    }
     toast.success(
       `Imported ${result.imported} item${result.imported === 1 ? "" : "s"}`,
       {

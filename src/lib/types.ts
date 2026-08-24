@@ -126,8 +126,8 @@ type DistributedOmit<T, K extends PropertyKey> = T extends unknown
 /** A vault item as accepted for create/save — union preserved via
  *  DistributedOmit, so `form.type === "login"` narrows `.details`.
  *  `createdAt`/`updatedAt` are restore-only overrides: when present,
- *  writeItem preserves them instead of stamping now. Ordinary creates and
- *  third-party imports leave them off and get fresh stamps. */
+ *  writeItem and writeItems preserve them instead of stamping now.
+ *  Ordinary creates leave them off and get fresh stamps. */
 export type NewItemInput = DistributedOmit<
   VaultItem,
   "id" | "createdAt" | "updatedAt"
@@ -259,4 +259,5 @@ export type ImportFormat =
   | "1password-csv"
   | "protonpass-csv"
   | "keepassxc-xml"
-  | "lcked-json";
+  | "lcked-json"
+  | "unknown";

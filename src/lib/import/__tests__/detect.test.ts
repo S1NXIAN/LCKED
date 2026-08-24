@@ -26,6 +26,30 @@ describe("detectFormat", () => {
     expect(detectFormat("export.csv", "name,card_pin\n")).toBe("bitwarden-csv");
   });
 
+  it("detects bitwarden-csv from a logins-only export header", () => {
+    expect(
+      detectFormat(
+        "export.csv",
+        "folder,favorite,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp\n",
+      ),
+    ).toBe("bitwarden-csv");
+  });
+
+  it("detects bitwarden-csv from mixed-case login headers", () => {
+    expect(detectFormat("export.csv", "Name,LOGIN_URI,Login_Password\n")).toBe(
+      "bitwarden-csv",
+    );
+  });
+
+  it("detects LCKED's own CSV round-trip as bitwarden-csv", () => {
+    expect(
+      detectFormat(
+        "lcked-vault.csv",
+        "name,type,folder,favorite,pinned,login_username,login_password,login_urls,login_totp,note_content,card_cardholder,card_number,card_pin,identity_first_name,identity_email,identity_company\n",
+      ),
+    ).toBe("bitwarden-csv");
+  });
+
   it("detects protonpass-csv from .csv with item_type header", () => {
     expect(detectFormat("export.csv", "item_type,name\n")).toBe(
       "protonpass-csv",
@@ -36,10 +60,20 @@ describe("detectFormat", () => {
     expect(detectFormat("export.csv", "Title,Url\n")).toBe("1password-csv");
   });
 
-  it("defaults unknown CSV to bitwarden-csv", () => {
-    expect(detectFormat("export.csv", "unknown,columns\n")).toBe(
-      "bitwarden-csv",
-    );
+  it("reports browser CSV shapes as unknown instead of guessing", () => {
+    expect(
+      detectFormat("passwords.csv", "name,url,username,password,note\n"),
+    ).toBe("unknown");
+    expect(
+      detectFormat(
+        "logins.csv",
+        "url,username,password,httpRealm,formActionOrigin,guid,timeCreated,timeLastUsed,timePasswordChanged\n",
+      ),
+    ).toBe("unknown");
+  });
+
+  it("reports unrecognized CSV columns as unknown", () => {
+    expect(detectFormat("export.csv", "unknown,columns\n")).toBe("unknown");
   });
 
   it("detects bitwarden-json from content sniffing on unknown extension", () => {
@@ -53,6 +87,10 @@ describe("detectFormat", () => {
         '<?xml version="1.0"?><KeePassFile><Entry></Entry></KeePassFile>',
       ),
     ).toBe("keepassxc-xml");
+  });
+
+  it("reports unrecognized plain-text content as unknown", () => {
+    expect(detectFormat("data.txt", "just some text\n")).toBe("unknown");
   });
 });
 
@@ -127,6 +165,19 @@ describe("importFromText dispatch", () => {
     const { result, items } = importFromText("export.json", text);
     expect(result.format).toBe("lcked-json");
     expect(result.raw).toBeDefined();
+    expect(items).toEqual([]);
+  });
+
+  it("resolves unknown formats to a warning result with zero items", () => {
+    const { result, items } = importFromText(
+      "export.csv",
+      "name,url,username,password,note\na,https://x,u,p,\n",
+    );
+
+    expect(result.format).toBe("unknown");
+    expect(result.imported).toBe(0);
+    expect(result.skipped).toBe(0);
+    expect(result.warnings).toHaveLength(1);
     expect(items).toEqual([]);
   });
 

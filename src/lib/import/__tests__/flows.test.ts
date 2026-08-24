@@ -11,7 +11,7 @@ import {
 
 // The flows module is the seam under test; toast + download are its edges.
 vi.mock("sonner", () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
 }));
 vi.mock("@/lib/browser-utils", () => ({
   download: vi.fn(),
@@ -92,6 +92,26 @@ describe("runImport", () => {
       "Imported 1 item",
       expect.objectContaining({ description: "3 skipped. bad row" }),
     );
+  });
+
+  it("warns instead of celebrating when nothing was recognized", async () => {
+    const importItems = vi.fn().mockResolvedValue({
+      imported: 0,
+      skipped: 0,
+      warnings: ["Unrecognized file format"],
+    });
+
+    const ok = await runImport(
+      makeReadableFile("mystery.csv", "file-body"),
+      importItems,
+    );
+
+    expect(ok).toBe(false);
+    expect(toast.warning).toHaveBeenCalledWith(
+      "File not recognized",
+      expect.objectContaining({ description: "Unrecognized file format" }),
+    );
+    expect(toast.success).not.toHaveBeenCalled();
   });
 
   it("toasts a friendly failure and reports it", async () => {

@@ -48,4 +48,10 @@ export const IMPORT_SOURCES: ImportSource[] = [
     icon: "/icons/pm/keepassxc.png",
     hint: "XML",
   },
+  {
+    id: "onepassword",
+    label: "1Password",
+    icon: "/icons/pm/onepassword.png",
+    hint: "CSV",
+  },
 ];

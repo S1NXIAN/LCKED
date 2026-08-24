@@ -273,7 +273,7 @@ describe("writeItems", () => {
     expect(result.succeeded[1].name).toBe("b");
   });
 
-  it("stamps fresh timestamps even when input carries them (third-party imports)", async () => {
+  it("honors timestamps carried by the input; unstamped items get fresh ones", async () => {
     const items = [
       {
         type: "login",
@@ -288,12 +288,14 @@ describe("writeItems", () => {
           notes: "",
         },
       },
+      { type: "note", name: "fresh", details: { content: "hello" } },
     ] as unknown as NewItemInput[];
 
     const result = await writeItems(mockVaultKey, items);
 
-    expect(result.succeeded[0].createdAt).not.toBe(1111);
-    expect(result.succeeded[0].updatedAt).not.toBe(2222);
+    expect(result.succeeded[0].createdAt).toBe(1111);
+    expect(result.succeeded[0].updatedAt).toBe(2222);
+    expect(result.succeeded[1].createdAt).not.toBe(1111);
   });
   it("partial failure does not lose successes", async () => {
     const { encryptJson } = await import("@/lib/crypto");

@@ -26,6 +26,17 @@ export { parseOnePasswordCsv } from "./onepassword";
 export { parseProtonPassCsv } from "./protonpass";
 export type { ImportFormat } from "@/lib/types";
 
+/** Columns only Bitwarden (or LCKED's Bitwarden-shaped CSV round-trip)
+ *  emit; any one of them in the header row identifies the format. */
+const BITWARDEN_CSV_MARKERS = [
+  "login_uri",
+  "login_username",
+  "login_password",
+  "login_totp",
+  "card_pin",
+  "identity_company",
+];
+
 export function detectFormat(filename: string, text: string): ImportFormat {
   const lower = filename.toLowerCase();
   const trimmed = text.trim();
@@ -43,16 +54,17 @@ export function detectFormat(filename: string, text: string): ImportFormat {
   }
   if (lower.endsWith(".csv")) {
     const firstLine = (trimmed.split(/\r?\n/)[0] || "").toLowerCase();
-    if (
-      firstLine.includes("card_pin") ||
-      firstLine.includes("identity_company")
-    )
+    // `item_type` is the Proton Pass marker — checked first because its
+    // `login_*` columns would otherwise meet the Bitwarden fingerprint.
+    if (firstLine.includes("item_type")) return "protonpass-csv";
+    // Bitwarden's distinctive columns route every remaining export shape
+    // (logins-only included) plus LCKED's own Bitwarden-shaped CSV
+    // round-trip; anything else is unknown rather than a guess.
+    if (BITWARDEN_CSV_MARKERS.some((marker) => firstLine.includes(marker)))
       return "bitwarden-csv";
-    if (firstLine.includes("item_type") || firstLine.includes("login_urls"))
-      return "protonpass-csv";
     if (firstLine.includes("title") && firstLine.includes("url"))
       return "1password-csv";
-    return "bitwarden-csv";
+    return "unknown";
   }
   if (trimmed.startsWith("{") || trimmed.startsWith("["))
     return "bitwarden-json";
@@ -62,7 +74,7 @@ export function detectFormat(filename: string, text: string): ImportFormat {
   ) {
     return "keepassxc-xml";
   }
-  return "bitwarden-csv";
+  return "unknown";
 }
 
 /** Run the appropriate parser and return the prepared items. */
@@ -93,6 +105,14 @@ export function importFromText(
       break;
     case "lcked-json":
       result = parseLckedJson(text);
+      break;
+    case "unknown":
+      result = {
+        imported: 0,
+        skipped: 0,
+        warnings: ["Unrecognized file format — no supported source matches."],
+        format: "unknown",
+      };
       break;
   }
   const items: NewItemInput[] = result.items ?? [];
