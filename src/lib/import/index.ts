@@ -111,7 +111,6 @@ export function importFromText(
         imported: 0,
         skipped: 0,
         warnings: ["Unrecognized file format — no supported source matches."],
-        format: "unknown",
       };
       break;
   }

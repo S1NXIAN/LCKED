@@ -174,7 +174,6 @@ describe("importFromText dispatch", () => {
       "name,url,username,password,note\na,https://x,u,p,\n",
     );
 
-    expect(result.format).toBe("unknown");
     expect(result.imported).toBe(0);
     expect(result.skipped).toBe(0);
     expect(result.warnings).toHaveLength(1);
