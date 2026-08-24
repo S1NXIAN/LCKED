@@ -80,8 +80,7 @@ if [[ -z "$CSP" ]]; then
 fi
 
 assert_contains "default-src 'self'" "default-src 'self'" "$CSP"
-assert_contains "img-src allows data:" "img-src 'self' data:" "$CSP"
-assert_contains "img-src allows DuckDuckGo icon host" \
+assert_contains "img-src allows data: and DuckDuckGo icon host" \
   "img-src 'self' data: https://icons.duckduckgo.com" "$CSP"
 assert_contains "style-src allows inline styles" \
   "style-src 'self' 'unsafe-inline'" "$CSP"
@@ -103,10 +102,6 @@ NONCE_ONE="$(sed -n "s/.*'nonce-\([^']*\)'.*/\1/p" <<<"$CSP")"
 if [[ -z "$NONCE_ONE" ]]; then
   echo "FAIL     nonce extraction"
   FAILURES=$((FAILURES + 1))
-elif [[ "$HEADERS" != *"x-nonce: $NONCE_ONE"* ]] && [[ "$BASE_URL" != *https* ]]; then
-  # x-nonce travels on the forwarded request headers, not the response; this
-  # check only runs as an informational warning because Next strips it.
-  echo "note     response x-nonce differs from CSP nonce (expected)"
 fi
 
 CSP_TWO="$(curl -sIL "$BASE_URL/" | tr -d '\r' | sed -n 's/^Content-Security-Policy: //Ip' | tail -n 1)"

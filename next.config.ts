@@ -17,7 +17,7 @@ const SECURITY_HEADERS = [
   },
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
   { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
-] as const;
+];
 
 const nextConfig: NextConfig = {
   // Disable sharp image optimization — the app doesn't use next/image.
@@ -35,7 +35,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/:path*",
-        headers: [...SECURITY_HEADERS],
+        headers: SECURITY_HEADERS,
       },
     ];
   },
