@@ -21,8 +21,8 @@ import { useVault } from "@/store/vault";
 /* --------------------------- MultiSelectBar --------------------------- */
 
 /**
- * Action bar for multi-select mode. The selection itself is owned by
- * ItemList and arrives via props; bulk actions apply to exactly the ids in
+ * Action bar for multi-select mode. The selection lives in the vault store
+ * and arrives via props; bulk actions apply to exactly the ids in
  * `selectedIds`, and every action ends by exiting multi-select mode.
  */
 export function MultiSelectBar({
@@ -34,8 +34,8 @@ export function MultiSelectBar({
 }: {
   /** Whether multi-select mode is on — the bar mounts while true. */
   open: boolean;
-  setMultiSelect: React.Dispatch<React.SetStateAction<boolean>>;
-  /** Live selection owned by ItemList — the ids bulk actions apply to. */
+  setMultiSelect: (on: boolean) => void;
+  /** Live selection from the store — the ids bulk actions apply to. */
   selectedIds: Set<string>;
   vaults: { id: string; name: string; icon: string; color: string }[];
   isTrashView: boolean;

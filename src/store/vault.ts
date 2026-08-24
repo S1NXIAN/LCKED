@@ -22,8 +22,10 @@ import {
 import {
   type BulkResult,
   DEFAULT_VAULT_SETTINGS,
+  type FilterType,
   type GeneratorOptions,
   type ImportResult,
+  type ItemType,
   type NewItemInput,
   type VaultDef,
   type VaultItem,
@@ -63,12 +65,20 @@ export interface VaultState {
   /** UI-only selection / filter state (not persisted). */
   selectedId: string | null;
   searchQuery: string;
+  /** Secondary list filter by Item kind ("all" | login/note/card/identity). */
+  typeFilter: FilterType;
+  /** Multi-select mode; the ids are the targets for list bulk actions. */
+  multiSelect: boolean;
+  multiSelectIds: Set<string>;
   /** CryptoKey handles — held in memory only while unlocked. */
   masterKey: CryptoKey | null;
   vaultKey: CryptoKey | null;
   /** Whether the active editor is open (and which item, if editing). */
   editorOpen: boolean;
   editorItemId: string | null;
+  /** Type pre-picked for a brand-new Item. Every setEditorOpen call
+   *  overwrites it, so a stale pick can never leak into a later open. */
+  editorNewType: ItemType | null;
   generatorOpen: boolean;
   importExportOpen: boolean;
   settingsOpen: boolean;
@@ -142,7 +152,19 @@ export interface VaultState {
   // UI helpers
   setSelected: (id: string | null) => void;
   setSearch: (q: string) => void;
-  setEditorOpen: (open: boolean, itemId?: string | null) => void;
+  setTypeFilter: (f: FilterType) => void;
+  /** Enter multi-select mode, optionally seeding the id set (select-all). */
+  beginMultiSelect: (ids?: string[]) => void;
+  toggleMultiSelectItem: (id: string) => void;
+  /** Empty the selection but stay in multi-select mode. */
+  clearMultiSelection: () => void;
+  /** Leave multi-select mode and drop the whole selection. */
+  exitMultiSelect: () => void;
+  setEditorOpen: (
+    open: boolean,
+    itemId?: string | null,
+    newType?: ItemType | null,
+  ) => void;
   setGeneratorOpen: (open: boolean) => void;
   setImportExportOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
@@ -268,10 +290,14 @@ export const useVault = create<VaultState>()(
         settings: DEFAULT_VAULT_SETTINGS,
         selectedId: null,
         searchQuery: "",
+        typeFilter: "all",
+        multiSelect: false,
+        multiSelectIds: new Set(),
         masterKey: null,
         vaultKey: null,
         editorOpen: false,
         editorItemId: null,
+        editorNewType: null,
         generatorOpen: false,
         importExportOpen: false,
         settingsOpen: false,
@@ -330,10 +356,14 @@ export const useVault = create<VaultState>()(
             activeVault: "all",
             selectedId: null,
             searchQuery: "",
+            typeFilter: "all",
+            multiSelect: false,
+            multiSelectIds: new Set(),
             editorOpen: false,
+            editorNewType: null,
             generatorOpen: false,
-            settingsOpen: false,
             importExportOpen: false,
+            settingsOpen: false,
             vaultEditorOpen: false,
             editingVaultId: null,
             createVaultDialogOpen: false,
@@ -351,11 +381,15 @@ export const useVault = create<VaultState>()(
             vaults: [],
             activeVault: "all",
             selectedId: null,
+            typeFilter: "all",
+            multiSelect: false,
+            multiSelectIds: new Set(),
             settings: DEFAULT_VAULT_SETTINGS,
             editorOpen: false,
+            editorNewType: null,
             generatorOpen: false,
-            settingsOpen: false,
             importExportOpen: false,
+            settingsOpen: false,
             vaultEditorOpen: false,
             editingVaultId: null,
             createVaultDialogOpen: false,
@@ -557,6 +591,11 @@ export const useVault = create<VaultState>()(
                 )
               : state.items,
             activeVault: state.activeVault === id ? "all" : state.activeVault,
+            // Deleting the active view is a view change — drop any
+            // in-flight multi-selection with it (same invariant as
+            // setActiveVault, IL-3).
+            multiSelect: false,
+            multiSelectIds: new Set(),
             vaultEditorOpen:
               state.editingVaultId === id ? false : state.vaultEditorOpen,
             editingVaultId:
@@ -579,7 +618,15 @@ export const useVault = create<VaultState>()(
           set({ vaults, vaultEditorOpen: false, editingVaultId: null });
         },
 
-        setActiveVault: (v) => set({ activeVault: v, settingsOpen: false }),
+        // Leaving a view drops any in-flight multi-selection with it (IL-3)
+        // — stale selections must never leak across vault switches.
+        setActiveVault: (v) =>
+          set({
+            activeVault: v,
+            settingsOpen: false,
+            multiSelect: false,
+            multiSelectIds: new Set(),
+          }),
         setVaultEditorOpen: (open, vaultId = null) =>
           set({ vaultEditorOpen: open, editingVaultId: vaultId }),
         setCreateVaultDialogOpen: (open) =>
@@ -631,8 +678,25 @@ export const useVault = create<VaultState>()(
 
         setSelected: (id) => set({ selectedId: id }),
         setSearch: (q) => set({ searchQuery: q }),
-        setEditorOpen: (open, itemId = null) =>
-          set({ editorOpen: open, editorItemId: itemId }),
+        setTypeFilter: (f) => set({ typeFilter: f }),
+        beginMultiSelect: (ids = []) =>
+          set({ multiSelect: true, multiSelectIds: new Set(ids) }),
+        toggleMultiSelectItem: (id) =>
+          set((state) => {
+            const next = new Set(state.multiSelectIds);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return { multiSelectIds: next };
+          }),
+        clearMultiSelection: () => set({ multiSelectIds: new Set() }),
+        exitMultiSelect: () =>
+          set({ multiSelect: false, multiSelectIds: new Set() }),
+        setEditorOpen: (open, itemId = null, newType = null) =>
+          set({
+            editorOpen: open,
+            editorItemId: itemId,
+            editorNewType: newType,
+          }),
         setGeneratorOpen: (open) => set({ generatorOpen: open }),
         setImportExportOpen: (open) => set({ importExportOpen: open }),
         // Opening settings no longer mutates `activeVault` (B-7). The

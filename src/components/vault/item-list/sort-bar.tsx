@@ -107,8 +107,8 @@ function TypeSelectItem({
 /**
  * Filter/sort bar above the list: the type filter Select, the sort
  * dropdown, and the 3-dots menu that toggles multi-select and selects or
- * deselects all rows. Selection state lives in ItemList; this bar reads it
- * and requests changes through props.
+ * deselects all rows. Filter and selection state live in the vault store;
+ * this bar reads them via props and requests changes through callbacks.
  */
 export function SortBar({
   filter,
@@ -128,7 +128,7 @@ export function SortBar({
   sort: SortKey;
   setSort: (next: SortKey) => void;
   multiSelect: boolean;
-  setMultiSelect: React.Dispatch<React.SetStateAction<boolean>>;
+  setMultiSelect: (on: boolean) => void;
   /** Number of items after filtering — gates Select all. */
   filteredCount: number;
   selectedCount: number;
@@ -235,7 +235,7 @@ export function SortBar({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem onSelect={() => setMultiSelect((m) => !m)}>
+            <DropdownMenuItem onSelect={() => setMultiSelect(!multiSelect)}>
               <CheckSquare className="h-3.5 w-3.5" />
               {multiSelect ? "Exit multi-select" : "Multi-select"}
             </DropdownMenuItem>

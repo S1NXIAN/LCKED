@@ -6,7 +6,7 @@ import { runBulk } from "@/components/vault/bulk-report";
 import { cn } from "@/lib/utils";
 import { useVault } from "@/store/vault";
 
-import { exitMultiSelect, parseDraggedIds } from "./drag-drop";
+import { parseDraggedIds } from "./drag-drop";
 
 interface VaultRowProps {
   /** Glyph rendered in the swatch. Pass a Lucide component for fixed rows. */
@@ -60,7 +60,7 @@ export function VaultRow({
     e.preventDefault();
     const ids = parseDraggedIds(e);
     if (ids.length === 0) return;
-    const { moveItemsToVault } = useVault.getState();
+    const { moveItemsToVault, exitMultiSelect } = useVault.getState();
     const outcome = await runBulk(
       () => moveItemsToVault(ids, dropVaultId ?? null),
       "Moved",

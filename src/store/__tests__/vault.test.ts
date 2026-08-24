@@ -123,6 +123,10 @@ function seed(partial: Partial<StoreState> = {}) {
     vaults: [],
     activeVault: "all",
     selectedId: null,
+    typeFilter: "all",
+    multiSelect: false,
+    multiSelectIds: new Set(),
+    editorNewType: null,
     ...partial,
   });
 }
@@ -372,9 +376,7 @@ describe("single-item mutations speak BulkResult", () => {
 
   it("copyItemToVault writes an independent single-vault copy", async () => {
     seed({
-      items: [
-        makeItem({ id: "orig", favorite: true, vaultIds: ["home"] }),
-      ],
+      items: [makeItem({ id: "orig", favorite: true, vaultIds: ["home"] })],
     });
     vi.mocked(randomId).mockImplementationOnce(() => "copy-id");
 
@@ -395,6 +397,109 @@ describe("single-item mutations speak BulkResult", () => {
     await expect(useVault.getState().duplicateItem("a")).rejects.toThrow(
       "Vault is locked",
     );
+  });
+});
+
+/* ─── cross-component UI commands ───────────────────────── */
+
+describe("UI commands ride store transitions", () => {
+  it("setTypeFilter sets and clears the secondary list filter", () => {
+    useVault.getState().setTypeFilter("card");
+    expect(useVault.getState().typeFilter).toBe("card");
+
+    useVault.getState().setTypeFilter("all");
+    expect(useVault.getState().typeFilter).toBe("all");
+  });
+
+  it("beginMultiSelect enters mode with the given ids", () => {
+    useVault.getState().beginMultiSelect(["a", "b"]);
+
+    const s = useVault.getState();
+    expect(s.multiSelect).toBe(true);
+    expect([...s.multiSelectIds]).toEqual(["a", "b"]);
+  });
+
+  it("toggleMultiSelectItem flips one membership without leaving mode", () => {
+    useVault.getState().beginMultiSelect(["a"]);
+
+    useVault.getState().toggleMultiSelectItem("b");
+    expect(useVault.getState().multiSelectIds.has("b")).toBe(true);
+
+    useVault.getState().toggleMultiSelectItem("a");
+    expect(useVault.getState().multiSelectIds.has("a")).toBe(false);
+    expect(useVault.getState().multiSelect).toBe(true);
+  });
+
+  it("clearMultiSelection empties the ids but stays in mode", () => {
+    useVault.getState().beginMultiSelect(["a"]);
+
+    useVault.getState().clearMultiSelection();
+
+    const s = useVault.getState();
+    expect(s.multiSelect).toBe(true);
+    expect(s.multiSelectIds.size).toBe(0);
+  });
+
+  it("exitMultiSelect leaves mode and drops every id", () => {
+    useVault.getState().beginMultiSelect(["a", "b"]);
+
+    useVault.getState().exitMultiSelect();
+
+    const s = useVault.getState();
+    expect(s.multiSelect).toBe(false);
+    expect(s.multiSelectIds.size).toBe(0);
+  });
+
+  it("switching the active vault exits multi-select (IL-3)", () => {
+    useVault.getState().beginMultiSelect(["a"]);
+
+    useVault.getState().setActiveVault("trash");
+
+    const s = useVault.getState();
+    expect(s.activeVault).toBe("trash");
+    expect(s.multiSelect).toBe(false);
+    expect(s.multiSelectIds.size).toBe(0);
+  });
+
+  it("setEditorOpen carries an intended new-item type and never leaks it", () => {
+    useVault.getState().setEditorOpen(true, null, "card");
+    expect(useVault.getState().editorNewType).toBe("card");
+
+    // Any subsequent open overwrites the handoff — a stale type can't
+    // survive into the next editor session.
+    useVault.getState().setEditorOpen(true);
+    expect(useVault.getState().editorNewType).toBeNull();
+
+    useVault.getState().setEditorOpen(true, null, "note");
+    useVault.getState().setEditorOpen(false);
+    expect(useVault.getState().editorNewType).toBeNull();
+  });
+
+  it("deleting the active vault also exits multi-select (IL-3)", async () => {
+    const vault = await useVault.getState().createVault("Temp", "blue", "box");
+    useVault.getState().setActiveVault(vault.id);
+    useVault.getState().beginMultiSelect(["a"]);
+
+    await useVault.getState().deleteVault(vault.id);
+
+    const s = useVault.getState();
+    expect(s.activeVault).toBe("all");
+    expect(s.multiSelect).toBe(false);
+    expect(s.multiSelectIds.size).toBe(0);
+  });
+
+  it("lock resets the filter, selection and editor handoff", () => {
+    useVault.getState().setTypeFilter("login");
+    useVault.getState().beginMultiSelect(["a"]);
+    useVault.getState().setEditorOpen(true, null, "identity");
+
+    useVault.getState().lock();
+
+    const s = useVault.getState();
+    expect(s.typeFilter).toBe("all");
+    expect(s.multiSelect).toBe(false);
+    expect(s.multiSelectIds.size).toBe(0);
+    expect(s.editorNewType).toBeNull();
   });
 });
 

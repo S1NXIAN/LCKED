@@ -27,8 +27,3 @@ export function parseDraggedIds(e: React.DragEvent): string[] {
   return single ? [single] : [];
 }
 
-/** Signal the item-list to exit multi-select mode after a successful
- *  multi-select drop (the items have been moved/trashed/favorited). */
-export function exitMultiSelect() {
-  window.dispatchEvent(new CustomEvent("lcked:exit-multi-select"));
-}

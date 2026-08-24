@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/context-menu";
 import { copyWithAutoClear } from "@/lib/clipboard";
 import { searchItems } from "@/lib/search/fuzzy-search";
-import type { FilterType, ItemType } from "@/lib/types";
+import type { ItemType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useVault } from "@/store/vault";
 
@@ -27,7 +27,6 @@ import {
   ITEM_TYPE_ICONS,
   ITEM_TYPE_LABELS,
 } from "../item-icons";
-import { stashNewItemType } from "../new-item-stash";
 import { EmptyList } from "./empty-list";
 import { ItemRow } from "./item-row";
 import { MultiSelectBar } from "./multi-select-bar";
@@ -35,22 +34,11 @@ import { SortBar } from "./sort-bar";
 import { useItemSort } from "./use-item-sort";
 
 export function ItemList({
-  filter,
-  setFilter,
-  activeVault: activeVaultProp,
   onMobileBack,
 }: {
-  /** Type filter (All / Login / Note / Card / Identity). */
-  filter: FilterType;
-  setFilter: (f: FilterType) => void;
-  /** Active vault filter from the store — passed explicitly so the list re-
-   *  renders when the sidebar switches between All/Favorites/Trash/vault. */
-  activeVault?: string;
   /** Mobile-only callback when the user taps Back from a Trash detail. */
   onMobileBack?: () => void;
 }) {
-  // Store hooks — we read activeVault directly here as well so the list
-  // always re-renders even if a parent forgets to thread the prop through.
   const items = useVault((s) => s.items);
   const vaults = useVault((s) => s.vaults);
   const selectedId = useVault((s) => s.selectedId);
@@ -67,38 +55,18 @@ export function ItemList({
   const hoverItemActions = useVault((s) => s.settings.hoverItemActions);
   const blurEmailMode = useVault((s) => s.settings.blurEmailMode);
 
-  // Always subscribe to activeVault reactively (IL-1). The prop is kept for
-  // backwards-compat but the store subscription is the source of truth —
-  // `useVault.getState()` is NOT reactive and would miss vault switches.
-  const storeActiveVault = useVault((s) => s.activeVault);
-  const activeVault = activeVaultProp ?? storeActiveVault;
+  const typeFilter = useVault((s) => s.typeFilter);
+  const setTypeFilter = useVault((s) => s.setTypeFilter);
+  const multiSelect = useVault((s) => s.multiSelect);
+  const multiSelectIds = useVault((s) => s.multiSelectIds);
+  const beginMultiSelect = useVault((s) => s.beginMultiSelect);
+  const toggleMultiSelectItem = useVault((s) => s.toggleMultiSelectItem);
+  const clearMultiSelection = useVault((s) => s.clearMultiSelection);
+  const exitMultiSelect = useVault((s) => s.exitMultiSelect);
+  const activeVault = useVault((s) => s.activeVault);
   const isTrashView = activeVault === "trash";
 
   const [sort, setSort] = useItemSort();
-
-  const [multiSelect, setMultiSelect] = React.useState(false);
-  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
-  // Reset multi-select whenever we leave multi-select mode.
-  React.useEffect(() => {
-    if (!multiSelect) setSelectedIds(new Set());
-  }, [multiSelect]);
-  // Reset multi-select when the active vault filter changes (IL-3) so stale
-  // selections from e.g. Trash don't leak into "All Items".
-  React.useEffect(() => {
-    setMultiSelect(false);
-    setSelectedIds(new Set());
-  }, [activeVault]);
-  // Listen for the "lcked:exit-multi-select" custom event — dispatched by the
-  // vaults-sidebar drop targets after a successful multi-select drag-drop so
-  // the list exits multi-select mode (the items have been moved/trashed).
-  React.useEffect(() => {
-    const handler = () => {
-      setMultiSelect(false);
-      setSelectedIds(new Set());
-    };
-    window.addEventListener("lcked:exit-multi-select", handler);
-    return () => window.removeEventListener("lcked:exit-multi-select", handler);
-  }, []);
 
   // Deferred search query — keeps typing responsive on large vaults by
   // letting the filter/sort work happen at lower priority.
@@ -118,8 +86,8 @@ export function ItemList({
       list = list.filter((i) => !i.trashed && i.vaultIds.includes(activeVault));
     else list = list.filter((i) => !i.trashed);
     // Type filter (secondary, list-header dropdown).
-    if (filter !== "all" && typeof filter === "string") {
-      list = list.filter((i) => i.type === filter);
+    if (typeFilter !== "all" && typeof typeFilter === "string") {
+      list = list.filter((i) => i.type === typeFilter);
     }
     // Fuzzy search.
     list = searchItems(list, deferredSearch);
@@ -147,7 +115,14 @@ export function ItemList({
       return a.name.localeCompare(b.name); // alphabetical (A–Z)
     });
     return sorted;
-  }, [items, activeVault, filter, deferredSearch, sort, sortFavoritesFirst]);
+  }, [
+    items,
+    activeVault,
+    typeFilter,
+    deferredSearch,
+    sort,
+    sortFavoritesFirst,
+  ]);
 
   // Scroll-into-view when selection changes via keyboard. Scoped to the list
   // (IL-6) so it doesn't find elements in other list instances.
@@ -160,34 +135,14 @@ export function ItemList({
   }, [selectedId]);
 
   /* --------------------------- selection helpers --------------------------- */
-  const toggleSelected = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-  // Select-all ALSO enables multi-select mode. Without this, the IDs were
-  // set but `multiSelect` stayed false — so checkboxes didn't render on
-  // rows and the multi-select action bar (Cancel / Actions) didn't appear,
-  // leaving the user with an invisible selection they couldn't act on.
-  const selectAll = () => {
-    setMultiSelect(true);
-    setSelectedIds(new Set(filtered.map((i) => i.id)));
-  };
-  const deselectAll = () => setSelectedIds(new Set());
+  // Bars request mode changes through this plain setter; the store keeps
+  // the id set consistent across enter/exit (two bar consumers, one map).
+  const setMultiSelectMode = (on: boolean) =>
+    on ? beginMultiSelect() : exitMultiSelect();
 
   /* ------------------------------- item helpers ------------------------------- */
   // Helper used by the empty-area context menu (and any other caller that
   // wants to spawn the editor pre-seeded with a type).
-  const createItem = React.useCallback(
-    (type: ItemType) => {
-      stashNewItemType(type);
-      setEditorOpen(true);
-    },
-    [setEditorOpen],
-  );
 
   const copyField = React.useCallback(
     async (value: string | undefined, label: string) => {
@@ -206,22 +161,22 @@ export function ItemList({
   return (
     <div className="flex h-full flex-col">
       <SortBar
-        filter={filter}
-        setFilter={setFilter}
+        filter={typeFilter}
+        setFilter={setTypeFilter}
         sort={sort}
         setSort={setSort}
         multiSelect={multiSelect}
-        setMultiSelect={setMultiSelect}
+        setMultiSelect={setMultiSelectMode}
         filteredCount={filtered.length}
-        selectedCount={selectedIds.size}
-        onSelectAll={selectAll}
-        onDeselectAll={deselectAll}
+        selectedCount={multiSelectIds.size}
+        onSelectAll={() => beginMultiSelect(filtered.map((i) => i.id))}
+        onDeselectAll={clearMultiSelection}
       />
 
       <MultiSelectBar
         open={multiSelect}
-        setMultiSelect={setMultiSelect}
-        selectedIds={selectedIds}
+        setMultiSelect={setMultiSelectMode}
+        selectedIds={multiSelectIds}
         vaults={vaults}
         isTrashView={isTrashView}
       />
@@ -253,7 +208,7 @@ export function ItemList({
                 <EmptyList
                   hasItems={items.length > 0}
                   isTrash={isTrashView}
-                  onCreate={() => createItem("login")}
+                  onCreate={() => setEditorOpen(true, null, "login")}
                 />
               ) : (
                 <ul
@@ -276,7 +231,7 @@ export function ItemList({
                   <AnimatePresence initial={false}>
                     {filtered.map((item) => {
                       const active = item.id === selectedId && !multiSelect;
-                      const checked = selectedIds.has(item.id);
+                      const checked = multiSelectIds.has(item.id);
                       return (
                         <motion.li
                           key={item.id}
@@ -302,15 +257,17 @@ export function ItemList({
                             // row carries just its own id (single-item drag).
                             dragIds={
                               multiSelect && checked
-                                ? Array.from(selectedIds)
+                                ? Array.from(multiSelectIds)
                                 : [item.id]
                             }
                             onPick={() =>
                               multiSelect
-                                ? toggleSelected(item.id)
+                                ? toggleMultiSelectItem(item.id)
                                 : setSelected(item.id)
                             }
-                            onToggleSelected={() => toggleSelected(item.id)}
+                            onToggleSelected={() =>
+                              toggleMultiSelectItem(item.id)
+                            }
                             onRestore={() =>
                               void runBulk(
                                 () => restoreItem(item.id),
@@ -361,7 +318,10 @@ export function ItemList({
               {(Object.keys(ITEM_TYPE_LABELS) as ItemType[]).map((t) => {
                 const Icon = ITEM_TYPE_ICONS[t];
                 return (
-                  <ContextMenuItem key={t} onSelect={() => createItem(t)}>
+                  <ContextMenuItem
+                    key={t}
+                    onSelect={() => setEditorOpen(true, null, t)}
+                  >
                     <Icon className={cn("h-3.5 w-3.5", ITEM_TYPE_COLORS[t])} />
                     {ITEM_TYPE_LABELS[t]}
                   </ContextMenuItem>

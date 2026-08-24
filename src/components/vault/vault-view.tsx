@@ -70,9 +70,7 @@ const CreateVaultDialog = dynamic(
 );
 import { useTheme } from "next-themes";
 
-import type { FilterType, ItemType } from "@/lib/types";
-
-import { stashNewItemType } from "./new-item-stash";
+import type { ItemType } from "@/lib/types";
 
 /* New-dropdown type metadata — color-coded icons for the 4 item kinds. */
 const NEW_ITEM_OPTIONS: {
@@ -107,13 +105,7 @@ export function VaultView() {
   const settingsOpen = useVault((s) => s.settingsOpen);
   const searchQuery = useVault((s) => s.searchQuery);
   const setSearch = useVault((s) => s.setSearch);
-  const activeVault = useVault((s) => s.activeVault);
   const lock = useVault((s) => s.lock);
-
-  // Local type-filter (login/note/card/identity/all). The vault filter
-  // (all/favorites/trash/<vaultId>) lives in the store; this is the secondary
-  // filter shown in the list header.
-  const [typeFilter, setTypeFilter] = React.useState<FilterType>("all");
 
   // Mobile list/detail swap. Resets to "list" when the selected item is
   // cleared (deleted, restored, moved) so the user isn't stuck on an empty
@@ -126,23 +118,6 @@ export function VaultView() {
       setMobileView("detail");
     }
   }, [selectedId]);
-
-  // Listen for "lcked:set-type-filter" events so the item-detail's type chip
-  // can change the list filter (the filter lives here in vault-view, not the
-  // store, so we use a window event to bridge the component gap).
-  React.useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail as FilterType | undefined;
-      if (detail) setTypeFilter(detail);
-    };
-    window.addEventListener("lcked:set-type-filter", handler);
-    return () => window.removeEventListener("lcked:set-type-filter", handler);
-  }, []);
-
-  const createItem = (type: ItemType) => {
-    stashNewItemType(type);
-    setEditorOpen(true);
-  };
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -315,7 +290,7 @@ export function VaultView() {
                     {NEW_ITEM_OPTIONS.map((opt) => (
                       <DropdownMenuItem
                         key={opt.type}
-                        onSelect={() => createItem(opt.type)}
+                        onSelect={() => setEditorOpen(true, null, opt.type)}
                       >
                         <opt.icon className={`h-4 w-4 ${opt.color}`} />
                         {opt.label}
@@ -337,12 +312,7 @@ export function VaultView() {
                   tabIndex={-1}
                 >
                   <div className="min-h-0 flex-1">
-                    <ItemList
-                      filter={typeFilter}
-                      setFilter={(f: FilterType) => setTypeFilter(f)}
-                      activeVault={activeVault}
-                      onMobileBack={() => setMobileView("list")}
-                    />
+                    <ItemList onMobileBack={() => setMobileView("list")} />
                   </div>
                 </section>
 

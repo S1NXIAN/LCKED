@@ -294,6 +294,7 @@ export function ItemDetail() {
   const showFavicons = useVault((s) => s.settings.showFavicons);
   const blurEmailMode = useVault((s) => s.settings.blurEmailMode);
   const setActiveVault = useVault((s) => s.setActiveVault);
+  const setTypeFilter = useVault((s) => s.setTypeFilter);
 
   const item = items.find((i) => i.id === selectedId);
   // Multi-vault: an item can belong to several vaults. Show all of them as
@@ -371,13 +372,7 @@ export function ItemDetail() {
                     {/* Type chip — clickable: filters the item list by this type. */}
                     <button
                       type="button"
-                      onClick={() => {
-                        window.dispatchEvent(
-                          new CustomEvent("lcked:set-type-filter", {
-                            detail: item.type,
-                          }),
-                        );
-                      }}
+                      onClick={() => setTypeFilter(item.type)}
                       className="bg-secondary/40 text-muted-foreground hover:bg-secondary/70 hover:text-foreground rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wider uppercase transition-colors"
                       title={`Filter list by ${ITEM_TYPE_LABELS[item.type]}`}
                     >

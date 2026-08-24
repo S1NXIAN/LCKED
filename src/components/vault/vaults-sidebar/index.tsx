@@ -48,7 +48,7 @@ import { useVault } from "@/store/vault";
 import { ActiveHighlight } from "../active-highlight";
 import { OrganizeVaultDialog } from "../organize-vault-dialog";
 import { CustomVaultRow, RowMenu } from "./custom-vault-row";
-import { exitMultiSelect, parseDraggedIds } from "./drag-drop";
+import { parseDraggedIds } from "./drag-drop";
 import { VaultRow } from "./vault-row";
 
 export function VaultsSidebar() {
@@ -223,7 +223,7 @@ export function VaultsSidebar() {
               setOverKey(null);
               const ids = parseDraggedIds(e);
               if (ids.length === 0) return;
-              const { moveItemsToVault } = useVault.getState();
+              const { moveItemsToVault, exitMultiSelect } = useVault.getState();
               const outcome = await runBulk(
                 () => moveItemsToVault(ids, null),
                 "Moved",
@@ -297,7 +297,7 @@ export function VaultsSidebar() {
                 "Added",
                 { tail: "to Favorites" },
               );
-              if (outcome && ids.length > 1) exitMultiSelect();
+              if (outcome && ids.length > 1) store.exitMultiSelect();
             }}
           >
             <VaultRow
@@ -352,7 +352,7 @@ export function VaultsSidebar() {
           setOverKey(null);
           const ids = parseDraggedIds(e);
           if (ids.length === 0) return;
-          const { trashItems } = useVault.getState();
+          const { trashItems, exitMultiSelect } = useVault.getState();
           const outcome = await runBulk(() => trashItems(ids), "Moved", {
             tail: "to Trash",
           });

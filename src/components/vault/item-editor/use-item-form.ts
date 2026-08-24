@@ -15,8 +15,6 @@ import { ITEM_DEFAULTS, toItemInput } from "@/lib/items/item-crud";
 import { type ItemType, type NewItemInput } from "@/lib/types";
 import { useVault } from "@/store/vault";
 
-import { consumeNewItemType } from "../new-item-stash";
-
 function blankItem(type: ItemType): NewItemInput {
   const base = {
     name: "",
@@ -122,8 +120,10 @@ export function useItemForm() {
         return;
       }
     }
-    // Honour a type pre-selected via ⌘K / icon rail, then clear the stash.
-    const initialType = consumeNewItemType() ?? "login";
+    // Honour the type pre-picked by the editor-open call. Every
+    // setEditorOpen overwrites editorNewType in the store, so a stale pick
+    // can't leak into a later session and this read stays side-effect-free.
+    const initialType = useVault.getState().editorNewType ?? "login";
     const blank = blankItem(initialType);
     // When creating a new item while viewing a specific vault, auto-assign
     // the item to that vault so it appears in the current category (not just

@@ -66,6 +66,11 @@ glossary's vocabulary — don't drift to synonyms.
 
 - **Favorites** — a per-item `favorite` flag with a bulk `clearFavorites`
   action.
+- **Type filter** — the secondary list filter narrowing by Item kind
+  (login/note/card/identity, or all), shown in the list header. Distinct from
+  the Active view, which filters by container.
+- **Multi-select** — list mode that gathers several Items as bulk-action
+  targets; it ends when an action completes or the Active view changes.
 
 - **Generator** — the password generator (store state + UI panel). Generates
   candidate passwords; does not store or submit them.
@@ -95,3 +100,8 @@ glossary's vocabulary — don't drift to synonyms.
   per-surface: the UI toasts from those counts through a single reporting
   helper where a report is wanted; instant-feedback toggles consume the
   same result silently. No call site owns its own result ladder.
+- **One channel** — anything one component commands of another travels through
+  the vault store as typed state and actions. Sanctioned exceptions: the
+  Generator bridge (a closure handoff into a focused field) and the
+  diamond-spin animation event (per-frame pointer coordinates — deliberately
+  not app state). See ADR 0004.
