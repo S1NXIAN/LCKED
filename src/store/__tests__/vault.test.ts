@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { checkVerifier, decryptJson, encryptJson } from "@/lib/crypto";
 import type { VaultItem } from "@/lib/types";
+import { deleteStoredItem, saveVaultMeta } from "@/lib/vault/vault-db";
 import { useVault } from "@/store/vault";
 
 /* ─── Mocks ─────────────────────────────────────────────── */
@@ -151,7 +153,7 @@ describe("bulk actions — no-op filtering", () => {
 
     const result = await useVault.getState().trashItems(["a"]);
 
-    expect(result).toEqual({ moved: 0, failed: 0 });
+    expect(result).toEqual({ done: 0, failed: 0 });
   });
 
   it("moveItemsToVault skips items already in the target membership", async () => {
@@ -159,19 +161,18 @@ describe("bulk actions — no-op filtering", () => {
 
     const result = await useVault.getState().moveItemsToVault(["a"], "v1");
 
-    expect(result).toEqual({ moved: 0, failed: 0 });
+    expect(result).toEqual({ done: 0, failed: 0 });
   });
 });
 
 describe("bulk actions — partial-failure counts", () => {
   it("trashItems reports per-item failures without losing the rest", async () => {
     seed({ items: [makeItem({ id: "a" }), makeItem({ id: "b" })] });
-    const { encryptJson } = await import("@/lib/crypto");
     vi.mocked(encryptJson).mockRejectedValueOnce(new Error("idb fail"));
 
     const result = await useVault.getState().trashItems(["a", "b"]);
 
-    expect(result).toEqual({ moved: 1, failed: 1 });
+    expect(result).toEqual({ done: 1, failed: 1 });
     const items = useVault.getState().items;
     expect(items.find((i) => i.id === "b")?.trashed).toBe(true);
     expect(items.find((i) => i.id === "a")?.trashed).toBe(false);
@@ -187,7 +188,7 @@ describe("bulk actions — partial-failure counts", () => {
 
     const result = await useVault.getState().restoreItems(["a", "b"]);
 
-    expect(result).toEqual({ restored: 1, failed: 0 });
+    expect(result).toEqual({ done: 1, failed: 0 });
     expect(useVault.getState().items.find((i) => i.id === "a")?.trashed).toBe(
       false,
     );
@@ -203,14 +204,13 @@ describe("permanentlyDeleteItems — optimistic removal + rollback", () => {
         makeItem({ id: "c" }),
       ],
     });
-    const { deleteStoredItem } = await import("@/lib/vault/vault-db");
     vi.mocked(deleteStoredItem).mockRejectedValueOnce(new Error("idb fail"));
 
     const result = await useVault
       .getState()
       .permanentlyDeleteItems(["a", "b", "c"]);
 
-    expect(result).toEqual({ deleted: 2, failed: 1 });
+    expect(result).toEqual({ done: 2, failed: 1 });
     // Only "a" (the failed row) is rolled back into state.
     expect(useVault.getState().items.map((i) => i.id)).toEqual(["a"]);
   });
@@ -220,8 +220,66 @@ describe("permanentlyDeleteItems — optimistic removal + rollback", () => {
 
     const result = await useVault.getState().permanentlyDeleteItems(["a", "b"]);
 
-    expect(result).toEqual({ deleted: 2, failed: 0 });
+    expect(result).toEqual({ done: 2, failed: 0 });
     expect(useVault.getState().items).toEqual([]);
+  });
+});
+
+describe("emptyTrash — optimistic removal + rollback", () => {
+  it("deletes all trashed items and reports counts", async () => {
+    seed({
+      items: [
+        makeItem({ id: "a", trashed: true, trashedAt: 5 }),
+        makeItem({ id: "b", trashed: true, trashedAt: 6 }),
+        makeItem({ id: "live" }),
+      ],
+    });
+
+    const result = await useVault.getState().emptyTrash();
+
+    expect(result).toEqual({ done: 2, failed: 0 });
+    expect(useVault.getState().items.map((i) => i.id)).toEqual(["live"]);
+  });
+
+  it("rolls back only failed rows and never throws for row failures", async () => {
+    seed({
+      items: [
+        makeItem({ id: "a", trashed: true, trashedAt: 5 }),
+        makeItem({ id: "b", trashed: true, trashedAt: 6 }),
+      ],
+    });
+    vi.mocked(deleteStoredItem).mockRejectedValueOnce(new Error("idb fail"));
+
+    const result = await useVault.getState().emptyTrash();
+
+    expect(result).toEqual({ done: 1, failed: 1 });
+    expect(useVault.getState().items.map((i) => i.id)).toEqual(["a"]);
+  });
+});
+
+describe("permanentlyDeleteItem — shared optimistic path", () => {
+  it("removes the item and clears a selectedId pointing at it", async () => {
+    seed({ items: [makeItem({ id: "a" })], selectedId: "a" });
+
+    await useVault.getState().permanentlyDeleteItem("a");
+
+    expect(useVault.getState().items).toEqual([]);
+    expect(useVault.getState().selectedId).toBeNull();
+  });
+
+  it("keeps the item and rethrows when the delete fails", async () => {
+    seed({
+      items: [
+        makeItem({ id: "a", updatedAt: 2000 }),
+        makeItem({ id: "b", updatedAt: 1000 }),
+      ],
+    });
+    vi.mocked(deleteStoredItem).mockRejectedValueOnce(new Error("idb fail"));
+
+    await expect(
+      useVault.getState().permanentlyDeleteItem("a"),
+    ).rejects.toThrow("Could not delete 1 item(s)");
+    expect(useVault.getState().items.map((i) => i.id)).toEqual(["a", "b"]);
   });
 });
 
@@ -254,8 +312,6 @@ example.com,login,Work,1,0,alice,p@ssw0rd,https://example.com,JBSWY3DPEHPK3PXP,P
 describe("restoreVault — wrong backup password", () => {
   it("returns wrong-password and creates NO vault", async () => {
     seed({ status: "setup" });
-    const { checkVerifier } = await import("@/lib/crypto");
-    const { saveVaultMeta } = await import("@/lib/vault/vault-db");
     vi.mocked(checkVerifier).mockResolvedValueOnce(false);
 
     const result = await useVault.getState().restoreVault({
@@ -298,7 +354,6 @@ describe("restoreVault — encrypted backup", () => {
         },
       ],
     };
-    const { decryptJson } = await import("@/lib/crypto");
     vi.mocked(decryptJson).mockResolvedValueOnce(payload);
 
     seed({ status: "setup" });

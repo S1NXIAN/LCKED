@@ -12,6 +12,7 @@ import { persist } from "zustand/middleware";
 import { clearAllClipboardTimers } from "@/lib/clipboard";
 import { exportToCsv, importFromText } from "@/lib/import";
 import {
+  deleteStoredItems,
   patchItem,
   patchItems,
   sortItems,
@@ -20,6 +21,7 @@ import {
   writeItems,
 } from "@/lib/items/item-crud";
 import {
+  type BulkResult,
   DEFAULT_VAULT_SETTINGS,
   type GeneratorOptions,
   type ImportResult,
@@ -36,7 +38,6 @@ import {
   unlockVault,
 } from "@/lib/vault/vault-auth";
 import {
-  deleteStoredItem,
   loadVaultMeta,
   saveVaultMeta,
   vaultExists,
@@ -86,26 +87,22 @@ export interface VaultState {
   trashItem: (id: string) => Promise<void>;
   restoreItem: (id: string) => Promise<void>;
   permanentlyDeleteItem: (id: string) => Promise<void>;
-  emptyTrash: () => Promise<void>;
-  restoreAllTrash: () => Promise<{ restored: number; failed: number }>;
+  emptyTrash: () => Promise<BulkResult>;
+  restoreAllTrash: () => Promise<BulkResult>;
   toggleFavorite: (id: string) => Promise<void>;
   togglePin: (id: string) => Promise<void>;
   /** Unfavorite ALL favorited items at once. */
-  clearFavorites: () => Promise<{ cleared: number; failed: number }>;
+  clearFavorites: () => Promise<BulkResult>;
   /** Replace vault memberships for multiple items (drag-and-drop move). */
   moveItemsToVault: (
     itemIds: string[],
     vaultId: string | null,
-  ) => Promise<{ moved: number; failed: number }>;
-  trashItems: (itemIds: string[]) => Promise<{ moved: number; failed: number }>;
+  ) => Promise<BulkResult>;
+  trashItems: (itemIds: string[]) => Promise<BulkResult>;
   /** Restore the selected trashed items (bulk counterpart of restoreItem). */
-  restoreItems: (
-    itemIds: string[],
-  ) => Promise<{ restored: number; failed: number }>;
+  restoreItems: (itemIds: string[]) => Promise<BulkResult>;
   /** Permanently delete the selected items (bulk counterpart of permanentlyDeleteItem). */
-  permanentlyDeleteItems: (
-    itemIds: string[],
-  ) => Promise<{ deleted: number; failed: number }>;
+  permanentlyDeleteItems: (itemIds: string[]) => Promise<BulkResult>;
   duplicateItem: (id: string) => Promise<void>;
   /** Duplicate an item into a specific vault. The copy is a fully independent
    *  record (new ID) assigned to the target vault — deleting the original or
@@ -163,6 +160,43 @@ export const useVault = create<VaultState>()(
             items: sortItems(state.items.map((i) => updatedMap.get(i.id) ?? i)),
           };
         });
+      };
+
+      /** One guard for every action that needs decrypted items. */
+      const requireVaultKey = () => {
+        const { vaultKey } = get();
+        if (!vaultKey) throw new Error("Vault is locked");
+        return vaultKey;
+      };
+
+      /**
+       * The one optimistic-delete transaction: drop the targets from state,
+       * remove their ciphertexts, and roll back exactly the rows whose
+       * IndexedDB delete failed. Every permanent-delete path routes here.
+       */
+      const optimisticDelete = async (
+        targets: VaultItem[],
+      ): Promise<BulkResult> => {
+        if (targets.length === 0) return { done: 0, failed: 0 };
+        const prev = get().items;
+        const targetIds = new Set(targets.map((t) => t.id));
+        set((state) => ({
+          items: state.items.filter((i) => !targetIds.has(i.id)),
+          selectedId:
+            state.selectedId && targetIds.has(state.selectedId)
+              ? null
+              : state.selectedId,
+        }));
+        const { deletedIds, failedIds } = await deleteStoredItems(targets);
+        if (failedIds.length > 0) {
+          set((state) => ({
+            items: sortItems([
+              ...state.items,
+              ...prev.filter((i) => failedIds.includes(i.id)),
+            ]),
+          }));
+        }
+        return { done: deletedIds.length, failed: failedIds.length };
       };
       return {
         status: "loading",
@@ -272,8 +306,7 @@ export const useVault = create<VaultState>()(
         /* ------------------------------- CRUD -------------------------------- */
 
         saveItem: async (input, existingId) => {
-          const { vaultKey } = get();
-          if (!vaultKey) throw new Error("Vault is locked");
+          const vaultKey = requireVaultKey();
 
           const existing = existingId
             ? get().items.find((i) => i.id === existingId)
@@ -294,8 +327,7 @@ export const useVault = create<VaultState>()(
          * 30 days later on the next unlock.
          */
         trashItem: async (id) => {
-          const { vaultKey } = get();
-          if (!vaultKey) throw new Error("Vault is locked");
+          const vaultKey = requireVaultKey();
           const item = get().items.find((i) => i.id === id);
           if (!item) return;
           const updated = await patchItem(vaultKey, item, {
@@ -306,8 +338,7 @@ export const useVault = create<VaultState>()(
         },
 
         restoreItem: async (id) => {
-          const { vaultKey } = get();
-          if (!vaultKey) throw new Error("Vault is locked");
+          const vaultKey = requireVaultKey();
           const item = get().items.find((i) => i.id === id);
           if (!item) return;
           const updated = await patchItem(vaultKey, item, {
@@ -318,69 +349,32 @@ export const useVault = create<VaultState>()(
         },
 
         permanentlyDeleteItem: async (id) => {
-          const prev = get().items;
-          set((state) => ({
-            items: state.items.filter((i) => i.id !== id),
-            selectedId: state.selectedId === id ? null : state.selectedId,
-          }));
-          try {
-            await deleteStoredItem(id);
-          } catch (err) {
-            console.error("permanent delete failed", err);
-            set({ items: prev });
-            throw err;
+          const item = get().items.find((i) => i.id === id);
+          if (!item) return;
+          const result = await optimisticDelete([item]);
+          if (result.failed > 0) {
+            throw new Error(`Could not delete ${result.failed} item(s)`);
           }
         },
 
-        emptyTrash: async () => {
-          const trashed = get().items.filter((i) => i.trashed);
-          const prev = get().items;
-          // Optimistic: drop all trashed items from UI.
-          set((state) => ({
-            items: state.items.filter((i) => !i.trashed),
-            selectedId:
-              state.selectedId && trashed.some((t) => t.id === state.selectedId)
-                ? null
-                : state.selectedId,
-          }));
-          // Use allSettled so a single failure doesn't lose the others. Restore
-          // only the items that actually failed to delete from IDB.
-          const outcomes = await Promise.allSettled(
-            trashed.map((t) => deleteStoredItem(t.id)),
-          );
-          const failedIds = new Set(
-            trashed
-              .filter((_, i) => outcomes[i].status === "rejected")
-              .map((t) => t.id),
-          );
-          if (failedIds.size > 0) {
-            set((state) => ({
-              items: sortItems([
-                ...state.items,
-                ...prev.filter((i) => failedIds.has(i.id)),
-              ]),
-            }));
-            throw new Error(`Could not delete ${failedIds.size} item(s)`);
-          }
-        },
+        emptyTrash: async () =>
+          optimisticDelete(get().items.filter((i) => i.trashed)),
 
         restoreAllTrash: async () => {
-          const { vaultKey } = get();
-          if (!vaultKey) throw new Error("Vault is locked");
+          const vaultKey = requireVaultKey();
           const trashed = get().items.filter((i) => i.trashed);
-          if (trashed.length === 0) return { restored: 0, failed: 0 };
+          if (trashed.length === 0) return { done: 0, failed: 0 };
           const { updated, failed } = await patchItems(
             vaultKey,
             trashed,
             () => ({ trashed: false, trashedAt: null }),
           );
           applyItems(updated);
-          return { restored: updated.length, failed };
+          return { done: updated.length, failed };
         },
 
         toggleFavorite: async (id) => {
-          const { vaultKey } = get();
-          if (!vaultKey) throw new Error("Vault is locked");
+          const vaultKey = requireVaultKey();
           const currentItem = get().items.find((i) => i.id === id);
           if (!currentItem) return;
           const updated = await patchItem(vaultKey, currentItem, {
@@ -390,8 +384,7 @@ export const useVault = create<VaultState>()(
         },
 
         togglePin: async (id) => {
-          const { vaultKey } = get();
-          if (!vaultKey) throw new Error("Vault is locked");
+          const vaultKey = requireVaultKey();
           const currentItem = get().items.find((i) => i.id === id);
           if (!currentItem) return;
           const updated = await patchItem(vaultKey, currentItem, {
@@ -403,102 +396,70 @@ export const useVault = create<VaultState>()(
         /* ----------- bulk actions (multi-select drag-and-drop) ----------- */
 
         clearFavorites: async () => {
-          const { vaultKey } = get();
-          if (!vaultKey) throw new Error("Vault is locked");
+          const vaultKey = requireVaultKey();
           const favs = get().items.filter((i) => i.favorite && !i.trashed);
-          if (favs.length === 0) return { cleared: 0, failed: 0 };
+          if (favs.length === 0) return { done: 0, failed: 0 };
           const { updated, failed } = await patchItems(vaultKey, favs, () => ({
             favorite: false,
           }));
           applyItems(updated);
-          return { cleared: updated.length, failed };
+          return { done: updated.length, failed };
         },
 
         moveItemsToVault: async (itemIds, vaultId) => {
-          const { vaultKey } = get();
-          if (!vaultKey) throw new Error("Vault is locked");
+          const vaultKey = requireVaultKey();
           const targets = get().items.filter((i) => itemIds.includes(i.id));
           const nextVaultIds = vaultId === null ? [] : [vaultId];
           // Filter out no-ops: items already in exactly the target membership.
           const toMove = targets.filter(
             (i) => JSON.stringify(i.vaultIds) !== JSON.stringify(nextVaultIds),
           );
-          if (toMove.length === 0) return { moved: 0, failed: 0 };
+          if (toMove.length === 0) return { done: 0, failed: 0 };
           const { updated, failed } = await patchItems(
             vaultKey,
             toMove,
             () => ({ vaultIds: nextVaultIds }),
           );
           applyItems(updated);
-          return { moved: updated.length, failed };
+          return { done: updated.length, failed };
         },
 
         trashItems: async (itemIds) => {
-          const { vaultKey } = get();
-          if (!vaultKey) throw new Error("Vault is locked");
-          const targets = get().items.filter((i) => itemIds.includes(i.id));
+          const vaultKey = requireVaultKey();
           // Filter out items already in trash.
-          const toTrash = targets.filter((i) => !i.trashed);
-          if (toTrash.length === 0) return { moved: 0, failed: 0 };
+          const toTrash = get().items.filter(
+            (i) => itemIds.includes(i.id) && !i.trashed,
+          );
+          if (toTrash.length === 0) return { done: 0, failed: 0 };
           const { updated, failed } = await patchItems(
             vaultKey,
             toTrash,
             () => ({ trashed: true, trashedAt: Date.now() }),
           );
           applyItems(updated);
-          return { moved: updated.length, failed };
+          return { done: updated.length, failed };
         },
 
         restoreItems: async (itemIds) => {
-          const { vaultKey } = get();
-          if (!vaultKey) throw new Error("Vault is locked");
-          const targets = get().items.filter((i) => itemIds.includes(i.id));
+          const vaultKey = requireVaultKey();
           // Filter out items not in trash (no-ops).
-          const toRestore = targets.filter((i) => i.trashed);
-          if (toRestore.length === 0) return { restored: 0, failed: 0 };
+          const toRestore = get().items.filter(
+            (i) => itemIds.includes(i.id) && i.trashed,
+          );
+          if (toRestore.length === 0) return { done: 0, failed: 0 };
           const { updated, failed } = await patchItems(
             vaultKey,
             toRestore,
             () => ({ trashed: false, trashedAt: null }),
           );
           applyItems(updated);
-          return { restored: updated.length, failed };
+          return { done: updated.length, failed };
         },
 
         permanentlyDeleteItems: async (itemIds) => {
-          const targets = get().items.filter((i) => itemIds.includes(i.id));
-          if (targets.length === 0) return { deleted: 0, failed: 0 };
-          const prev = get().items;
-          const targetIds = new Set(targets.map((i) => i.id));
-          // Optimistic: drop the targets from UI; roll back only the rows whose
-          // IndexedDB delete actually failed.
-          set((state) => ({
-            items: state.items.filter((i) => !targetIds.has(i.id)),
-            selectedId:
-              state.selectedId && targetIds.has(state.selectedId)
-                ? null
-                : state.selectedId,
-          }));
-          const outcomes = await Promise.allSettled(
-            targets.map((t) => deleteStoredItem(t.id)),
+          return optimisticDelete(
+            get().items.filter((i) => itemIds.includes(i.id)),
           );
-          const failedIds = new Set(
-            targets
-              .filter((_, i) => outcomes[i].status === "rejected")
-              .map((t) => t.id),
-          );
-          if (failedIds.size > 0) {
-            set((state) => ({
-              items: sortItems([
-                ...state.items,
-                ...prev.filter((i) => failedIds.has(i.id)),
-              ]),
-            }));
-          }
-          return {
-            deleted: targets.length - failedIds.size,
-            failed: failedIds.size,
-          };
         },
 
         duplicateItem: async (id) => {
@@ -533,8 +494,7 @@ export const useVault = create<VaultState>()(
         },
 
         importItems: async (filename, text) => {
-          const { vaultKey } = get();
-          if (!vaultKey) throw new Error("Vault is locked");
+          const vaultKey = requireVaultKey();
           const { result, items } = importFromText(filename, text);
 
           // Encrypted LCKED imports require the export's password — handled by a
@@ -590,8 +550,8 @@ export const useVault = create<VaultState>()(
         },
 
         deleteVault: async (id) => {
-          const { vaultKey, items } = get();
-          if (!vaultKey) throw new Error("Vault is locked");
+          const vaultKey = requireVaultKey();
+          const { items } = get();
           const { vaults, updatedItems } = await vaultManager.deleteVault(
             id,
             vaultKey,
