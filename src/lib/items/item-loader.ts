@@ -22,26 +22,7 @@ import type { VaultItem } from "@/lib/types";
 import { deleteStoredItem, loadAllStoredItems } from "@/lib/vault/vault-db";
 
 /** How long a trashed item survives before the next load purges it. */
-export const TRASH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-
-/**
- * Backfill a decrypted record onto the canonical defaults in place. Every
- * ITEM_DEFAULTS field missing from a legacy record inherits the default, so
- * a field added to ITEM_DEFAULTS migrates automatically — schema evolution
- * edits never leave this module.
- *
- * Returns true when the record changed (and therefore needs re-encryption).
- */
-function migrateLegacyItem(item: VaultItem): boolean {
-  let migrated = false;
-  for (const [field, value] of Object.entries(ITEM_DEFAULTS)) {
-    if (item[field as keyof VaultItem] === undefined) {
-      Object.assign(item, { [field]: value });
-      migrated = true;
-    }
-  }
-  return migrated;
-}
+const TRASH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
  * Load the vault's decrypted contents: parallel-decrypt every stored row,
@@ -65,7 +46,15 @@ export async function loadDecryptedItems(
     stored.map(async (s): Promise<Outcome> => {
       try {
         const item = await decryptJson<VaultItem>(s.ciphertext, s.iv, vaultKey);
-        const migrated = migrateLegacyItem(item);
+        // Backfill every ITEM_DEFAULTS field the legacy record lacks, so a
+        // default added there migrates automatically. True = re-encrypt.
+        let migrated = false;
+        for (const [field, value] of Object.entries(ITEM_DEFAULTS)) {
+          if (item[field as keyof VaultItem] === undefined) {
+            Object.assign(item, { [field]: value });
+            migrated = true;
+          }
+        }
         if (
           item.trashed &&
           item.trashedAt &&
