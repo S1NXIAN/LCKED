@@ -48,7 +48,7 @@ import * as vaultRestore from "@/lib/vault/vault-restore";
 
 export type VaultStatus = "loading" | "setup" | "locked" | "unlocked";
 
-interface VaultState {
+export interface VaultState {
   status: VaultStatus;
   items: VaultItem[];
   /** User-defined vaults (colored containers, Proton Pass–style). */

@@ -259,7 +259,7 @@ function RotatingVaultChip({
           className="flex items-center gap-1.5"
         >
           <VaultIcon icon={current.icon} color={current.color} size={22} bare />
-          <span className="font-medium">{current.name}</span>
+          <span className="max-w-48 truncate font-medium">{current.name}</span>
         </motion.span>
       </AnimatePresence>
       {vaults.length > 1 && !prefersReducedMotion && (
@@ -631,7 +631,7 @@ export function ItemDetail() {
                         Note
                       </div>
                       <div className="border-border bg-secondary/10 dark:bg-secondary/10 rounded-xl border p-3.5">
-                        <p className="text-foreground/80 text-sm whitespace-pre-wrap">
+                        <p className="text-foreground/80 text-sm break-words whitespace-pre-wrap">
                           {item.details.notes}
                         </p>
                       </div>
@@ -642,7 +642,7 @@ export function ItemDetail() {
 
               {item.type === "note" && (
                 <div className="border-border bg-secondary/10 dark:bg-secondary/10 rounded-xl border p-4">
-                  <p className="text-foreground/90 text-sm leading-relaxed whitespace-pre-wrap">
+                  <p className="text-foreground/90 text-sm leading-relaxed break-words whitespace-pre-wrap">
                     {item.details.content}
                   </p>
                 </div>
@@ -691,7 +691,7 @@ export function ItemDetail() {
                         Note
                       </div>
                       <div className="border-border bg-secondary/10 dark:bg-secondary/10 rounded-xl border p-3.5">
-                        <p className="text-foreground/80 text-sm whitespace-pre-wrap">
+                        <p className="text-foreground/80 text-sm break-words whitespace-pre-wrap">
                           {item.details.notes}
                         </p>
                       </div>
@@ -762,7 +762,7 @@ export function ItemDetail() {
                         Note
                       </div>
                       <div className="border-border bg-secondary/10 dark:bg-secondary/10 rounded-xl border p-3.5">
-                        <p className="text-foreground/80 text-sm whitespace-pre-wrap">
+                        <p className="text-foreground/80 text-sm break-words whitespace-pre-wrap">
                           {item.details.notes}
                         </p>
                       </div>

@@ -92,6 +92,17 @@ JS body as a plain quoted string.
   re-snapshot and act in the same cell (pattern above).
 - Stalled actions fail fast with a named error rather than eating the whole
   cell timeout — treat the name as the recipe key.
+- `tab.ariaSnapshot()` returns WITHOUT refs while a Radix dropdown menu is
+  mounted or the page is mid-animation — every subsequent
+  `Unknown ARIA ref "eN"` is this in disguise. Recovery: press Escape via
+  `tab.evaluate(() => document.body.dispatchEvent(new KeyboardEvent("keydown",
+{ key: "Escape", bubbles: true })))`, re-snapshot, only then click.
+- Trusted ref clicks stall (`tab.click("eN") timed out after 8000ms`) when a
+  closed-but-mounted Radix menu portal covers the page. Same recovery as
+  above; if the editor sheet is already filled, clicking its submit button
+  via `tab.evaluate` DOM `.click()` still saves reliably.
+- After Create, the detail view auto-opens with the saved item selected — no
+  list-row click needed to verify it.
 
 ## Asserting results
 
