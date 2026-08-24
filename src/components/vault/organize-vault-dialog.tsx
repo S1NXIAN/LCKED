@@ -1,7 +1,7 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
 import { FolderInput, GripVertical, ShieldCheck, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react"
 import * as React from "react";
 import { toast } from "sonner";
 

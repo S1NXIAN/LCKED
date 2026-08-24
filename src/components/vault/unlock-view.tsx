@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import {
   AlertTriangle,
   Eye,
@@ -9,6 +8,7 @@ import {
   Lock,
   ShieldCheck,
 } from "lucide-react";
+import { motion } from "motion/react"
 import * as React from "react";
 import { toast } from "sonner";
 

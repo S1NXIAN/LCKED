@@ -1,6 +1,5 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
 import {
   ChevronDown,
   ChevronLeft,
@@ -16,6 +15,7 @@ import {
   StickyNote,
   UserRound,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react"
 import dynamic from "next/dynamic";
 import * as React from "react";
 

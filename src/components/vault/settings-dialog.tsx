@@ -22,7 +22,6 @@
  *   import-tab.tsx   export-tab.tsx
  */
 
-import { motion } from "framer-motion";
 import {
   ArrowLeft,
   Download,
@@ -32,6 +31,7 @@ import {
   ShieldCheck,
   Upload,
 } from "lucide-react";
+import { motion } from "motion/react"
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
