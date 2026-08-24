@@ -12,7 +12,7 @@
 
 import { encryptJson, randomId } from "@/lib/crypto";
 import type { NewItemInput, VaultItem } from "@/lib/types";
-import { putStoredItem } from "@/lib/vault/vault-db";
+import { deleteStoredItem, putStoredItem } from "@/lib/vault/vault-db";
 
 /* ─── Item policy primitives ────────────────────────────── */
 
@@ -126,6 +126,31 @@ export async function patchItems(
     else failed++;
   }
   return { updated, failed };
+}
+
+/**
+ * Delete multiple items' stored ciphertexts from IndexedDB using
+ * Promise.allSettled so a single row failure never loses the rest.
+ * The store-free counterpart of patchItems: callers keep state ownership
+ * and roll back exactly the rows reported in `failedIds`.
+ *
+ * @param items Items whose records should be removed (pre-filtered).
+ * @returns     `{ deletedIds, failedIds }` — per-row outcome, order-stable.
+ */
+export async function deleteStoredItems(
+  items: VaultItem[],
+): Promise<{ deletedIds: string[]; failedIds: string[] }> {
+  const outcomes = await Promise.allSettled(
+    items.map((item) => deleteStoredItem(item.id)),
+  );
+
+  const deletedIds: string[] = [];
+  const failedIds: string[] = [];
+  outcomes.forEach((o, i) => {
+    if (o.status === "fulfilled") deletedIds.push(items[i].id);
+    else failedIds.push(items[i].id);
+  });
+  return { deletedIds, failedIds };
 }
 
 /**

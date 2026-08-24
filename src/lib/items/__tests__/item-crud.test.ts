@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  deleteStoredItems,
   patchItem,
   patchItems,
   sortItems,
@@ -9,6 +10,7 @@ import {
   writeItems,
 } from "@/lib/items/item-crud";
 import type { NewItemInput, VaultItem } from "@/lib/types";
+import { deleteStoredItem } from "@/lib/vault/vault-db";
 
 // Mock the crypto and vault-db modules.
 vi.mock("@/lib/crypto", () => ({
@@ -21,6 +23,7 @@ vi.mock("@/lib/crypto", () => ({
 
 vi.mock("@/lib/vault/vault-db", () => ({
   putStoredItem: vi.fn(async () => {}),
+  deleteStoredItem: vi.fn(async () => {}),
 }));
 
 function makeItem(overrides: Partial<VaultItem> = {}): VaultItem {
@@ -423,5 +426,36 @@ describe("sortItems", () => {
     sortItems(items);
 
     expect(items).toEqual(copy);
+  });
+});
+
+describe("deleteStoredItems", () => {
+  it("deletes every row when IndexedDB succeeds", async () => {
+    const result = await deleteStoredItems([
+      makeItem({ id: "a" }),
+      makeItem({ id: "b" }),
+    ]);
+
+    expect(result).toEqual({ deletedIds: ["a", "b"], failedIds: [] });
+    expect(deleteStoredItem).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports per-row failures without losing the rest", async () => {
+    vi.mocked(deleteStoredItem).mockRejectedValueOnce(new Error("idb fail"));
+    const result = await deleteStoredItems([
+      makeItem({ id: "a" }),
+      makeItem({ id: "b" }),
+      makeItem({ id: "c" }),
+    ]);
+
+    expect(result.failedIds).toEqual(["a"]);
+    expect(result.deletedIds).toEqual(["b", "c"]);
+  });
+
+  it("resolves empty for no rows", async () => {
+    expect(await deleteStoredItems([])).toEqual({
+      deletedIds: [],
+      failedIds: [],
+    });
   });
 });

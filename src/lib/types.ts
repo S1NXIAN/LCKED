@@ -240,6 +240,18 @@ export interface ImportResult {
   items?: NewItemInput[];
 }
 
+/**
+ * Uniform outcome of every bulk Item action (trash, restore, move, clear
+ * favorites, permanent delete, empty trash). Row-level failures never
+ * reject — they surface as `failed` counts; a rejected promise is reserved
+ * for invariant violations such as "Vault is locked". See CONTEXT.md,
+ * "Bulk actions".
+ */
+export interface BulkResult {
+  done: number;
+  failed: number;
+}
+
 export type ImportFormat =
   | "bitwarden-json"
   | "bitwarden-csv"
