@@ -1,8 +1,8 @@
 "use client";
 
 import type * as React from "react";
-import { toast } from "sonner";
 
+import { runBulk } from "@/components/vault/bulk-report";
 import { cn } from "@/lib/utils";
 import { useVault } from "@/store/vault";
 
@@ -61,18 +61,13 @@ export function VaultRow({
     const ids = parseDraggedIds(e);
     if (ids.length === 0) return;
     const { moveItemsToVault } = useVault.getState();
-    const { moved, failed } = await moveItemsToVault(ids, dropVaultId ?? null);
-    if (moved > 0 && failed === 0) {
-      toast.success(`Moved ${moved} item${moved === 1 ? "" : "s"} to ${label}`);
-    } else if (moved > 0 && failed > 0) {
-      toast.warning(`Moved ${moved}, ${failed} failed`, {
-        description: `${label}`,
-      });
-    } else if (failed > 0) {
-      toast.error(`Could not move ${failed} item${failed === 1 ? "" : "s"}`);
-    }
+    const { done } = await runBulk(
+      () => moveItemsToVault(ids, dropVaultId ?? null),
+      "Moved",
+      { tail: `to ${label}` },
+    );
     // Exit multi-select if more than one item was dragged.
-    if (ids.length > 1 && moved > 0) exitMultiSelect();
+    if (ids.length > 1 && done > 0) exitMultiSelect();
   };
   const handleDragOver = (e: React.DragEvent) => {
     if (dropVaultId === undefined) return;

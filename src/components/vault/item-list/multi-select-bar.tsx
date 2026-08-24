@@ -1,9 +1,8 @@
 "use client";
 
 import { ChevronDown, FolderInput, RotateCcw, Trash2, X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react"
+import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +15,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { runBulk } from "@/components/vault/bulk-report";
 import { useVault } from "@/store/vault";
 
 /* --------------------------- MultiSelectBar --------------------------- */
@@ -47,16 +47,9 @@ export function MultiSelectBar({
 
   const handleMultiTrash = async () => {
     if (selectedIds.size === 0) return;
-    try {
-      const { moved, failed } = await trashItems(Array.from(selectedIds));
-      if (moved > 0 && failed === 0) toast.success(`Moved ${moved} to Trash`);
-      else if (moved > 0 && failed > 0)
-        toast.warning(`Moved ${moved}, ${failed} failed`);
-      else if (failed > 0)
-        toast.error(`Could not move ${failed} item${failed === 1 ? "" : "s"}`);
-    } catch {
-      toast.error("Could not move items");
-    }
+    await runBulk(() => trashItems(Array.from(selectedIds)), "Moved", {
+      tail: "to Trash",
+    });
     setMultiSelect(false);
   };
   const handleMultiMove = async (vaultId: string | null) => {
@@ -65,58 +58,24 @@ export function MultiSelectBar({
       vaultId === null
         ? "All Items"
         : (vaults.find((v) => v.id === vaultId)?.name ?? "vault");
-    try {
-      const { moved, failed } = await moveItemsToVault(
-        Array.from(selectedIds),
-        vaultId,
-      );
-      if (moved > 0 && failed === 0)
-        toast.success(`Moved ${moved} to ${label}`);
-      else if (moved > 0 && failed > 0)
-        toast.warning(`Moved ${moved}, ${failed} failed`);
-      else if (failed > 0)
-        toast.error(`Could not move ${failed} item${failed === 1 ? "" : "s"}`);
-    } catch {
-      toast.error("Could not move items");
-    }
+    await runBulk(
+      () => moveItemsToVault(Array.from(selectedIds), vaultId),
+      "Moved",
+      { tail: `to ${label}` },
+    );
     setMultiSelect(false);
   };
   const handleMultiRestore = async () => {
     if (selectedIds.size === 0) return;
-    try {
-      const { restored, failed } = await restoreItems(Array.from(selectedIds));
-      if (restored > 0 && failed === 0)
-        toast.success(`Restored ${restored} item${restored === 1 ? "" : "s"}`);
-      else if (restored > 0 && failed > 0)
-        toast.warning(`Restored ${restored}, ${failed} failed`);
-      else if (failed > 0)
-        toast.error(
-          `Could not restore ${failed} item${failed === 1 ? "" : "s"}`,
-        );
-    } catch {
-      toast.error("Could not restore items");
-    }
+    await runBulk(() => restoreItems(Array.from(selectedIds)), "Restored");
     setMultiSelect(false);
   };
   const handleMultiDelete = async () => {
     if (selectedIds.size === 0) return;
-    try {
-      const { deleted, failed } = await permanentlyDeleteItems(
-        Array.from(selectedIds),
-      );
-      if (deleted > 0 && failed === 0)
-        toast.success(
-          `Permanently deleted ${deleted} item${deleted === 1 ? "" : "s"}`,
-        );
-      else if (deleted > 0 && failed > 0)
-        toast.warning(`Deleted ${deleted}, ${failed} failed`);
-      else if (failed > 0)
-        toast.error(
-          `Could not delete ${failed} item${failed === 1 ? "" : "s"}`,
-        );
-    } catch {
-      toast.error("Could not delete items");
-    }
+    await runBulk(
+      () => permanentlyDeleteItems(Array.from(selectedIds)),
+      "Permanently deleted",
+    );
     setMultiSelect(false);
   };
 

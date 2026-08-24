@@ -40,6 +40,7 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { runBulk } from "@/components/vault/bulk-report";
 import type { VaultDef } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useVault } from "@/store/vault";
@@ -89,35 +90,12 @@ export function VaultsSidebar() {
     toast.success(`Deleted vault “${v.name}”`);
   };
 
-  const handleClearFavorites = async () => {
-    const { cleared, failed } = await clearFavorites();
-    if (cleared > 0 && failed === 0) {
-      toast.success(`Cleared ${cleared} favorite${cleared === 1 ? "" : "s"}`);
-    } else if (cleared > 0 && failed > 0) {
-      toast.warning(`Cleared ${cleared}, ${failed} failed`);
-    } else if (failed > 0) {
-      toast.error(
-        `Could not clear ${failed} favorite${failed === 1 ? "" : "s"}`,
-      );
-    }
-  };
+  const handleClearFavorites = () =>
+    runBulk(clearFavorites, "Cleared", { what: "favorite" });
 
-  const handleEmptyTrash = async () => {
-    try {
-      await emptyTrash();
-      toast.success("Trash emptied");
-    } catch {
-      toast.error("Could not empty trash");
-    }
-  };
+  const handleEmptyTrash = () => runBulk(emptyTrash, "Deleted");
 
-  const handleRestoreAllTrash = async () => {
-    const { restored, failed } = await restoreAllTrash();
-    if (restored > 0)
-      toast.success(`Restored ${restored} item${restored === 1 ? "" : "s"}`);
-    if (failed > 0)
-      toast.error(`Could not restore ${failed} item${failed === 1 ? "" : "s"}`);
-  };
+  const handleRestoreAllTrash = () => runBulk(restoreAllTrash, "Restored");
 
   const handleMoveAll = async (source: VaultDef, target: string | null) => {
     const targets = items.filter(
@@ -132,16 +110,15 @@ export function VaultsSidebar() {
         ? "All Items"
         : (vaults.find((v) => v.id === target)?.name ?? "target vault");
     const { moveItemsToVault } = useVault.getState();
-    const { moved, failed } = await moveItemsToVault(
-      targets.map((i) => i.id),
-      target,
+    await runBulk(
+      () =>
+        moveItemsToVault(
+          targets.map((i) => i.id),
+          target,
+        ),
+      "Moved",
+      { tail: `to ${label}` },
     );
-    if (moved > 0 && failed === 0)
-      toast.success(`Moved ${moved} item${moved === 1 ? "" : "s"} to ${label}`);
-    else if (moved > 0 && failed > 0)
-      toast.warning(`Moved ${moved}, ${failed} failed`);
-    else if (failed > 0)
-      toast.error(`Could not move ${failed} item${failed === 1 ? "" : "s"}`);
   };
 
   const renderCustomVault = (v: VaultDef) => (
@@ -247,16 +224,14 @@ export function VaultsSidebar() {
               const ids = parseDraggedIds(e);
               if (ids.length === 0) return;
               const { moveItemsToVault } = useVault.getState();
-              const { moved, failed } = await moveItemsToVault(ids, null);
-              if (moved > 0)
-                toast.success(
-                  `Moved ${moved} item${moved === 1 ? "" : "s"} to All Items`,
-                );
-              else if (failed > 0)
-                toast.error(
-                  `Could not move ${failed} item${failed === 1 ? "" : "s"}`,
-                );
-              if (ids.length > 1 && moved > 0) exitMultiSelect();
+              const { done } = await runBulk(
+                () => moveItemsToVault(ids, null),
+                "Moved",
+                {
+                  tail: "to All Items",
+                },
+              );
+              if (ids.length > 1 && done > 0) exitMultiSelect();
             }}
           >
             <VaultRow
@@ -371,18 +346,15 @@ export function VaultsSidebar() {
           const ids = parseDraggedIds(e);
           if (ids.length === 0) return;
           const { trashItems } = useVault.getState();
-          const { moved, failed } = await trashItems(ids);
-          if (moved > 0)
-            toast.success(
-              `Moved ${moved} item${moved === 1 ? "" : "s"} to Trash`,
-            );
-          else if (ids.length > 0 && moved === 0)
-            toast.info("Already in Trash");
-          if (failed > 0)
-            toast.error(
-              `Could not move ${failed} item${failed === 1 ? "" : "s"}`,
-            );
-          if (ids.length > 1 && moved > 0) exitMultiSelect();
+          const { done, failed } = await runBulk(
+            () => trashItems(ids),
+            "Moved",
+            {
+              tail: "to Trash",
+            },
+          );
+          if (done === 0 && failed === 0) toast.info("Already in Trash");
+          if (ids.length > 1 && done > 0) exitMultiSelect();
         }}
       >
         <ActiveHighlight
