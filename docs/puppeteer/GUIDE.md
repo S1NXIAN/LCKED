@@ -101,6 +101,35 @@ JS body as a plain quoted string.
   closed-but-mounted Radix menu portal covers the page. Same recovery as
   above; if the editor sheet is already filled, clicking its submit button
   via `tab.evaluate` DOM `.click()` still saves reliably.
+- **`Failed to install Chromium for puppeteer: … too large to extract in memory`**
+  The harness can't unpack its own Chromium build. Recovery: pass the system
+  binary in the `open` args — `{"action": "open", …, "app": {"path":
+"/usr/bin/chromium"}}`.
+
+**`tab.fill('input[type="password"]') timed out … element may be hidden or covered`**
+The password field is the custom dot-field; puppeteer's fill never sees it
+as fillable. Recovery: set the value through evaluate with React's native
+setter and dispatch an `input` event, then click Unlock via DOM:
+
+```js
+await tab.evaluate(() => {
+  const el = document.querySelector('input[type="password"]');
+  const set = Object.getOwnPropertyDescriptor(
+    window.HTMLInputElement.prototype,
+    "value",
+  ).set;
+  set.call(el, "password");
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+});
+```
+
+**Radix row menus (⋮ "… options") won't open via `btn.click()` or stale refs**
+Dropdown triggers open on `pointerdown`; a plain DOM `.click()` is ignored,
+and trusted `tab.click(ref)` stalls when a closed-but-mounted portal covers
+the page. Recovery: Escape first, then dispatch the full pointer cascade
+(`pointerdown`/`mousedown`/`pointerup`/`mouseup`/`click`) on the trigger
+via evaluate, confirm `[role=menu]` exists, then DOM-click the menuitem.
+
 - After Create, the detail view auto-opens with the saved item selected — no
   list-row click needed to verify it.
 
