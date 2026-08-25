@@ -62,6 +62,10 @@ export function detectFormat(filename: string, text: string): ImportFormat {
     // round-trip; anything else is unknown rather than a guess.
     if (BITWARDEN_CSV_MARKERS.some((marker) => firstLine.includes(marker)))
       return "bitwarden-csv";
+    // Current Proton Pass CSV exports are flat:
+    // type,name,url,email,username,password,note,totp,createTime,modifyTime,vault
+    // (`modifyTime` is unique among supported sources).
+    if (firstLine.includes("modifytime")) return "protonpass-csv";
     if (firstLine.includes("title") && firstLine.includes("url"))
       return "1password-csv";
     return "unknown";

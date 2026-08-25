@@ -1,0 +1,6 @@
+type,name,url,autofillUrls,email,username,password,note,totp,createTime,modifyTime,vault
+login,GitHub,"https://github.com, https://api.github.com","[""https://exact.example.com/login""]",gh@x.com,alice,hunter2,"Work account","otpauth://totp/GitHub:alice?secret=JBSWY3DPEHPK3PXP&issuer=GitHub",1700000000,1700000100,Personal
+note,Wifi home,,,,,,"password: hunter2",,,1700000000,1700000100,Personal
+creditCard,Visa,,,,,,"{""cardholderName"":""Alice Smith"",""brand"":""visa"",""number"":""4111 1111 1111 1111"",""verificationNumber"":""321"",""expirationDate"":""12/2028"",""pin"":""1234"",""note"":""personal card""}",,,1700000000,1700000100,Personal
+identity,Me,,,,,,"{""firstName"":""Alice"",""lastName"":""Smith"",""email"":""alice@x.com"",""phoneNumber"":""+15551234"",""organization"":""Acme"",""streetAddress"":""1 Main St"",""city"":""Springfield"",""stateOrProvince"":""IL"",""zipCode"":""62704"",""countryOrRegion"":""US"",""note"":""id note""}",,,1700000000,1700000100,Personal
+alias,Shop alias,,,spam@alias.com,,,,,1700000000,1700000100,Personal
