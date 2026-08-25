@@ -9,7 +9,11 @@
  * libsodium pwhash surface cannot accept (fixed 16-byte salt), so anchors
  * below use 16-byte salts instead.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Real Argon2id at ADR-0005 parameters takes ~6s on low-end cores — over
+// vitest's 5s default. Give the whole file headroom; nothing here hangs.
+vi.setConfig({ testTimeout: 30_000 });
 
 import {
   ARGON2ID_ITERATIONS,
