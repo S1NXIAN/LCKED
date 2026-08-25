@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { copyWithAutoClear } from "@/lib/clipboard";
 import {
   generatePassphrase,
   generatePassword,
@@ -34,6 +33,7 @@ import {
   hasGeneratorCallback,
   setGeneratorCallback,
 } from "@/lib/generator/generator-bridge";
+import { useSecretCopy } from "@/lib/use-secret-copy";
 import { cn } from "@/lib/utils";
 import { useVault } from "@/store/vault";
 
@@ -46,7 +46,7 @@ export function PasswordGeneratorDialog() {
   const updateGenerator = useVault((s) => s.updateGenerator);
 
   const [password, setPassword] = React.useState("");
-  const [copied, setCopied] = React.useState(false);
+  const { copied, copy } = useSecretCopy();
   const [mode, setMode] = React.useState<"random" | "passphrase">("random");
   const [wordCount, setWordCount] = React.useState(4);
   const [hasCallback, setHasCallback] = React.useState(false);
@@ -69,15 +69,7 @@ export function PasswordGeneratorDialog() {
   }, [open, regenerate]);
 
   const handleCopy = async () => {
-    if (!password) return;
-    try {
-      await copyWithAutoClear(password, "generator");
-      setCopied(true);
-      toast.success("Password copied", { description: "Auto-clears in 30s" });
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      toast.error("Clipboard access denied");
-    }
+    await copy(password, "Password");
   };
 
   const handleUse = () => {

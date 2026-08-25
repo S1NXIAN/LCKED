@@ -5,6 +5,7 @@ import * as React from "react";
 
 import { useVault } from "@/store/vault";
 
+import { BrandLockup } from "./brand-lockup";
 import { DiamondMark } from "./diamond-mark";
 import { DotField } from "./dot-field";
 import { SetupView } from "./setup-view";
@@ -40,30 +41,25 @@ export function VaultApp() {
 
         {/* Centered loading screen */}
         <div className="relative flex flex-col items-center gap-5">
-          {/* Diamond in a pulsing glow ring */}
-          <div className="relative">
-            <div
-              className="bg-primary/20 absolute inset-0 -m-4 animate-ping rounded-full"
-              aria-hidden="true"
-            />
-            <div
-              className="bg-primary/10 absolute inset-0 -m-2 rounded-full blur-md"
-              aria-hidden="true"
-            />
-            <div className="text-primary relative">
-              <DiamondMark size={52} glow className="lcked-pulse" />
-            </div>
-          </div>
-
-          {/* Wordmark */}
-          <div className="flex flex-col items-center gap-1">
-            <div className="text-2xl font-bold tracking-tight">
-              LCK<span className="text-primary">ED</span>
-            </div>
-            <div className="text-muted-foreground text-[9px] tracking-[0.3em] uppercase">
-              Local Vault
-            </div>
-          </div>
+          <BrandLockup
+            className="gap-5"
+            wordmarkClassName="text-2xl"
+            mark={
+              <div className="relative">
+                <div
+                  className="bg-primary/20 absolute inset-0 -m-4 animate-ping rounded-full"
+                  aria-hidden="true"
+                />
+                <div
+                  className="bg-primary/10 absolute inset-0 -m-2 rounded-full blur-md"
+                  aria-hidden="true"
+                />
+                <div className="text-primary relative">
+                  <DiamondMark size={52} glow className="lcked-pulse" />
+                </div>
+              </div>
+            }
+          />
 
           <div className="text-muted-foreground flex items-center gap-2 text-sm">
             <Loader2 className="h-4 w-4 animate-spin" />

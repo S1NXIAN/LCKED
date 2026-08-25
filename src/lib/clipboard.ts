@@ -6,9 +6,12 @@
  * clipboard after a configurable timeout (default 30s).
  */
 
+/** Handle returned by setTimeout — named here; consumers import this type. */
+export type TimeoutHandle = ReturnType<typeof setTimeout>;
+
 /** Map of named clipboard timers, keyed so multiple callers can each manage
  *  their own auto-clear lifecycle independently. */
-const clipboardTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const clipboardTimers = new Map<string, TimeoutHandle>();
 
 /**
  * Copy a value to the system clipboard and schedule an automatic clear after

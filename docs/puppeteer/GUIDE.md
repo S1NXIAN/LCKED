@@ -11,6 +11,10 @@ Novel failure missing from the tables? Solve it once, then append its
 verbatim error string + recovery recipe here. The table only grows: every
 session that hits an unknown wound immunizes the next one.
 
+**Vault data in the tool browser is always disposable.** The user never
+runs LCKED day-to-day inside the harness's Chromium, so resetting a vault
+there ("Forgot password? Reset vault") needs no confirmation — just do it.
+
 ## Scripts
 
 `scripts/` follows unix principles: one script = one job, done well. Chain

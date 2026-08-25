@@ -3,7 +3,6 @@
 import { Plus } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
-import { toast } from "sonner";
 
 import {
   ContextMenu,
@@ -14,9 +13,9 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { copyWithAutoClear } from "@/lib/clipboard";
 import { searchItems } from "@/lib/search/fuzzy-search";
 import type { ItemType } from "@/lib/types";
+import { useSecretCopy } from "@/lib/use-secret-copy";
 import { cn } from "@/lib/utils";
 import { useVault } from "@/store/vault";
 
@@ -144,17 +143,13 @@ export function ItemList({
   // Helper used by the empty-area context menu (and any other caller that
   // wants to spawn the editor pre-seeded with a type).
 
+  const { copy } = useSecretCopy();
+
   const copyField = React.useCallback(
     async (value: string | undefined, label: string) => {
-      if (!value) return;
-      try {
-        await copyWithAutoClear(value, label);
-        toast.success(`${label} copied`, { description: "Auto-clears in 30s" });
-      } catch {
-        toast.error("Clipboard access denied");
-      }
+      await copy(value, label);
     },
-    [],
+    [copy],
   );
 
   /* ------------------------------- rendering ------------------------------- */

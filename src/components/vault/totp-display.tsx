@@ -2,17 +2,18 @@
 
 import { Check, Copy } from "lucide-react";
 import * as React from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { copyWithAutoClear } from "@/lib/clipboard";
 import {
   generateTotp,
   looksLikeTotp,
   resolveTotpParams,
   type TotpParams,
 } from "@/lib/totp";
+import { useSecretCopy } from "@/lib/use-secret-copy";
 import { cn } from "@/lib/utils";
+
+import { MicroLabel } from "./field-cluster";
 
 interface TOTPDisplayProps {
   secret: string;
@@ -32,9 +33,8 @@ export function TOTPDisplay({ secret, compact = false }: TOTPDisplayProps) {
   const [code, setCode] = React.useState<string>("");
   const [remaining, setRemaining] = React.useState(30);
   const [period, setPeriod] = React.useState(30);
-  const [copied, setCopied] = React.useState(false);
+  const { copied, copy } = useSecretCopy();
   const [error, setError] = React.useState(false);
-  const copyTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
     if (!params || !looksLikeTotp(params.secret)) {
@@ -63,14 +63,6 @@ export function TOTPDisplay({ secret, compact = false }: TOTPDisplayProps) {
     };
   }, [params]);
 
-  // Cleanup the copied-state timer on unmount.
-  React.useEffect(
-    () => () => {
-      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-    },
-    [],
-  );
-
   if (!params) return null;
 
   if (error) {
@@ -82,18 +74,8 @@ export function TOTPDisplay({ secret, compact = false }: TOTPDisplayProps) {
   }
 
   const progress = remaining / period; // 1 → 0
-
   const handleCopy = async () => {
-    if (!code) return;
-    try {
-      await copyWithAutoClear(code, "totp");
-      setCopied(true);
-      toast.success("Code copied", { description: "Auto-clears in 30s" });
-      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-      copyTimerRef.current = setTimeout(() => setCopied(false), 1500);
-    } catch {
-      toast.error("Clipboard access denied");
-    }
+    await copy(code, "Code");
   };
 
   if (compact) {
@@ -169,9 +151,7 @@ export function TOTPDisplay({ secret, compact = false }: TOTPDisplayProps) {
         </span>
       </div>
       <div className="flex-1">
-        <div className="text-muted-foreground text-[10px] tracking-wide uppercase">
-          Verification code
-        </div>
+        <MicroLabel>Verification code</MicroLabel>
         <div className="font-secret text-foreground text-2xl font-bold tracking-[0.2em]">
           {code || "------"}
         </div>

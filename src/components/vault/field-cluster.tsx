@@ -10,6 +10,30 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Canonical micro section label (DESIGN.md "Micro-label"): 10px medium,
+ * wide-tracked uppercase secondary text used above fields, clusters, and
+ * groups. Layout utilities (margins, alignment) pass through `className`.
+ */
+export function MicroLabel({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "text-muted-foreground/70 text-[10px] font-medium tracking-wider uppercase",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
 /** Bordered card grouping related editable rows, divided by 1px lines. */
 export function FieldCluster({ children }: { children: React.ReactNode }) {
   return (
@@ -40,9 +64,7 @@ export function FieldClusterWithLabel({
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between px-1">
-        <span className="text-muted-foreground/60 text-[10px] font-medium tracking-wider uppercase">
-          {label}
-        </span>
+        <MicroLabel>{label}</MicroLabel>
         {action}
       </div>
       <FieldCluster>{children}</FieldCluster>
@@ -51,7 +73,6 @@ export function FieldClusterWithLabel({
 }
 
 /** A labelled field row inside a FieldCluster. Matches the item-detail
- *  FieldRow layout: icon (optional) in the flow, label+input stacked in a
  *  flex-1 div. This keeps the editor visually faithful to the detail view.
  *  `icon` — optional leading SVG rendered in the flow (NOT absolute), same
  *  as item-detail's FieldRow. */
@@ -75,11 +96,7 @@ export function FieldRowInput({
     >
       {Icon && <Icon className="text-muted-foreground/70 h-4 w-4 shrink-0" />}
       <div className="min-w-0 flex-1">
-        {label && (
-          <div className="text-muted-foreground/70 mb-0.5 text-[10px] font-medium tracking-wider uppercase">
-            {label}
-          </div>
-        )}
+        {label && <MicroLabel className="mb-0.5">{label}</MicroLabel>}
         {children}
       </div>
     </div>

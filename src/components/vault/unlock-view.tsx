@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useVault } from "@/store/vault";
 
+import { BrandLockup } from "./brand-lockup";
 import { DiamondMark } from "./diamond-mark";
 import { DotField } from "./dot-field";
 
@@ -87,17 +88,14 @@ export function UnlockView() {
         className="relative flex w-full max-w-md flex-col"
       >
         {/* Centered brand header */}
-        <div className="mb-4 flex shrink-0 flex-col items-center gap-1 text-center sm:mb-6 sm:gap-2">
-          <div className="text-primary">
-            <DiamondMark size={32} glow className="lcked-pulse" />
-          </div>
-          <div className="text-xl font-bold tracking-tight sm:text-2xl">
-            LCK<span className="text-primary">ED</span>
-          </div>
-          <div className="text-muted-foreground text-[9px] tracking-[0.3em] uppercase">
-            Local Vault
-          </div>
-        </div>
+        <BrandLockup
+          className="mb-4 shrink-0 text-center sm:mb-6 sm:gap-2"
+          mark={
+            <div className="text-primary">
+              <DiamondMark size={32} glow className="lcked-pulse" />
+            </div>
+          }
+        />
 
         <div className="border-border/60 bg-card/40 flex max-h-[75vh] w-full flex-col overflow-y-auto rounded-2xl border p-5 shadow-2xl backdrop-blur-xl sm:p-6 md:p-7">
           <div className="mb-4 flex shrink-0 flex-col items-center text-center sm:mb-5">

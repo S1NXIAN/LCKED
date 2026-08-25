@@ -26,7 +26,6 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
-import { toast } from "sonner";
 
 import {
   AlertDialog,
@@ -40,13 +39,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { copyWithAutoClear } from "@/lib/clipboard";
+import { useSecretCopy } from "@/lib/use-secret-copy";
 import { cn, isEmail } from "@/lib/utils";
 import { useVault } from "@/store/vault";
 
 import { runBulk } from "./bulk-report";
 import { FaviconIcon } from "./favicon-icon";
-import { FieldCluster } from "./field-cluster";
+import { FieldCluster, MicroLabel } from "./field-cluster";
 import { ITEM_TYPE_LABELS, ItemTypeIcon } from "./item-icons";
 import { TOTPDisplay } from "./totp-display";
 import { VaultIcon } from "./vault-icon";
@@ -85,7 +84,7 @@ function FieldRow({
   forceMask?: boolean;
 }) {
   const [revealed, setRevealed] = React.useState(false);
-  const [copied, setCopied] = React.useState(false);
+  const { copied, copy } = useSecretCopy();
 
   // Either the field is inherently masked (password/card) OR the user has
   // force-masked it via blurEmailMode="full". The reveal toggle clears both.
@@ -99,15 +98,7 @@ function FieldRow({
       onCopy();
       return;
     }
-    if (!value) return;
-    try {
-      await copyWithAutoClear(value, label);
-      setCopied(true);
-      toast.success(`${label} copied`, { description: "Auto-clears in 30s" });
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      toast.error("Clipboard access denied");
-    }
+    await copy(value, label);
   };
 
   if (!value) return null;
@@ -128,9 +119,7 @@ function FieldRow({
     >
       {Icon && <Icon className="text-muted-foreground/70 h-4 w-4 shrink-0" />}
       <div className="min-w-0 flex-1">
-        <div className="text-muted-foreground/70 text-[10px] font-medium tracking-wider uppercase">
-          {label}
-        </div>
+        <MicroLabel>{label}</MicroLabel>
         <div
           className={cn(
             "text-foreground/90 truncate text-sm",
@@ -564,9 +553,7 @@ export function ItemDetail() {
                   {/* Websites */}
                   {item.details.urls.filter(Boolean).length > 0 && (
                     <div className="space-y-1.5">
-                      <div className="text-muted-foreground/70 px-1 text-[10px] font-medium tracking-wider uppercase">
-                        Websites
-                      </div>
+                      <MicroLabel className="px-1">Websites</MicroLabel>
                       <FieldCluster>
                         {item.details.urls.filter(Boolean).map((url, idx) => (
                           <div
@@ -609,9 +596,7 @@ export function ItemDetail() {
                   {/* Notes */}
                   {item.details.notes && (
                     <div className="space-y-1.5">
-                      <div className="text-muted-foreground/70 px-1 text-[10px] font-medium tracking-wider uppercase">
-                        Note
-                      </div>
+                      <MicroLabel className="px-1">Note</MicroLabel>
                       <div className="border-border bg-secondary/10 dark:bg-secondary/10 rounded-xl border p-3.5">
                         <p className="text-foreground/80 text-sm break-words whitespace-pre-wrap">
                           {item.details.notes}
@@ -669,9 +654,7 @@ export function ItemDetail() {
                   </FieldCluster>
                   {item.details.notes && (
                     <div className="space-y-1.5">
-                      <div className="text-muted-foreground/70 px-1 text-[10px] font-medium tracking-wider uppercase">
-                        Note
-                      </div>
+                      <MicroLabel className="px-1">Note</MicroLabel>
                       <div className="border-border bg-secondary/10 dark:bg-secondary/10 rounded-xl border p-3.5">
                         <p className="text-foreground/80 text-sm break-words whitespace-pre-wrap">
                           {item.details.notes}
@@ -740,9 +723,7 @@ export function ItemDetail() {
                   </FieldCluster>
                   {item.details.notes && (
                     <div className="space-y-1.5">
-                      <div className="text-muted-foreground/70 px-1 text-[10px] font-medium tracking-wider uppercase">
-                        Note
-                      </div>
+                      <MicroLabel className="px-1">Note</MicroLabel>
                       <div className="border-border bg-secondary/10 dark:bg-secondary/10 rounded-xl border p-3.5">
                         <p className="text-foreground/80 text-sm break-words whitespace-pre-wrap">
                           {item.details.notes}
@@ -756,9 +737,7 @@ export function ItemDetail() {
               {/* Custom fields */}
               {item.customFields.length > 0 && (
                 <div className="mt-4 space-y-1.5">
-                  <div className="text-muted-foreground/70 px-1 text-[10px] font-medium tracking-wider uppercase">
-                    Custom fields
-                  </div>
+                  <MicroLabel className="px-1">Custom fields</MicroLabel>
                   <FieldCluster>
                     {item.customFields.map((cf, idx) => (
                       <FieldRow

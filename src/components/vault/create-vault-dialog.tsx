@@ -53,6 +53,7 @@ import {
 } from "@/lib/vault/vault-assets";
 import { useVault } from "@/store/vault";
 
+import { MicroLabel } from "./field-cluster";
 import { VaultIcon } from "./vault-icon";
 import { DEFAULT_VAULT_ICON, VAULT_ICONS } from "./vault-lucide-icons";
 
@@ -190,9 +191,7 @@ export function CreateVaultDialog() {
           <div className="flex items-center gap-3 px-6 pt-6">
             <VaultIcon icon={icon} color={color} size={36} />
             <div className="min-w-0 flex-1">
-              <div className="text-muted-foreground mb-1 text-[11px] font-medium tracking-wide uppercase">
-                Name
-              </div>
+              <MicroLabel className="mb-1">Name</MicroLabel>
               <input
                 type="text"
                 value={name}
@@ -218,9 +217,7 @@ export function CreateVaultDialog() {
 
           {/* Color swatches — 10 in a 5×2 grid */}
           <div className="px-6">
-            <div className="text-muted-foreground mb-2.5 text-[11px] font-medium tracking-wide uppercase">
-              Color
-            </div>
+            <MicroLabel className="mb-2.5">Color</MicroLabel>
             <div className="grid grid-cols-5 gap-2.5">
               {VAULT_COLORS.map((c) => {
                 const selected = c.id === color;
@@ -263,9 +260,7 @@ export function CreateVaultDialog() {
 
           {/* Icon picker — grid of raw Lucide glyphs tinted with selected color */}
           <div className="px-6 pt-6">
-            <div className="text-muted-foreground mb-2.5 text-[11px] font-medium tracking-wide uppercase">
-              Icon
-            </div>
+            <MicroLabel className="mb-2.5">Icon</MicroLabel>
             <div className="grid grid-cols-6 gap-1.5">
               {VAULT_ICONS.map((ic) => {
                 const selected = ic.id === icon;

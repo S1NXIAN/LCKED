@@ -46,6 +46,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useVault } from "@/store/vault";
 
+import { MicroLabel } from "../field-cluster";
 import { ITEM_TYPE_LABELS, ItemTypeIcon } from "../item-icons";
 import { VaultIcon } from "../vault-icon";
 import { CardFields } from "./card-fields";
@@ -401,9 +402,7 @@ export function ItemEditor() {
             {/* Name + favorite star — inline to save space */}
             <div className="mb-4">
               <div className="mb-1 flex items-center justify-between">
-                <div className="text-muted-foreground/70 text-[10px] font-medium tracking-wider uppercase">
-                  Name
-                </div>
+                <MicroLabel>Name</MicroLabel>
                 <button
                   type="button"
                   onClick={() => update({ favorite: !form.favorite })}

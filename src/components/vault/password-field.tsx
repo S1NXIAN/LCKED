@@ -10,13 +10,12 @@ import {
   RefreshCw,
 } from "lucide-react";
 import * as React from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { copyWithAutoClear } from "@/lib/clipboard";
 import { setGeneratorCallback } from "@/lib/generator/generator-bridge";
 import type { GeneratorOptions } from "@/lib/types";
+import { useSecretCopy } from "@/lib/use-secret-copy";
 import { cn } from "@/lib/utils";
 import { useVault } from "@/store/vault";
 
@@ -66,7 +65,7 @@ export function PasswordField({
   icon: Icon,
 }: PasswordFieldProps) {
   const [revealed, setRevealed] = React.useState(false);
-  const [copied, setCopied] = React.useState(false);
+  const { copied, copy } = useSecretCopy();
   const [countdown, setCountdown] = React.useState<number | null>(null);
 
   const handleGenerate = () => {
@@ -80,24 +79,8 @@ export function PasswordField({
   };
 
   const handleCopy = async () => {
-    if (!value) return;
-    try {
-      if (noAutoClear) {
-        await navigator.clipboard.writeText(value);
-      } else {
-        await copyWithAutoClear(value, label ?? "field");
-      }
-      setCopied(true);
-      if (!noAutoClear) {
-        setCountdown(30);
-      }
-      toast.success("Copied", {
-        description: noAutoClear ? undefined : "Auto-clears in 30s",
-      });
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      toast.error("Clipboard access denied");
-    }
+    const ok = await copy(value, label ?? "field", { noAutoClear });
+    if (ok && !noAutoClear) setCountdown(30);
   };
 
   // Countdown ticker for the auto-clear badge.
