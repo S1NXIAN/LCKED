@@ -49,6 +49,9 @@ describe("parseProtonPassCsv", () => {
     expect(result.skipped).toBe(0);
 
     const [login, note, card, identity, alias] = items;
+    // Fixture rows carry createTime=1700000000s / modifyTime=1700000100s.
+    expect(login.createdAt).toBe(1700000000000);
+    expect(login.updatedAt).toBe(1700000100000);
     expect(login).toMatchObject({
       type: "login",
       name: "GitHub",
@@ -122,6 +125,14 @@ describe("parseProtonPassCsv", () => {
     expect(items[0].details).toMatchObject({ notes: "{not json}" });
   });
 
+
+  it("leaves timestamps unstamped when the export has none", () => {
+    const csv = "item_type,name\nlogin,Ancient";
+    const { result, items } = importFromText("export.csv", csv);
+    expect(result.imported).toBe(1);
+    expect(items[0].createdAt).toBeUndefined();
+    expect(items[0].updatedAt).toBeUndefined();
+  });
   it("handles card type items", () => {
     const csv =
       "item_type,name,card_number,card_cardholder,card_cvv,card_expiration_date\ncard,Visa,4111111111111111,Alice,321,12/2028";

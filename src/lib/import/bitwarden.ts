@@ -9,7 +9,13 @@ import type { ImportResult, ItemType, NewItemInput } from "@/lib/types";
 
 import { parseCsv, rowToObject } from "./csv";
 import { detectCardBrand } from "./export";
-import { makeCard, makeIdentity, makeLogin, makeNote } from "./helpers";
+import {
+  makeCard,
+  makeIdentity,
+  makeLogin,
+  makeNote,
+  withTimestamps,
+} from "./helpers";
 
 const BITWARDEN_TYPE_MAP: Record<number, ItemType> = {
   1: "login",
@@ -59,7 +65,7 @@ export function parseBitwardenJson(text: string): ImportResult {
               .filter(Boolean)
           : [];
         items.push(
-          makeLogin({
+          withTimestamps(makeLogin({
             name,
             username: login.username ?? "",
             password: login.password ?? "",
@@ -68,15 +74,21 @@ export function parseBitwardenJson(text: string): ImportResult {
             notes,
             folder,
             favorite,
-          }),
+          }), raw.creationDate, raw.revisionDate),
         );
       } else if (type === "note") {
-        items.push(makeNote({ name, content: notes, folder, favorite }));
+        items.push(
+          withTimestamps(
+            makeNote({ name, content: notes, folder, favorite }),
+            raw.creationDate,
+            raw.revisionDate,
+          ),
+        );
       } else if (type === "card") {
         const card = raw.card ?? {};
         const expiry = [card.expMonth, card.expYear].filter(Boolean).join("/");
         items.push(
-          makeCard({
+          withTimestamps(makeCard({
             name,
             cardholder: card.cardholderName ?? "",
             number: card.number ?? "",
@@ -87,12 +99,12 @@ export function parseBitwardenJson(text: string): ImportResult {
             notes,
             folder,
             favorite,
-          }),
+          }), raw.creationDate, raw.revisionDate),
         );
       } else if (type === "identity") {
         const id = raw.identity ?? {};
         items.push(
-          makeIdentity({
+          withTimestamps(makeIdentity({
             name,
             firstName: id.firstName ?? "",
             lastName: id.lastName ?? "",
@@ -108,7 +120,7 @@ export function parseBitwardenJson(text: string): ImportResult {
             notes,
             folder,
             favorite,
-          }),
+          }), raw.creationDate, raw.revisionDate),
         );
       }
       result.imported++;

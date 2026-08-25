@@ -11,7 +11,13 @@
 import type { ImportResult, NewItemInput } from "@/lib/types";
 
 import { parseCsv, rowToObject } from "./csv";
-import { makeCard, makeIdentity, makeLogin, makeNote } from "./helpers";
+import {
+  makeCard,
+  makeIdentity,
+  makeLogin,
+  makeNote,
+  withTimestamps,
+} from "./helpers";
 
 /** Parse a JSON array column (current-schema autofillUrls). Null = unparsable. */
 function parseJsonArray(raw: string): string[] | null {
@@ -87,7 +93,7 @@ export function parseProtonPassCsv(text: string): ImportResult {
           if (!urls.includes(u)) urls.push(u);
         }
         items.push(
-          makeLogin({
+          withTimestamps(makeLogin({
             name,
             username: o.login_username || o.username || o.email || "",
             password: o.login_password || o.password || "",
@@ -96,16 +102,22 @@ export function parseProtonPassCsv(text: string): ImportResult {
             notes,
             folder: "",
             favorite,
-          }),
+          }), o.createTime, o.modifyTime),
         );
       } else if (type === "note") {
-        items.push(makeNote({ name, content: notes, folder: "", favorite }));
+        items.push(
+          withTimestamps(
+            makeNote({ name, content: notes, folder: "", favorite }),
+            o.createTime,
+            o.modifyTime,
+          ),
+        );
       } else if (type === "card") {
         // ponytail: current-schema cards/identities only expose fields via the
         // JSON-in-note encoding; keys not mapped below are dropped — add
         // `str(j.x)` fallbacks if a needed Proton field turns up missing.
         items.push(
-          makeCard({
+          withTimestamps(makeCard({
             name,
             cardholder: o.card_cardholder || str(j?.cardholderName),
             number: o.card_number || str(j?.number),
@@ -116,11 +128,11 @@ export function parseProtonPassCsv(text: string): ImportResult {
             notes: j ? str(j.note) : notes,
             folder: "",
             favorite,
-          }),
+          }), o.createTime, o.modifyTime),
         );
       } else if (type === "identity") {
         items.push(
-          makeIdentity({
+          withTimestamps(makeIdentity({
             name,
             firstName: o.identity_first_name || str(j?.firstName),
             lastName: o.identity_last_name || str(j?.lastName),
@@ -136,7 +148,7 @@ export function parseProtonPassCsv(text: string): ImportResult {
             notes: j ? str(j.note) : notes,
             folder: "",
             favorite,
-          }),
+          }), o.createTime, o.modifyTime),
         );
       } else {
         result.skipped++;

@@ -15,14 +15,18 @@
       },
       "folder": "Work",
       "favorite": true,
-      "notes": "Primary work account"
+      "notes": "Primary work account",
+      "creationDate": "2023-06-01T12:00:00.000Z",
+      "revisionDate": "2023-06-02T08:30:00.000Z"
     },
     {
       "type": 2,
       "name": "Meeting Notes",
       "notes": "Remember to bring up the Q3 projections.",
       "folder": "",
-      "favorite": false
+      "favorite": false,
+      "creationDate": "2023-06-01T12:00:00.000Z",
+      "revisionDate": "2023-06-02T08:30:00.000Z"
     },
     {
       "type": 3,
@@ -35,7 +39,9 @@
         "expYear": "2028"
       },
       "folder": "Finance",
-      "favorite": false
+      "favorite": false,
+      "creationDate": "2023-06-01T12:00:00.000Z",
+      "revisionDate": "2023-06-02T08:30:00.000Z"
     },
     {
       "type": 4,
@@ -53,7 +59,9 @@
         "country": "US"
       },
       "folder": "Personal",
-      "favorite": true
+      "favorite": true,
+      "creationDate": "2023-06-01T12:00:00.000Z",
+      "revisionDate": "2023-06-02T08:30:00.000Z"
     }
   ]
 }

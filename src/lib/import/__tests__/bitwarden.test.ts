@@ -20,6 +20,11 @@ describe("parseBitwardenJson", () => {
     expect(result.warnings).toEqual([]);
     expect(items).toHaveLength(4);
 
+    // Original export dates survive as restore-only overrides
+    // (2023-06-01T12:00:00Z / 2023-06-02T08:30:00Z in the fixture).
+    expect(items[0].createdAt).toBe(1685620800000);
+    expect(items[0].updatedAt).toBe(1685694600000);
+
     // Login item
     expect(items[0]).toMatchObject({
       type: "login",
