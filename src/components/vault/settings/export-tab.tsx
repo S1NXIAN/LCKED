@@ -11,7 +11,7 @@ import {
   Lock,
   type LucideIcon,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react"
+import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { type LckedExport,parseLckedJson } from "@/lib/import/lcked";
+import { type LckedExport, parseLckedJson } from "@/lib/import/lcked";
 
 describe("parseLckedJson", () => {
   it("parses a valid LCKED export envelope", () => {

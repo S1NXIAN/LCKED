@@ -26,4 +26,3 @@ export function parseDraggedIds(e: React.DragEvent): string[] {
   const single = e.dataTransfer.getData("text/lcked-item");
   return single ? [single] : [];
 }
-

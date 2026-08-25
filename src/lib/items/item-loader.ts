@@ -87,9 +87,7 @@ export async function loadDecryptedItems(
   // failed persist aborts the load. Per-row tolerance is a behavior change;
   // own issue if ever wanted.
   if (toReencrypt.length > 0) {
-    await Promise.all(
-      toReencrypt.map((it) => encryptAndPersist(it, vaultKey)),
-    );
+    await Promise.all(toReencrypt.map((it) => encryptAndPersist(it, vaultKey)));
   }
   return sortItems(items);
 }

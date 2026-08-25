@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { decryptJson } from "@/lib/crypto";
 import { loadDecryptedItems } from "@/lib/items/item-loader";
 import type { StoredItem, VaultItem } from "@/lib/types";
-import { deleteStoredItem, loadAllStoredItems, putStoredItem } from "@/lib/vault/vault-db";
+import {
+  deleteStoredItem,
+  loadAllStoredItems,
+  putStoredItem,
+} from "@/lib/vault/vault-db";
 
 // Mock the crypto and vault-db modules. Ciphertexts are tagged with the
 // plaintext item id (`enc:<id>`); decryption looks the id up in a per-test
@@ -100,7 +104,12 @@ describe("loadDecryptedItems", () => {
     const legacy = makeLegacyItem({ id: "legacy" });
     stubDecrypt([legacy]);
     vi.mocked(loadAllStoredItems).mockResolvedValue([
-      makeRow({ id: "legacy", type: "login", createdAt: 1000, updatedAt: 1000 }),
+      makeRow({
+        id: "legacy",
+        type: "login",
+        createdAt: 1000,
+        updatedAt: 1000,
+      }),
     ]);
 
     const items = await loadDecryptedItems(mockVaultKey);
@@ -130,7 +139,11 @@ describe("loadDecryptedItems", () => {
   });
 
   it("purges expired trash from the store and omits it from the result", async () => {
-    const expired = makeItem({ id: "expired", trashed: true, trashedAt: EXPIRED_AT });
+    const expired = makeItem({
+      id: "expired",
+      trashed: true,
+      trashedAt: EXPIRED_AT,
+    });
     stubDecrypt([expired]);
     vi.mocked(loadAllStoredItems).mockResolvedValue([makeRow(expired)]);
 
@@ -142,7 +155,11 @@ describe("loadDecryptedItems", () => {
   });
 
   it("tolerates a failed purge delete (best-effort)", async () => {
-    const expired = makeItem({ id: "expired", trashed: true, trashedAt: EXPIRED_AT });
+    const expired = makeItem({
+      id: "expired",
+      trashed: true,
+      trashedAt: EXPIRED_AT,
+    });
     stubDecrypt([expired]);
     vi.mocked(loadAllStoredItems).mockResolvedValue([makeRow(expired)]);
     vi.mocked(deleteStoredItem).mockRejectedValueOnce(new Error("idb down"));
@@ -151,7 +168,11 @@ describe("loadDecryptedItems", () => {
   });
 
   it("keeps fresh trash", async () => {
-    const fresh = makeItem({ id: "fresh", trashed: true, trashedAt: Date.now() });
+    const fresh = makeItem({
+      id: "fresh",
+      trashed: true,
+      trashedAt: Date.now(),
+    });
     stubDecrypt([fresh]);
     vi.mocked(loadAllStoredItems).mockResolvedValue([makeRow(fresh)]);
 
