@@ -9,10 +9,16 @@ chose, with a single lane because the derivation runs on the browser main
 thread. This is not Bitwarden's parameter set (they ship 64 MiB / t=3 /
 p=4); both sit inside OWASP's Argon2id guidance, ours trading memory for
 more passes to suit main-thread timing. Parameters live behind the
-parameter-driven `deriveMasterKey` seam in `src/lib/crypto.ts`. Vaults
-created before this change stay on PBKDF2 — their meta simply lacks the
-new fields, and `resolveKdfParams` treats an absent `type` as legacy
-PBKDF2.
+parameter-driven `deriveMasterKey` seam in `src/lib/crypto.ts`.
+
+**Amendment (2026-08-25, same day):** the legacy PBKDF2 path shipped with
+this ADR was removed by owner decision — single-user deployment, no data
+worth carrying across the cut. `resolveKdfParams` is gone; VaultMeta and
+Backup envelopes require the Argon2id fields outright. Unlocking a
+pre-Argon2id vault throws a clear "older version" error (reset to
+continue), and pre-Argon2id Backup files decrypt as `corrupt`. Export a
+fresh Backup with a compat-bearing build before upgrading past this
+amendment.
 
 ## Library selection
 

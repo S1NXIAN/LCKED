@@ -35,12 +35,10 @@ import { PasswordStrengthMeter } from "../password-strength-meter";
 
 /** One-line summary of the derivation protecting the vault. */
 function formatKdf(kdf: KdfParams): string {
-  if (kdf.type === "Argon2id") {
-    const mib = Math.round(kdf.memory / 1024);
-    return `Argon2id · ${mib} MiB memory · t=${kdf.iterations} · p=${kdf.parallelism}`;
-  }
-  return `PBKDF2-SHA256 · ${kdf.iterations.toLocaleString()} iterations`;
+  const mib = Math.round(kdf.memory / 1024);
+  return `Argon2id · ${mib} MiB memory · t=${kdf.iterations} · p=${kdf.parallelism}`;
 }
+
 export function SecurityTab() {
   const settings = useVault((s) => s.settings);
   const updateSettings = useVault((s) => s.updateSettings);

@@ -21,12 +21,12 @@ glossary's vocabulary — don't drift to synonyms.
   no backdoor; forgetting it loses the data permanently.
 
 - **Master Key / Vault Key** — the crypto chain: the Master Password is
-  derived into a **Master Key** (with a salt) under the vault's recorded KDF —
-  Argon2id by default (ADR-0005), PBKDF2 for legacy vaults — which wraps a
-  randomly generated **Vault Key** (AES-256-GCM). Items are encrypted and
-  decrypted with the Vault Key; the verifier proves the Master Password
-  without storing it. The Master Key is never persisted; the Vault Key is
-  held in memory while unlocked.
+  derived into a **Master Key** (with a salt) under Argon2id with the
+  parameters recorded in VaultMeta (ADR-0005), which wraps a randomly
+  generated **Vault Key** (AES-256-GCM). Items are encrypted and decrypted
+  with the Vault Key; the verifier proves the Master Password without
+  storing it. The Master Key is never persisted; the Vault Key is held in
+  memory while unlocked.
 
 - **Item** — a stored record (`VaultItem`), a discriminated union of four
   types: **login**, **note**, **card**, **identity**. Each carries a `details`

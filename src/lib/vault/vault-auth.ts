@@ -19,7 +19,6 @@ import {
   generateVaultKey,
   type KdfParams,
   randomBytes,
-  resolveKdfParams,
   unwrapVaultKey,
   VERIFIER_TOKEN,
   wrapVaultKey,
@@ -120,6 +119,8 @@ export async function createVault(
  * and returns the session + decrypted vault data.
  *
  * Returns `{ ok: false }` if the password is wrong or no vault exists.
+ * Throws for a vault this build cannot derive (pre-Argon2id rows) — the UI
+ * surfaces that as a failure toast, never as a wrong-password prompt.
  */
 export async function unlockVault(
   masterPassword: string,
@@ -127,8 +128,11 @@ export async function unlockVault(
   const meta = await loadVaultMeta();
   if (!meta) return { ok: false };
 
-  const params = resolveKdfParams(meta);
-  const masterKey = await deriveMasterKey(masterPassword, meta.salt, params);
+  if (meta.type !== "Argon2id")
+    throw new Error(
+      "This vault was created by an older version of LCKED. Reset the vault (or restore a Backup) to continue.",
+    );
+  const masterKey = await deriveMasterKey(masterPassword, meta.salt, meta);
   const ok = await checkVerifier(
     masterKey,
     meta.verifier,
@@ -157,7 +161,12 @@ export async function unlockVault(
     vaults,
     settings: { ...DEFAULT_VAULT_SETTINGS, ...meta.settings },
     items,
-    kdf: params,
+    kdf: {
+      type: "Argon2id",
+      iterations: meta.iterations,
+      memory: meta.memory,
+      parallelism: meta.parallelism,
+    },
   };
 }
 
@@ -187,11 +196,9 @@ export async function changeMasterPassword(
   const meta = await loadVaultMeta();
   if (!meta) return null;
 
-  const currentKey = await deriveMasterKey(
-    current,
-    meta.salt,
-    resolveKdfParams(meta),
-  );
+  if (meta.type !== "Argon2id")
+    throw new Error("This vault was created by an older version of LCKED.");
+  const currentKey = await deriveMasterKey(current, meta.salt, meta);
   const ok = await checkVerifier(
     currentKey,
     meta.verifier,
@@ -203,15 +210,13 @@ export async function changeMasterPassword(
   const newSalt = bytesToBase64(randomBytes(16));
   // Keep the recorded KDF: a password change re-keys, it never silently
   // migrates the vault to a different derivation.
-  const params = resolveKdfParams(meta);
-  const newMasterKey = await deriveMasterKey(next, newSalt, params);
+  const newMasterKey = await deriveMasterKey(next, newSalt, meta);
   const wrapped = await wrapVaultKey(vaultKey, newMasterKey);
   const verifier = await buildVerifier(newMasterKey);
 
   await saveVaultMeta({
     ...meta,
     salt: newSalt,
-    iterations: params.iterations,
     encryptedVaultKey: wrapped.ciphertext,
     vaultKeyIv: wrapped.iv,
     verifier: verifier.verifier,
@@ -285,14 +290,16 @@ export async function decryptLckedExport(
   envelope: LckedExport,
   password: string,
 ): Promise<LckedDecryptResult> {
-  if (envelope.format !== "lcked-encrypted-v1")
+  if (
+    envelope.format !== "lcked-encrypted-v1" ||
+    envelope.kdf?.type !== "Argon2id"
+  )
     return { ok: false, reason: "corrupt" };
   try {
-    const exportMasterKey = await deriveMasterKey(
-      password,
-      envelope.salt,
-      resolveKdfParams({ ...envelope.kdf, iterations: envelope.iterations }),
-    );
+    const exportMasterKey = await deriveMasterKey(password, envelope.salt, {
+      ...envelope.kdf,
+      iterations: envelope.iterations,
+    });
     const ok = await checkVerifier(
       exportMasterKey,
       envelope.verifier,

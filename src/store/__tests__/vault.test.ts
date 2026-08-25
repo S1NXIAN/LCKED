@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { KdfParams } from "@/lib/crypto";
 import {
   checkVerifier,
   decryptJson,
@@ -52,19 +51,12 @@ vi.mock("@/lib/crypto", () => ({
   randomId: vi.fn(() => idCounter.next()),
   randomBytes: vi.fn((n: number) => new Uint8Array(n)),
   bytesToBase64: vi.fn((_b: Uint8Array | ArrayBuffer) => "base64-data"),
-  PBKDF2_ITERATIONS: 600_000,
   DEFAULT_KDF_PARAMS: {
     type: "Argon2id",
     iterations: 6,
     memory: 32768,
     parallelism: 1,
   },
-  resolveKdfParams: vi.fn((stored?: Partial<KdfParams> | null): KdfParams => ({
-    type: stored?.type ?? "PBKDF2",
-    iterations: stored?.iterations ?? 600_000,
-    memory: stored?.memory ?? 0,
-    parallelism: stored?.parallelism ?? 0,
-  })),
   VERIFIER_TOKEN: "LCKED_VAULT_VALID",
 }));
 
@@ -81,8 +73,10 @@ vi.mock("@/lib/vault/vault-db", () => ({
     if (metaStore.current) return metaStore.current;
     return {
       id: "singleton",
-      salt: "test-salt",
-      iterations: 600_000,
+      type: "Argon2id",
+      iterations: 6,
+      memory: 32768,
+      parallelism: 1,
       encryptedVaultKey: "enc-vk",
       vaultKeyIv: "vk-iv",
       verifier: "verifier-data",
@@ -150,7 +144,8 @@ function envelopeJson() {
     version: 1,
     exportedAt: 1,
     salt: "salt",
-    iterations: 600_000,
+    iterations: 6,
+    kdf: { type: "Argon2id", memory: 32768, parallelism: 1 },
     verifier: "verifier",
     verifierIv: "verifier-iv",
     wrappedVaultKey: "wrapped",

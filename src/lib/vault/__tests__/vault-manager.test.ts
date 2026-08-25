@@ -25,7 +25,10 @@ vi.mock("@/lib/vault/vault-db", () => ({
   loadVaultMeta: vi.fn(async (): Promise<VaultMeta | undefined> => ({
     id: "singleton",
     salt: "salt",
-    iterations: 600_000,
+    type: "Argon2id",
+    iterations: 6,
+    memory: 32768,
+    parallelism: 1,
     encryptedVaultKey: "ek",
     vaultKeyIv: "ev",
     verifier: "v",
@@ -90,12 +93,14 @@ function makeItem(overrides: Partial<VaultItem> = {}): VaultItem {
     ...overrides,
   } as VaultItem;
 }
-
 function makeVaultMeta(overrides: Partial<VaultMeta> = {}): VaultMeta {
   return {
     id: "singleton",
     salt: "salt",
-    iterations: 600_000,
+    type: "Argon2id",
+    iterations: 6,
+    memory: 32768,
+    parallelism: 1,
     encryptedVaultKey: "ek",
     vaultKeyIv: "ev",
     verifier: "v",

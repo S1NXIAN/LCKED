@@ -25,7 +25,6 @@ import {
   generateVaultKey,
   type KdfParams,
   randomBytes,
-  resolveKdfParams,
   unwrapVaultKey,
   VERIFIER_TOKEN,
   wrapVaultKey,
@@ -110,33 +109,6 @@ const argon2Params: KdfParams = {
   parallelism: ARGON2ID_PARALLELISM,
 };
 
-describe("resolveKdfParams", () => {
-  it("treats absent fields as legacy PBKDF2", () => {
-    expect(resolveKdfParams({})).toEqual({
-      type: "PBKDF2",
-      iterations: 600_000,
-      memory: 0,
-      parallelism: 0,
-    });
-  });
-
-  it("passes recorded Argon2id parameters through", () => {
-    expect(
-      resolveKdfParams({
-        type: "Argon2id",
-        iterations: 4,
-        memory: 65536,
-        parallelism: 1,
-      }),
-    ).toEqual({
-      type: "Argon2id",
-      iterations: 4,
-      memory: 65536,
-      parallelism: 1,
-    });
-  });
-});
-
 describe("deriveMasterKey", () => {
   it("returns a non-extractable AES-GCM key usable only for wrapping", async () => {
     const salt = bytesToBase64(randomBytes(16));
@@ -158,26 +130,6 @@ describe("deriveMasterKey", () => {
     await expect(
       decryptJson(round.ciphertext, round.iv, unwrapped),
     ).resolves.toEqual(payload);
-  });
-
-  it("still derives via PBKDF2 when the params say so", async () => {
-    const salt = bytesToBase64(randomBytes(16));
-    const key = await deriveMasterKey("legacy", salt, {
-      type: "PBKDF2",
-      iterations: 600_000,
-      memory: 0,
-      parallelism: 0,
-    });
-    expect(key.usages).toEqual(["encrypt", "decrypt"]);
-    const verifier = await buildVerifier(key);
-    await expect(
-      checkVerifier(
-        key,
-        verifier.verifier,
-        verifier.verifierIv,
-        VERIFIER_TOKEN,
-      ),
-    ).resolves.toBe(true);
   });
 });
 

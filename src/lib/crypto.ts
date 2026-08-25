@@ -1,11 +1,9 @@
 /**
  * LCKED — Cryptography Layer (Web Crypto API)
  * ---------------------------------------------------------------------------
- * 100% client-side. Uses:
- *   • A memory-hard or legacy KDF, selected by the parameters stored in the
- *     vault meta, to derive a master key from the master password:
- *     Argon2id (default: 32 MiB / t=6 / p=1) via lazily-loaded WASM, or
- *     PBKDF2-SHA256 (600k iterations) for vaults created before Argon2id.
+ *   • Argon2id (32 MiB / t=6 / p=1) via lazily-loaded WASM to derive a
+ *     master key from the master password, with the parameters recorded in
+ *     the vault meta.
  *   • AES-256-GCM for authenticated encryption of every vault item.
  *
  * Key hierarchy:
@@ -19,22 +17,18 @@
 
 import type * as sodiumWrappers from "libsodium-wrappers-sumo";
 
-const PBKDF2_ITERATIONS = 600_000;
 const IV_LENGTH = 12; // bytes (AES-GCM recommended)
 const VERIFIER_TOKEN = "LCKED_VAULT_VALID";
 
-/** Key-derivation function identifiers persisted in VaultMeta and Backup
- *  envelopes. A missing field anywhere means the legacy PBKDF2 parameters. */
-export type KdfType = "PBKDF2" | "Argon2id";
-
-/** Fully-resolved derivation parameters — what deriveMasterKey consumes.
- *  `iterations` is the PBKDF2 round count, or the Argon2id time cost t. */
+/** Fully-resolved derivation parameters — what deriveMasterKey consumes and
+ *  what VaultMeta/Backup envelopes persist. `iterations` is the Argon2id
+ *  time cost t. */
 export interface KdfParams {
-  type: KdfType;
+  type: "Argon2id";
   iterations: number;
-  /** Argon2id memory cost in KiB (0 for PBKDF2). */
+  /** Memory cost in KiB. */
   memory: number;
-  /** Argon2id lanes; the WASM build executes a single lane (0 for PBKDF2). */
+  /** Lanes; the WASM build executes a single lane. */
   parallelism: number;
 }
 
@@ -52,29 +46,6 @@ export const DEFAULT_KDF_PARAMS: KdfParams & { type: "Argon2id" } = {
   memory: ARGON2ID_MEMORY_KIB,
   parallelism: ARGON2ID_PARALLELISM,
 };
-
-/** Normalise stored meta/envelope fields into derivation parameters. Absent
- *  fields identify a pre-Argon2id vault or Backup: PBKDF2 @ stored rounds. */
-export function resolveKdfParams(
-  stored?: Partial<KdfParams> | null,
-): KdfParams {
-  // Anything not recorded as Argon2id — absent type (pre-Argon2id vault or
-  // Backup) or an explicit "PBKDF2" — derives as legacy PBKDF2, so the
-  // zeroed memory/parallelism invariant of KdfParams holds for it.
-  if (!stored || stored.type !== "Argon2id")
-    return {
-      type: "PBKDF2",
-      iterations: stored?.iterations ?? PBKDF2_ITERATIONS,
-      memory: 0,
-      parallelism: 0,
-    };
-  return {
-    type: "Argon2id",
-    iterations: stored.iterations ?? DEFAULT_KDF_PARAMS.iterations,
-    memory: stored.memory ?? DEFAULT_KDF_PARAMS.memory,
-    parallelism: stored.parallelism ?? DEFAULT_KDF_PARAMS.parallelism,
-  };
-}
 
 // Secure-context guard: Web Crypto is only available on HTTPS or localhost.
 // Surfacing a clear error here beats a cryptic "Cannot read properties of
@@ -146,43 +117,19 @@ export async function deriveMasterKey(
 ): Promise<CryptoKey> {
   if (!saltBase64) throw new Error("deriveMasterKey: salt is required");
 
-  if (params.type === "Argon2id") {
-    // slice(): hand WebCrypto a plain ArrayBuffer-backed view (the WASM
-    // build returns an ArrayBufferLike-typed array).
-    const tag = await deriveArgon2idRaw(
-      password,
-      base64ToBytes(saltBase64),
-      params,
-    );
-    const raw = tag.slice();
-    // Same shape and usage set as the PBKDF2 branch: "wrapping" a Vault Key
-    // in this codebase is AES-GCM encrypt/decrypt of its exported raw bytes.
-    return crypto.subtle.importKey(
-      "raw",
-      raw,
-      { name: "AES-GCM", length: 256 },
-      false, // non-extractable: cannot be read out of memory
-      ["encrypt", "decrypt"],
-    );
-  }
-
-  const enc = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(password),
-    { name: "PBKDF2" },
-    false,
-    ["deriveKey"],
+  const tag = await deriveArgon2idRaw(
+    password,
+    base64ToBytes(saltBase64),
+    params,
   );
-
-  return crypto.subtle.deriveKey(
-    {
-      name: "PBKDF2",
-      salt: base64ToBytes(saltBase64),
-      iterations: params.iterations,
-      hash: "SHA-256",
-    },
-    keyMaterial,
+  // slice(): hand WebCrypto a plain ArrayBuffer-backed view (the WASM build
+  // returns an ArrayBufferLike-typed array). "Wrapping" a Vault Key in this
+  // codebase is AES-GCM encrypt/decrypt of its exported raw bytes, which is
+  // why the master key carries encrypt/decrypt usages.
+  const raw = tag.slice();
+  return crypto.subtle.importKey(
+    "raw",
+    raw,
     { name: "AES-GCM", length: 256 },
     false, // non-extractable: cannot be read out of memory
     ["encrypt", "decrypt"],
@@ -374,4 +321,4 @@ export async function decryptJson<T = unknown>(
   return JSON.parse(new TextDecoder().decode(decrypted)) as T;
 }
 
-export { IV_LENGTH, PBKDF2_ITERATIONS, VERIFIER_TOKEN };
+export { IV_LENGTH, VERIFIER_TOKEN };
