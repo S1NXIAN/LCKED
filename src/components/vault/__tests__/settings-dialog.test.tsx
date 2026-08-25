@@ -88,4 +88,15 @@ describe("SettingsView initial-tab handoff", () => {
     expect(html).toContain("Appearance");
     expect(html).not.toContain("Click your previous provider");
   });
+
+  it("mounts Security showing the derivation that protects the vault", () => {
+    seed({
+      settingsTab: "security",
+      kdf: { type: "Argon2id", iterations: 6, memory: 32768, parallelism: 1 },
+    });
+    const html = renderToStaticMarkup(createElement(SettingsView));
+
+    expect(html).toContain("Encryption");
+    expect(html).toContain("Argon2id · 32 MiB memory · t=6 · p=1");
+  });
 });

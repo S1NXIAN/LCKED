@@ -13,11 +13,13 @@ import {
   bytesToBase64,
   checkVerifier,
   decryptJson,
+  DEFAULT_KDF_PARAMS,
   deriveMasterKey,
   encryptJson,
   generateVaultKey,
-  PBKDF2_ITERATIONS,
+  type KdfParams,
   randomBytes,
+  resolveKdfParams,
   unwrapVaultKey,
   VERIFIER_TOKEN,
   wrapVaultKey,
@@ -47,10 +49,13 @@ export interface VaultData {
   settings: VaultSettings;
 }
 
-export type CreateVaultResult = AuthSession & VaultData;
+export type CreateVaultResult = AuthSession & VaultData & { kdf: KdfParams };
 
 export type UnlockResult =
-  (AuthSession & VaultData & { ok: true }) | { ok: false };
+  | (AuthSession & VaultData & { kdf: KdfParams } & { ok: true })
+  | {
+      ok: false;
+    };
 
 export interface ClearSessionResult {
   masterKey: null;
@@ -77,7 +82,7 @@ export async function createVault(
   const masterKey = await deriveMasterKey(
     masterPassword,
     salt,
-    PBKDF2_ITERATIONS,
+    DEFAULT_KDF_PARAMS,
   );
   const vaultKey = await generateVaultKey();
   const { ciphertext, iv } = await wrapVaultKey(vaultKey, masterKey);
@@ -86,7 +91,7 @@ export async function createVault(
   const meta: VaultMeta = {
     id: "singleton",
     salt,
-    iterations: PBKDF2_ITERATIONS,
+    ...DEFAULT_KDF_PARAMS,
     encryptedVaultKey: ciphertext,
     vaultKeyIv: iv,
     verifier: verifier.verifier,
@@ -105,6 +110,7 @@ export async function createVault(
     items: [],
     vaults: [],
     settings: DEFAULT_VAULT_SETTINGS,
+    kdf: DEFAULT_KDF_PARAMS,
   };
 }
 
@@ -121,11 +127,8 @@ export async function unlockVault(
   const meta = await loadVaultMeta();
   if (!meta) return { ok: false };
 
-  const masterKey = await deriveMasterKey(
-    masterPassword,
-    meta.salt,
-    meta.iterations,
-  );
+  const params = resolveKdfParams(meta);
+  const masterKey = await deriveMasterKey(masterPassword, meta.salt, params);
   const ok = await checkVerifier(
     masterKey,
     meta.verifier,
@@ -154,6 +157,7 @@ export async function unlockVault(
     vaults,
     settings: { ...DEFAULT_VAULT_SETTINGS, ...meta.settings },
     items,
+    kdf: params,
   };
 }
 
@@ -183,7 +187,11 @@ export async function changeMasterPassword(
   const meta = await loadVaultMeta();
   if (!meta) return null;
 
-  const currentKey = await deriveMasterKey(current, meta.salt, meta.iterations);
+  const currentKey = await deriveMasterKey(
+    current,
+    meta.salt,
+    resolveKdfParams(meta),
+  );
   const ok = await checkVerifier(
     currentKey,
     meta.verifier,
@@ -193,14 +201,17 @@ export async function changeMasterPassword(
   if (!ok) return null;
 
   const newSalt = bytesToBase64(randomBytes(16));
-  const newMasterKey = await deriveMasterKey(next, newSalt, PBKDF2_ITERATIONS);
+  // Keep the recorded KDF: a password change re-keys, it never silently
+  // migrates the vault to a different derivation.
+  const params = resolveKdfParams(meta);
+  const newMasterKey = await deriveMasterKey(next, newSalt, params);
   const wrapped = await wrapVaultKey(vaultKey, newMasterKey);
   const verifier = await buildVerifier(newMasterKey);
 
   await saveVaultMeta({
     ...meta,
     salt: newSalt,
-    iterations: PBKDF2_ITERATIONS,
+    iterations: params.iterations,
     encryptedVaultKey: wrapped.ciphertext,
     vaultKeyIv: wrapped.iv,
     verifier: verifier.verifier,
@@ -225,7 +236,7 @@ export async function exportEncrypted(
   const exportMasterKey = await deriveMasterKey(
     password,
     salt,
-    PBKDF2_ITERATIONS,
+    DEFAULT_KDF_PARAMS,
   );
   const exportVaultKey = await generateVaultKey();
   const verifier = await buildVerifier(exportMasterKey);
@@ -242,7 +253,12 @@ export async function exportEncrypted(
     version: 1,
     exportedAt: Date.now(),
     salt,
-    iterations: PBKDF2_ITERATIONS,
+    iterations: DEFAULT_KDF_PARAMS.iterations,
+    kdf: {
+      type: DEFAULT_KDF_PARAMS.type,
+      memory: DEFAULT_KDF_PARAMS.memory,
+      parallelism: DEFAULT_KDF_PARAMS.parallelism,
+    },
     verifier: verifier.verifier,
     verifierIv: verifier.verifierIv,
     wrappedVaultKey: wrapped.ciphertext,
@@ -275,7 +291,7 @@ export async function decryptLckedExport(
     const exportMasterKey = await deriveMasterKey(
       password,
       envelope.salt,
-      envelope.iterations,
+      resolveKdfParams({ ...envelope.kdf, iterations: envelope.iterations }),
     );
     const ok = await checkVerifier(
       exportMasterKey,

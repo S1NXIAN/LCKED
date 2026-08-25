@@ -2,21 +2,79 @@
  * LCKED — Cryptography Layer (Web Crypto API)
  * ---------------------------------------------------------------------------
  * 100% client-side. Uses:
- *   • PBKDF2-SHA256 (600k iterations) to derive a master key from the password.
+ *   • A memory-hard or legacy KDF, selected by the parameters stored in the
+ *     vault meta, to derive a master key from the master password:
+ *     Argon2id (default: 32 MiB / t=6 / p=1) via lazily-loaded WASM, or
+ *     PBKDF2-SHA256 (600k iterations) for vaults created before Argon2id.
  *   • AES-256-GCM for authenticated encryption of every vault item.
  *
  * Key hierarchy:
- *   masterPassword ──PBKDF2──▶ masterKey   (non-extractable, in-memory only)
- *   random() ───────────────▶ vaultKey     (256-bit, encrypts all items)
+ *   masterPassword ──KDF(params)──▶ masterKey  (non-extractable, in-memory only)
+ *   random() ──────────────────▶ vaultKey      (256-bit, encrypts all items)
  *   vaultKey ──AES-GCM(masterKey)──▶ stored ciphertext (persisted in IndexedDB)
  *
  * This indirection means a future "change master password" only re-wraps the
  * vaultKey instead of re-encrypting the entire vault.
  */
 
+import type * as sodiumWrappers from "libsodium-wrappers-sumo";
+
 const PBKDF2_ITERATIONS = 600_000;
 const IV_LENGTH = 12; // bytes (AES-GCM recommended)
 const VERIFIER_TOKEN = "LCKED_VAULT_VALID";
+
+/** Key-derivation function identifiers persisted in VaultMeta and Backup
+ *  envelopes. A missing field anywhere means the legacy PBKDF2 parameters. */
+export type KdfType = "PBKDF2" | "Argon2id";
+
+/** Fully-resolved derivation parameters — what deriveMasterKey consumes.
+ *  `iterations` is the PBKDF2 round count, or the Argon2id time cost t. */
+export interface KdfParams {
+  type: KdfType;
+  iterations: number;
+  /** Argon2id memory cost in KiB (0 for PBKDF2). */
+  memory: number;
+  /** Argon2id lanes; the WASM build executes a single lane (0 for PBKDF2). */
+  parallelism: number;
+}
+
+/** Hardening defaults: 32 MiB of memory resists GPU/ASIC cracking while
+ *  t=6/p=1 keeps unlock near one second on browser main threads, within
+ *  OWASP's Argon2id guidance (Bitwarden ships 64 MiB / t=3 / p=4; see
+ *  ADR-0005 for the parameter comparison). */
+export const ARGON2ID_MEMORY_KIB = 32_768;
+export const ARGON2ID_ITERATIONS = 6;
+export const ARGON2ID_PARALLELISM = 1;
+
+export const DEFAULT_KDF_PARAMS: KdfParams & { type: "Argon2id" } = {
+  type: "Argon2id",
+  iterations: ARGON2ID_ITERATIONS,
+  memory: ARGON2ID_MEMORY_KIB,
+  parallelism: ARGON2ID_PARALLELISM,
+};
+
+/** Normalise stored meta/envelope fields into derivation parameters. Absent
+ *  fields identify a pre-Argon2id vault or Backup: PBKDF2 @ stored rounds. */
+export function resolveKdfParams(
+  stored?: Partial<KdfParams> | null,
+): KdfParams {
+  // Anything not recorded as Argon2id — absent type (pre-Argon2id vault or
+  // Backup) or an explicit "PBKDF2" — derives as legacy PBKDF2, so the
+  // zeroed memory/parallelism invariant of KdfParams holds for it.
+  if (!stored || stored.type !== "Argon2id")
+    return {
+      type: "PBKDF2",
+      iterations: stored?.iterations ?? PBKDF2_ITERATIONS,
+      memory: 0,
+      parallelism: 0,
+    };
+  return {
+    type: "Argon2id",
+    iterations: stored.iterations ?? DEFAULT_KDF_PARAMS.iterations,
+    memory: stored.memory ?? DEFAULT_KDF_PARAMS.memory,
+    parallelism: stored.parallelism ?? DEFAULT_KDF_PARAMS.parallelism,
+  };
+}
 
 // Secure-context guard: Web Crypto is only available on HTTPS or localhost.
 // Surfacing a clear error here beats a cryptic "Cannot read properties of
@@ -76,16 +134,38 @@ export function randomId(): string {
 /* ------------------------------ KDF / keys -------------------------------- */
 
 /**
- * Derive the non-extractable master key from the master password.
- * The raw password is never stored; only this derived key lives in memory
- * for the duration of an unlocked session.
+ * Derive the non-extractable master key from the master password, using the
+ * derivation recorded in the vault meta (or Backup envelope). The raw password
+ * is never stored; only this derived key lives in memory for the duration of
+ * an unlocked session.
  */
 export async function deriveMasterKey(
   password: string,
   saltBase64: string,
-  iterations: number = PBKDF2_ITERATIONS,
+  params: KdfParams,
 ): Promise<CryptoKey> {
   if (!saltBase64) throw new Error("deriveMasterKey: salt is required");
+
+  if (params.type === "Argon2id") {
+    // slice(): hand WebCrypto a plain ArrayBuffer-backed view (the WASM
+    // build returns an ArrayBufferLike-typed array).
+    const tag = await deriveArgon2idRaw(
+      password,
+      base64ToBytes(saltBase64),
+      params,
+    );
+    const raw = tag.slice();
+    // Same shape and usage set as the PBKDF2 branch: "wrapping" a Vault Key
+    // in this codebase is AES-GCM encrypt/decrypt of its exported raw bytes.
+    return crypto.subtle.importKey(
+      "raw",
+      raw,
+      { name: "AES-GCM", length: 256 },
+      false, // non-extractable: cannot be read out of memory
+      ["encrypt", "decrypt"],
+    );
+  }
+
   const enc = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
@@ -99,13 +179,73 @@ export async function deriveMasterKey(
     {
       name: "PBKDF2",
       salt: base64ToBytes(saltBase64),
-      iterations,
+      iterations: params.iterations,
       hash: "SHA-256",
     },
     keyMaterial,
     { name: "AES-GCM", length: 256 },
     false, // non-extractable: cannot be read out of memory
     ["encrypt", "decrypt"],
+  );
+}
+
+/* ------------------------- Argon2id (lazy WASM) --------------------------- */
+
+type Sodium = typeof sodiumWrappers;
+// Loaded once per page on first Argon2id use (unlock / setup / Backup), so
+// the main bundle never pays for it. Reset on failure so a transient load
+// error can be retried with the next unlock attempt instead of caching it.
+let sodiumPromise: Promise<Sodium> | null = null;
+
+function loadSodium(): Promise<Sodium> {
+  sodiumPromise ??= import("libsodium-wrappers-sumo")
+    .then(async (module) => {
+      // Interop varies by bundler: ESM builds expose the wrappers object as
+      // `default`, while CJS consumers receive the namespace itself.
+      const sodium: Sodium =
+        "default" in module ? ((module.default ?? module) as Sodium) : module;
+      await sodium.ready;
+      return sodium;
+    })
+    .catch((err) => {
+      sodiumPromise = null;
+      // Deliberately NOT falling back to PBKDF2: deriving a weaker key than
+      // the one the vault was created with would just fail the verifier —
+      // and silently weakening future derivations would be worse. Fail loudly.
+      throw new Error(
+        "The Argon2id module failed to load. Check your connection on first load, then reload the page.",
+        { cause: err instanceof Error ? err : undefined },
+      );
+    });
+  return sodiumPromise;
+}
+
+/**
+ * Run Argon2id over the password and return the raw 32-byte tag. Exported as
+ * the conformance seam: unit tests pin this output to independently generated
+ * RFC 9106 reference vectors.
+ */
+export async function deriveArgon2idRaw(
+  password: string,
+  salt: Uint8Array,
+  params: KdfParams,
+): Promise<Uint8Array> {
+  if (params.parallelism !== ARGON2ID_PARALLELISM)
+    throw new Error(
+      `deriveMasterKey: parallelism ${params.parallelism} is not supported by the browser Argon2id build; record parallelism ${ARGON2ID_PARALLELISM}.`,
+    );
+  if (salt.length !== 16)
+    throw new Error("deriveMasterKey: Argon2id requires a 16-byte salt");
+
+  const sodium = await loadSodium();
+  return sodium.crypto_pwhash(
+    32,
+    password,
+    salt,
+    params.iterations,
+    params.memory * 1024, // libsodium takes bytes; meta stores KiB
+    sodium.crypto_pwhash_ALG_ARGON2ID13,
+    "uint8array",
   );
 }
 

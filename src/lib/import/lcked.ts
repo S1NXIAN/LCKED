@@ -9,8 +9,9 @@ import type { ImportResult } from "@/lib/types";
 
 /** Encrypted export envelope — the only safe round-trip format.
  *
- * Structure (v1):
- *   - salt + iterations + verifier: derive + check the export master key.
+ *   - salt + iterations + kdf + verifier: derive + check the export master
+ *     key. `kdf` records which derivation produced it; absent on Backups made
+ *     before Argon2id (those are PBKDF2 @ `iterations`).
  *   - wrappedVaultKey + wrappedVaultKeyIv: the export vault key, AES-GCM-wrapped
  *     with the export master key. Hoisted to the TOP LEVEL so decryption is
  *     possible.
@@ -21,12 +22,24 @@ export interface LckedExport {
   exportedAt: number;
   salt: string;
   iterations: number;
+  /** Absent ⇒ the envelope predates Argon2id and is PBKDF2. */
+  kdf?: ExportKdf;
   verifier: string;
   verifierIv: string;
   wrappedVaultKey: string;
   wrappedVaultKeyIv: string;
   data: string;
   dataIv: string;
+}
+
+/** KDF provenance recorded by Backup producers. `iterations` stays on the
+ *  envelope top level (PBKDF2 rounds, or Argon2id time cost t) so legacy
+ *  envelopes keep their shape; this block adds only Argon2id's parameters. */
+export interface ExportKdf {
+  type: "Argon2id";
+  /** Memory cost in KiB. */
+  memory: number;
+  parallelism: number;
 }
 
 /** Parse an encrypted LCKED export back into its raw envelope (not yet decrypted). */

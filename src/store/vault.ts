@@ -10,6 +10,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 import { clearAllClipboardTimers } from "@/lib/clipboard";
+import type { KdfParams } from "@/lib/crypto";
 import { exportToCsv, importFromText } from "@/lib/import";
 import {
   deleteStoredItems,
@@ -75,6 +76,8 @@ export interface VaultState {
   /** CryptoKey handles — held in memory only while unlocked. */
   masterKey: CryptoKey | null;
   vaultKey: CryptoKey | null;
+  /** Derivation parameters protecting this vault (settings display). */
+  kdf: KdfParams | null;
   /** Whether the active editor is open (and which item, if editing). */
   editorOpen: boolean;
   editorItemId: string | null;
@@ -299,6 +302,7 @@ export const useVault = create<VaultState>()(
         multiSelectIds: new Set(),
         masterKey: null,
         vaultKey: null,
+        kdf: null,
         editorOpen: false,
         editorItemId: null,
         editorNewType: null,
@@ -325,10 +329,11 @@ export const useVault = create<VaultState>()(
             status: "unlocked",
             masterKey: result.masterKey,
             vaultKey: result.vaultKey,
-            settings: result.settings,
+            kdf: result.kdf,
             items: result.items,
             vaults: result.vaults,
             activeVault: "all",
+            settings: result.settings,
             selectedId: null,
           });
         },
@@ -344,6 +349,7 @@ export const useVault = create<VaultState>()(
             vaults: result.vaults,
             activeVault: "all",
             settings: result.settings,
+            kdf: result.kdf,
             selectedId: null,
           });
           return true;
@@ -389,6 +395,7 @@ export const useVault = create<VaultState>()(
             multiSelect: false,
             multiSelectIds: new Set(),
             settings: DEFAULT_VAULT_SETTINGS,
+            kdf: null,
             editorOpen: false,
             editorNewType: null,
             generatorOpen: false,

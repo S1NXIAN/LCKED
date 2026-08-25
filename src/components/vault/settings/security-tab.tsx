@@ -28,16 +28,26 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import type { KdfParams } from "@/lib/crypto";
 import { useVault } from "@/store/vault";
 
 import { PasswordStrengthMeter } from "../password-strength-meter";
 
+/** One-line summary of the derivation protecting the vault. */
+function formatKdf(kdf: KdfParams): string {
+  if (kdf.type === "Argon2id") {
+    const mib = Math.round(kdf.memory / 1024);
+    return `Argon2id · ${mib} MiB memory · t=${kdf.iterations} · p=${kdf.parallelism}`;
+  }
+  return `PBKDF2-SHA256 · ${kdf.iterations.toLocaleString()} iterations`;
+}
 export function SecurityTab() {
   const settings = useVault((s) => s.settings);
   const updateSettings = useVault((s) => s.updateSettings);
   const changeMasterPassword = useVault((s) => s.changeMasterPassword);
   const resetVault = useVault((s) => s.resetVault);
   const items = useVault((s) => s.items);
+  const kdf = useVault((s) => s.kdf);
 
   const [currentPw, setCurrentPw] = React.useState("");
   const [newPw, setNewPw] = React.useState("");
@@ -127,6 +137,27 @@ export function SecurityTab() {
             onCheckedChange={(v) => updateSettings({ lockOnVisibility: v })}
           />
         </label>
+      </div>
+
+      {/* Encryption */}
+      <div className="space-y-3">
+        <header className="space-y-1">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <Lock className="text-muted-foreground h-4 w-4" />
+            Encryption
+          </h2>
+          <p className="text-muted-foreground text-xs">
+            The key derivation that protects this vault from offline
+            password-guessing.
+          </p>
+        </header>
+        <div className="border-border bg-muted/20 rounded-lg border px-3 py-2.5">
+          {kdf ? (
+            <span className="font-medium">{formatKdf(kdf)}</span>
+          ) : (
+            <span className="text-muted-foreground">Unknown</span>
+          )}
+        </div>
       </div>
 
       <Separator />

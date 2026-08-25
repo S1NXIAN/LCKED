@@ -5,14 +5,15 @@ import { NextResponse } from "next/server";
  * Single source of truth for the Content-Security-Policy (ADR-0003).
  *
  * Production: strict per-request nonce on `script-src` with
- * `'strict-dynamic'`, so only scripts the framework emitted under this
- * request's nonce may run. Development relaxes `script-src` (hot reload needs
- * `'unsafe-eval'`) and drops `upgrade-insecure-requests` (the dev server is
- * plain HTTP); every other directive is identical in both modes.
+ * `'strict-dynamic'`, plus `'wasm-unsafe-eval'` so the lazily-loaded Argon2id
+ * WASM module can compile — that directive licenses WebAssembly.instantiate
+ * only, not script evaluation. Development relaxes `script-src` (hot reload
+ * needs `'unsafe-eval'`) and drops `upgrade-insecure-requests` (the dev
+ * server is plain HTTP); every other directive is identical in both modes.
  */
 function buildContentSecurityPolicy(nonce: string): string {
   const isDevelopment = process.env.NODE_ENV === "development";
-  const scriptSrc = `'self' 'nonce-${nonce}' 'strict-dynamic'${
+  const scriptSrc = `'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'${
     isDevelopment ? " 'unsafe-eval'" : ""
   }`;
 

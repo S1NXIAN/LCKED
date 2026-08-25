@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { deriveMasterKey, type KdfParams } from "@/lib/crypto";
 import type { LckedExport } from "@/lib/import";
 import type { VaultDef, VaultItem, VaultMeta } from "@/lib/types";
 import {
@@ -41,6 +42,18 @@ vi.mock("@/lib/crypto", () => ({
   randomBytes: vi.fn((n: number) => new Uint8Array(n)),
   bytesToBase64: vi.fn((_b: Uint8Array | ArrayBuffer) => "base64-data"),
   PBKDF2_ITERATIONS: 600_000,
+  DEFAULT_KDF_PARAMS: {
+    type: "Argon2id",
+    iterations: 6,
+    memory: 32768,
+    parallelism: 1,
+  },
+  resolveKdfParams: vi.fn((stored?: Partial<KdfParams> | null): KdfParams => ({
+    type: stored?.type ?? "PBKDF2",
+    iterations: stored?.iterations ?? 600_000,
+    memory: stored?.memory ?? 0,
+    parallelism: stored?.parallelism ?? 0,
+  })),
   VERIFIER_TOKEN: "LCKED_VAULT_VALID",
 }));
 
@@ -117,7 +130,10 @@ describe("createVault", () => {
     expect(saveVaultMeta).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "singleton",
-        iterations: 600_000,
+        type: "Argon2id",
+        iterations: 6,
+        memory: 32768,
+        parallelism: 1,
         settings: expect.objectContaining({ autoLockMinutes: 15 }),
       }),
     );
@@ -400,6 +416,70 @@ describe("decryptLckedExport", () => {
       ok: true,
       items: [{ id: "i1" }],
       vaults: [{ id: "v1" }],
+    });
+  });
+});
+
+/* ─── KDF parameter-driven selection ────────────────────── */
+
+describe("KDF parameter-driven derivation", () => {
+  it("derives with the Argon2id parameters recorded in meta", async () => {
+    const { loadVaultMeta } = await import("@/lib/vault/vault-db");
+    const legacyMeta = await vi
+      .mocked(loadVaultMeta)
+      .getMockImplementation()!();
+    vi.mocked(loadVaultMeta).mockResolvedValueOnce({
+      ...legacyMeta!,
+      type: "Argon2id",
+      iterations: 6,
+      memory: 32768,
+      parallelism: 1,
+    });
+
+    await unlockVault("pw");
+
+    expect(deriveMasterKey).toHaveBeenCalledWith("pw", "test-salt", {
+      type: "Argon2id",
+      iterations: 6,
+      memory: 32768,
+      parallelism: 1,
+    });
+  });
+
+  it("records the Argon2id block in Backup envelopes", async () => {
+    const envelope = JSON.parse(await exportEncrypted([], [], "pw"));
+
+    expect(envelope.kdf).toEqual({
+      type: "Argon2id",
+      memory: 32768,
+      parallelism: 1,
+    });
+    expect(envelope.iterations).toBe(6);
+  });
+
+  it("honours the kdf block when decrypting a Backup", async () => {
+    const envelope: LckedExport = {
+      format: "lcked-encrypted-v1",
+      version: 1,
+      exportedAt: Date.now(),
+      salt: "salt",
+      iterations: 6,
+      kdf: { type: "Argon2id", memory: 32768, parallelism: 1 },
+      verifier: "v",
+      verifierIv: "vi",
+      wrappedVaultKey: "wvk",
+      wrappedVaultKeyIv: "wvk-iv",
+      data: "data",
+      dataIv: "data-iv",
+    };
+
+    await decryptLckedExport(envelope, "pw");
+
+    expect(deriveMasterKey).toHaveBeenCalledWith("pw", "salt", {
+      type: "Argon2id",
+      iterations: 6,
+      memory: 32768,
+      parallelism: 1,
     });
   });
 });

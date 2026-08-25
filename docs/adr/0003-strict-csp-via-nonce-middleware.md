@@ -27,8 +27,14 @@ alongside via the framework's response-header config.
 
 - Any future third-party script or origin (analytics, fonts, new icon host)
   requires a deliberate CSP edit and review — that friction is the point.
-  `next start`), since dev never exercises the strict policy. Implementation
-  lives in `src/proxy.ts` (per-request nonce + CSP construction — the single
-  place to edit when adding an origin) and the static header set in
-  `next.config.ts`; `scripts/security-headers-smoke.sh` asserts the served
-  headers.
+  Implementation lives in `src/proxy.ts` (per-request nonce + CSP
+  construction — the single place to edit when adding an origin) and the
+  static header set in `next.config.ts`; `scripts/security-headers-smoke.sh`
+  asserts the served headers (run against `next start`, since dev never
+  exercises the strict policy).
+
+- `'wasm-unsafe-eval'` was added to `script-src` when the vault adopted
+  Argon2id (ADR-0005): compiling WebAssembly requires it in every
+  Chromium/Firefox/WebKit release. It permits `WebAssembly.instantiate` of
+  our own bundled module only — no script evaluation — so the nonce model
+  keeps full control over JS.

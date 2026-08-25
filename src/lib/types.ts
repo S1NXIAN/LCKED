@@ -6,6 +6,8 @@
  * persisted to IndexedDB, so plaintext data never touches storage.
  */
 
+import type { KdfType } from "@/lib/crypto";
+
 export type ItemType = "login" | "note" | "card" | "identity";
 
 /** A user-defined extra field (e.g. "Security Question" / "Recovery Code"). */
@@ -153,8 +155,16 @@ export interface VaultMeta {
   id: "singleton";
   /** 16-byte random salt, base64. */
   salt: string;
-  /** KDF iteration count — stored so we can raise it later without breaking old vaults. */
+  /** KDF cost parameter — PBKDF2 rounds, or the Argon2id time cost t.
+   *  Stored so we can raise it later without breaking old vaults. */
   iterations: number;
+  /** Which KDF protects this vault. Absent on pre-Argon2id vaults, which
+   *  are PBKDF2 @ `iterations` — see resolveKdfParams. */
+  type?: KdfType;
+  /** Argon2id memory cost in KiB (Argon2id vaults only). */
+  memory?: number;
+  /** Argon2id lanes; the browser build executes a single lane. */
+  parallelism?: number;
   /** Random 256-bit vault key, encrypted with the master key. Base64 ciphertext. */
   encryptedVaultKey: string;
   /** IV for the encrypted vault key. */
