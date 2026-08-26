@@ -88,6 +88,9 @@ start-dev.sh
 # Agent browser automation data
 .agent-browser/
 
+# Impeccable design-tooling session state
+.impeccable/
+
 # Logs
 *.log
 dev.log

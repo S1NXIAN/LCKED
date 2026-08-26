@@ -13,16 +13,20 @@ import { NextResponse } from "next/server";
  */
 function buildContentSecurityPolicy(nonce: string): string {
   const isDevelopment = process.env.NODE_ENV === "development";
-  const scriptSrc = `'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'${
-    isDevelopment ? " 'unsafe-eval'" : ""
-  }`;
+  // Dev swaps the nonce/'strict-dynamic' pair for 'unsafe-inline' (host
+  // allowlists are inert under strict-dynamic, and Next's inline bootstrap
+  // scripts need an inline source) so the app and the impeccable live
+  // picker both load in dev only.
+  const scriptSrc = isDevelopment
+    ? `'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' http://localhost:8400`
+    : `'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'`;
 
   const directives = [
     "default-src 'self'",
     `script-src ${scriptSrc}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https://icons.duckduckgo.com",
-    "connect-src 'self'",
+    `connect-src 'self'${isDevelopment ? " http://localhost:8400" : ""}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'none'",
