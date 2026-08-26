@@ -1,11 +1,13 @@
 # Puppeteer guide — driving LCKED's UI via the browser harness
 
 All UI automation runs through the omp browser device: write a strict-JSON args
-object to `xd://browser` (`action` `"open"` / `"run"` …). There is no
+object to `xd://browser` (`action` `"open"` / `"run"` / `"close"`). There is no
 puppeteer/playwright dependency in this repo; the harness wraps Chromium.
 
-Read this before the first `open` of a session. Every recipe below came from a
-real failed call in this repo.
+Read this before the first `open` of a session. Sections through **Efficiency
+playbook** distill upstream oh-my-pi docs (`docs/tools/browser.md` + the tool
+prompt); everything from **Failure recipes** on came from a real failed call in
+this repo.
 
 Novel failure missing from the tables? Solve it once, then append its
 verbatim error string + recovery recipe here. The table only grows: every
@@ -37,6 +39,120 @@ are not node-runnable).
 3. Reads go through one `tab.evaluate` with attribute selectors; clicks go
    through a ref taken from a same-cell `tab.ariaSnapshot()`.
 
+## Calling convention
+
+Args are one strict-JSON object; `code` is one JSON string with `\n` escapes —
+no backticks, template literals break the parse.
+
+| Field         | Action | Notes                                                                                                              |
+| ------------- | ------ | ------------------------------------------------------------------------------------------------------------------ |
+| `action`      | all    | `"open"` \| `"close"` \| `"run"`                                                                                   |
+| `name`        | all    | Tab id, default `"main"`. Tabs persist across calls _and subagents_ until closed.                                  |
+| `timeout`     | all    | Seconds. Default 30, clamped 1–300.                                                                                |
+| `url`         | open   | Navigate after ready; re-supplying `url` on an existing tab navigates it.                                          |
+| `viewport`    | open   | `{width, height, scale?}` (`scale` = deviceScaleFactor). Headless default: 1365×768 @ 1.25.                        |
+| `wait_until`  | open   | `load` (default) \| `domcontentloaded` \| `networkidle0` \| `networkidle2`. Also the default for later `tab.goto`. |
+| `dialogs`     | open   | `accept` \| `dismiss` auto-handler. Omitted = none. Changing it recreates the tab.                                 |
+| `app`         | open   | `{path?, cdp_url?, relay?, args?, target?}` — picks browser kind (below).                                          |
+| `code`        | run    | Async-function body (scope below).                                                                                 |
+| `all`, `kill` | close  | Release every managed tab; terminate a spawned browser's process tree.                                             |
+
+## What `run` code gets
+
+An async body in a dedicated worker thread. In scope: raw puppeteer `page`,
+`browser`, the `tab` helper (next section), `assert(cond, msg?)`, `wait(ms)`,
+plus the eval-runtime helpers (`display`, `read`, `write`, `env`, `tool`, …)
+and Bun globals. Full Node access — not sandboxed.
+
+Output rules that matter:
+
+- Only `display(<object|array|image>)` and the final `return` value become
+  tool content. `display("a string")` and `console.*` go to debug logs —
+  invisible in output. Return your data:
+  `return {toast, listHasItem, fieldValues}`.
+- Output past the inline byte cap is spilled to a session artifact.
+- Raw `page.on("request")` interception is run-scoped: run end removes your
+  handlers, disables interception, releases held requests.
+- One `run` at a time per tab — a second fails `Tab "…" is busy`.
+
+## `tab` API
+
+**Handles vs selectors.** `tab.ref("e5")` / `tab.id(n)` return an element
+handle you call methods on directly (`(await tab.id(n)).click()`). Handles are
+NOT selectors — `tab.click`/`type`/`fill`/`waitFor*` take string selectors
+only. Snapshot refs work in any selector slot: `tab.click("e5")` ≡
+`tab.click("aria-ref=e5")`; accepted spellings: `e5`, `aria-ref=e5`,
+`aria-ref/e5`, `ariaref/e5`, `@e5`.
+
+- State: `url()`, `title()`, `goto(url, {waitUntil?})`.
+- Snapshots: `observe({includeAll?, viewportOnly?})` — accessibility tree of
+  interactive elements, handles cached under numeric ids; `ariaSnapshot(
+selector?, {depth?, boxes?})` — Playwright YAML, every node tagged
+  `[ref=eN]`. Ids renumber from `e1` on every snapshot call and stay valid
+  only until the next one.
+- Actions: `click(sel)`, `type(sel, text)`, `fill(sel, val)`,
+  `press(key, {selector?})`, `scroll(dx, dy)`, `drag(from, to)`,
+  `scrollIntoView(sel)`, `select(sel, ...values)` — for `<select>` ONLY,
+  `tab.fill` never works there — `uploadFile(sel, ...paths)` (file inputs
+  only; paths resolve against session cwd).
+- Waits: `waitForSelector(sel, {timeout?, visible?, hidden?})`,
+  `waitFor(sel, {timeout?})`, `waitForUrl(pattern, {timeout?})` (polls every
+  200 ms), `waitForResponse(pattern, {timeout?})`, `waitForNavigation(
+{waitUntil?, timeout?})` — arm it BEFORE the click that triggers it. An
+  explicit `timeout` is clamped to the remaining cell budget.
+- Reads: `evaluate(fn, ...args)`, `extract(format = "markdown")` (Readability,
+  falling back to `[data-pagefind-body]`/`article`/`main`/body),
+  `screenshot({selector?, fullPage?, silent?})` — saves a PNG under
+  `browser.screenshotDir` (or OS temp) and returns the path; it NEVER accepts
+  a path; `silent: true` skips emitting the image.
+
+Stalled helpers fail fast with a named error — quick reads cap ≈20 s,
+interactive actions ≈15 s (`min(cellBudget − 1s, ceiling)`); `goto` /
+`evaluate` are uncapped and will eat the whole cell.
+
+## Selectors
+
+Plain CSS plus Puppeteer query handlers: `text/…`, `xpath/…`, `aria/…`,
+`pierce/…` (legacy `p-text/…` spellings are rewritten). Playwright-only
+pseudos — `:has-text()`, `:visible`, `:text()`, `:nth-match()`, `:near()` —
+throw a named ToolError pointing at the `text/`/`aria/` equivalent instead of
+stalling the action timeout. Text engines substring-match: never aim them
+near icon-toggle buttons (`Hide` vs `Show` — recipe below).
+
+## Efficiency playbook
+
+1. Static content? `read` the URL — no browser at all. Browser is for JS,
+   auth, interaction.
+2. One `open`, many `run`s. Tabs survive calls and subagents; don't reopen.
+3. Snapshot → act in the SAME cell. Refs die on navigation, SPA re-render,
+   virtualized-list scroll.
+4. `wait(fn)` polls until truthy — use it instead of sleep-polling loops
+   inside `evaluate`.
+5. Batch assertions into ONE `evaluate` returning an object — one round trip
+   beats five.
+6. Returned values are proof; screenshots are appearance. Screenshot only
+   when looks are the question.
+7. Prefer a `waitFor*` helper over hand retries: it fails fast naming the op
+   (`tab.waitForSelector(...) timed out`) instead of burning the cell.
+
+## Browser kinds (`app`)
+
+- **Headless** (default): project-shared Chromium behind a broker daemon;
+  the only kind that gets stealth patches. First-use Chromium download can
+  fail on this machine — recipe below.
+- **`app.path`**: spawn (or reuse a CDP-enabled instance of) that executable
+  with remote debugging. No stealth patches — never point this at a real
+  desktop app you care about. `close` leaves it running; `kill: true` ends
+  the process tree when the last managed tab releases.
+- **`app.cdp_url`**: attach to a running CDP endpoint. Must be the HTTP
+  discovery URL (`http://127.0.0.1:9222`), never `ws://`. Close only
+  disconnects — the browser's pages stay open.
+- **`app.relay: true`**: drive the user's own Chrome via the OMP Browser
+  Relay extension. `app.target` picks a tab by URL/title substring; without
+  it the visible tab is adopted without stealing focus. No stealth patches.
+- A tab NAME is bound to its browser kind — switching kind on `"main"` fails
+  with `Tab "…" is bound to a different browser (…). Close it first.`
+
 ## Failure recipes
 
 Keyed by the error string as it appears in tool output. Match your failure,
@@ -46,6 +162,19 @@ apply the recovery, move on.
 Cold Next.js compile exceeds the default timeout, and a follow-up `run` then
 dies with `Tab "main" is not alive`. Recovery: re-issue `action: "open"` with
 `timeout: 90`; only then `run`.
+
+**`Tab "main" is busy`**
+A previous `run` is still executing (or wedged). If truly hung, the harness
+escalates itself: `Browser code execution hung past grace; tab killed` — then
+`open` again. Don't stack a second `run` on a busy tab.
+
+**`Browser code execution timed out after <ms>ms (stalled on <op>)`**
+The whole cell budget elapsed while `<op>` was still running; the tab worker
+is killed and the orphaned page closed. Recovery: split the work across
+cells, or precede the slow step with a `waitFor*` condition.
+
+**`browser app.cdp_url must be the HTTP CDP discovery endpoint`**
+Pass `http://127.0.0.1:<port>` — a `ws://` URL is always rejected.
 
 **Clicked the wrong button (no error — wrong element focused/toggled)**
 Text-engine selectors (`::-p-text`, `text/…`) substring-match and frequently
@@ -87,28 +216,11 @@ Args are strict JSON: the `code` value is one JSON string with `\n` escapes.
 Template literals / bare backticks in the args object fail parsing — build the
 JS body as a plain quoted string.
 
-## Harness gotchas (verified against live device docs)
-
-- `tab.fill` never works on `<select>` — use `tab.select`.
-- Arm `tab.waitForNavigation` BEFORE the click that triggers it; prefer
-  `waitForUrl` / `waitForResponse` with a condition.
-- SPA re-renders and virtualized lists invalidate ids/refs mid-flight —
-  re-snapshot and act in the same cell (pattern above).
-- Stalled actions fail fast with a named error rather than eating the whole
-  cell timeout — treat the name as the recipe key.
-- `tab.ariaSnapshot()` returns WITHOUT refs while a Radix dropdown menu is
-  mounted or the page is mid-animation — every subsequent
-  `Unknown ARIA ref "eN"` is this in disguise. Recovery: press Escape via
-  `tab.evaluate(() => document.body.dispatchEvent(new KeyboardEvent("keydown",
-{ key: "Escape", bubbles: true })))`, re-snapshot, only then click.
-- Trusted ref clicks stall (`tab.click("eN") timed out after 8000ms`) when a
-  closed-but-mounted Radix menu portal covers the page. Same recovery as
-  above; if the editor sheet is already filled, clicking its submit button
-  via `tab.evaluate` DOM `.click()` still saves reliably.
-- **`Failed to install Chromium for puppeteer: … too large to extract in memory`**
-  The harness can't unpack its own Chromium build. Recovery: pass the system
-  binary in the `open` args — `{"action": "open", …, "app": {"path":
-"/usr/bin/chromium"}}`.
+**`Failed to install Chromium for puppeteer: … too large to extract in memory`**
+The harness can't unpack its own Chromium build. Recovery: pass the system
+binary in the `open` args — `{"action": "open", …, "app": {"path":
+"/usr/bin/chromium"}}` (switches the tab to a spawned system Chromium; no
+stealth patches, fine for localhost testing).
 
 **`tab.fill('input[type="password"]') timed out … element may be hidden or covered`**
 The password field is the custom dot-field; puppeteer's fill never sees it
@@ -127,13 +239,22 @@ await tab.evaluate(() => {
 });
 ```
 
-**Radix row menus (⋮ "… options") won't open via `btn.click()` or stale refs**
-Dropdown triggers open on `pointerdown`; a plain DOM `.click()` is ignored,
-and trusted `tab.click(ref)` stalls when a closed-but-mounted portal covers
-the page. Recovery: Escape first, then dispatch the full pointer cascade
-(`pointerdown`/`mousedown`/`pointerup`/`mouseup`/`click`) on the trigger
-via evaluate, confirm `[role=menu]` exists, then DOM-click the menuitem.
+## Harness gotchas (LCKED-specific)
 
+- `tab.ariaSnapshot()` returns WITHOUT refs while a Radix dropdown menu is
+  mounted or the page is mid-animation — every subsequent
+  `Unknown ARIA ref "eN"` is this in disguise. Recovery: press Escape via
+  `tab.evaluate(() => document.body.dispatchEvent(new KeyboardEvent("keydown",
+{ key: "Escape", bubbles: true })))`, re-snapshot, only then click.
+- Trusted ref clicks stall (`tab.click("eN") timed out after 8000ms`) when a
+  closed-but-mounted Radix menu portal covers the page. Same recovery as
+  above; if the editor sheet is already filled, clicking its submit button
+  via `tab.evaluate` DOM `.click()` still saves reliably.
+- Radix row menus (⋮ "… options") won't open via `btn.click()` or stale refs.
+  Dropdown triggers open on `pointerdown`; a plain DOM `.click()` is ignored.
+  Recovery: Escape first, then dispatch the full pointer cascade
+  (`pointerdown`/`mousedown`/`pointerup`/`mouseup`/`click`) on the trigger
+  via evaluate, confirm `[role=menu]` exists, then DOM-click the menuitem.
 - After Create, the detail view auto-opens with the saved item selected — no
   list-row click needed to verify it.
 
