@@ -47,6 +47,7 @@ import { runBulk } from "./bulk-report";
 import { FaviconIcon } from "./favicon-icon";
 import { FieldCluster, MicroLabel } from "./field-cluster";
 import { ITEM_TYPE_LABELS, ItemTypeIcon } from "./item-icons";
+import { PermanentDeleteDialog } from "./permanent-delete-dialog";
 import { TOTPDisplay } from "./totp-display";
 import { VaultIcon } from "./vault-icon";
 
@@ -113,7 +114,6 @@ function FieldRow({
       className={cn(
         "group hover:bg-secondary/30 flex items-center gap-3 px-3.5 py-2.5 transition-colors",
         !first && "border-border/50 border-t",
-        rowClickable && "cursor-pointer",
       )}
       onClick={rowClickable ? handleCopy : undefined}
     >
@@ -279,6 +279,8 @@ export function ItemDetail() {
   const trashItem = useVault((s) => s.trashItem);
   const restoreItem = useVault((s) => s.restoreItem);
   const permanentlyDeleteItem = useVault((s) => s.permanentlyDeleteItem);
+
+  const [confirmPurgeOpen, setConfirmPurgeOpen] = React.useState(false);
   const duplicateItem = useVault((s) => s.duplicateItem);
   const showFavicons = useVault((s) => s.settings.showFavicons);
   const blurEmailMode = useVault((s) => s.settings.blurEmailMode);
@@ -332,7 +334,7 @@ export function ItemDetail() {
           >
             {/* Header */}
             <div className="border-border border-b px-5 py-4">
-              <div className="flex items-center gap-3.5">
+              <div className="mx-auto flex w-full max-w-3xl items-center gap-3.5">
                 {/* Favicon for logins (gated by showFavicons setting),
                                         type-icon otherwise. */}
                 {showFavicons &&
@@ -399,38 +401,15 @@ export function ItemDetail() {
                         <RotateCcw className="h-3.5 w-3.5" />
                         Restore
                       </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="text-muted-foreground h-8 w-8 hover:text-red-400"
-                            aria-label="Delete permanently"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              Delete permanently?
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              &ldquo;{item.name}&rdquo; will be permanently
-                              erased. This cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={handlePermanentDelete}
-                              className="bg-red-500 text-white hover:bg-red-600"
-                            >
-                              Delete forever
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="text-muted-foreground h-8 w-8 hover:text-red-400"
+                        onClick={() => setConfirmPurgeOpen(true)}
+                        aria-label="Delete permanently"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </>
                   ) : (
                     <>
@@ -521,7 +500,7 @@ export function ItemDetail() {
             </div>
 
             {/* Body */}
-            <div className="lcked-scroll flex-1 overflow-y-auto px-5 py-4">
+            <div className="lcked-scroll flex-1 overflow-y-auto px-5 py-4 [&>*]:mx-auto [&>*]:w-full [&>*]:max-w-3xl">
               {item.type === "login" && (
                 <div className="space-y-4">
                   {/* Credentials cluster — username label + icon switch on
@@ -787,6 +766,13 @@ export function ItemDetail() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <PermanentDeleteDialog
+        open={confirmPurgeOpen}
+        onOpenChange={setConfirmPurgeOpen}
+        label={item?.name}
+        onConfirm={handlePermanentDelete}
+      />
     </div>
   );
 }

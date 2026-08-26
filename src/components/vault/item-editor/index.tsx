@@ -97,6 +97,21 @@ export function ItemEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Refresh/close with unsaved edits silently destroys them — the vault
+  // lock on unload (AutoLockManager) cannot preserve form state. This
+  // listener only fires the browser's leave-confirmation; it must sit
+  // above the early return to keep hook order stable.
+  React.useEffect(() => {
+    if (!open || !form || busy) return;
+    if (JSON.stringify(form) === initialForm) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [open, form, initialForm, busy]);
+
   if (!open || !form) return null;
 
   const isEditing = Boolean(editorItemId);

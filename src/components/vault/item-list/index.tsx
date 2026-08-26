@@ -26,6 +26,7 @@ import {
   ITEM_TYPE_ICONS,
   ITEM_TYPE_LABELS,
 } from "../item-icons";
+import { PermanentDeleteDialog } from "../permanent-delete-dialog";
 import { EmptyList } from "./empty-list";
 import { ItemRow } from "./item-row";
 import { MultiSelectBar } from "./multi-select-bar";
@@ -66,6 +67,12 @@ export function ItemList({
   const isTrashView = activeVault === "trash";
 
   const [sort, setSort] = useItemSort();
+  // The row button only arms this target; the shared dialog deletes on
+  // confirm — every irreversible purge path gets the same friction.
+  const [purgeTarget, setPurgeTarget] = React.useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   // Deferred search query — keeps typing responsive on large vaults by
   // letting the filter/sort work happen at lower priority.
@@ -198,10 +205,12 @@ export function ItemList({
               }
             }}
           >
-            <div className="p-2">
+            <div className="p-2 pb-20 md:pb-2">
               {filtered.length === 0 ? (
                 <EmptyList
-                  hasItems={items.length > 0}
+                  filterActive={
+                    deferredSearch.trim() !== "" || typeFilter !== "all"
+                  }
                   isTrash={isTrashView}
                   onCreate={() => setEditorOpen(true, null, "login")}
                 />
@@ -270,10 +279,7 @@ export function ItemList({
                               )
                             }
                             onPermanentDelete={() =>
-                              void runBulk(
-                                () => permanentlyDeleteItem(item.id),
-                                "Permanently deleted",
-                              )
+                              setPurgeTarget({ id: item.id, name: item.name })
                             }
                             onCopyField={copyField}
                             onToggleFavorite={() => toggleFavorite(item.id)}
@@ -326,6 +332,23 @@ export function ItemList({
           </ContextMenuSub>
         </ContextMenuContent>
       </ContextMenu>
+
+      <PermanentDeleteDialog
+        open={purgeTarget !== null}
+        onOpenChange={(o) => {
+          if (!o) setPurgeTarget(null);
+        }}
+        label={purgeTarget?.name}
+        onConfirm={() => {
+          const target = purgeTarget;
+          setPurgeTarget(null);
+          if (target)
+            void runBulk(
+              () => permanentlyDeleteItem(target.id),
+              "Permanently deleted",
+            );
+        }}
+      />
 
       {/* Mobile back hint (only in trash view, for screen-reader friendliness) */}
       {isTrashView && onMobileBack && (

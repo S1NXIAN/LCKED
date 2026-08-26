@@ -6,11 +6,13 @@ import { useVault } from "@/store/vault";
 import { DiamondMark } from "../diamond-mark";
 
 export function EmptyList({
-  hasItems,
+  filterActive,
   isTrash,
   onCreate,
 }: {
-  hasItems: boolean;
+  /** A search query or type filter is narrowing the list — the copy
+   * points at clearing it instead of celebrating an empty vault. */
+  filterActive: boolean;
   isTrash: boolean;
   onCreate: () => void;
 }) {
@@ -24,20 +26,20 @@ export function EmptyList({
     <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
       <DiamondMark size={56} glow className="mb-4" />
       <h3 className="text-sm font-semibold">
-        {isTrash
-          ? "Trash is empty"
-          : hasItems
-            ? "No matches"
+        {filterActive
+          ? "No matches"
+          : isTrash
+            ? "Trash is empty"
             : "Your vault is empty"}
       </h3>
       <p className="text-muted-foreground mt-1.5 max-w-[16rem] text-xs leading-relaxed">
-        {isTrash
-          ? "Deleted items land here. They auto-purge after 30 days."
-          : hasItems
-            ? "Try a different search or filter."
+        {filterActive
+          ? "Try a different search or filter."
+          : isTrash
+            ? "Deleted items land here. They auto-purge after 30 days."
             : "Your secrets, encrypted on this device. Nothing leaves. Ever."}
       </p>
-      {!hasItems && !isTrash && (
+      {!filterActive && !isTrash && (
         <div className="mt-5 flex flex-col gap-2">
           <Button size="sm" onClick={onCreate}>
             Add your first item
@@ -51,7 +53,7 @@ export function EmptyList({
           </Button>
         </div>
       )}
-      {isTrash && hasItems && (
+      {isTrash && (
         <Button
           size="sm"
           variant="ghost"
