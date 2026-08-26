@@ -148,7 +148,7 @@ export function ItemRow({
             e.dataTransfer.effectAllowed = "move";
           }}
           className={cn(
-            "group relative flex w-full cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors",
+            "group relative flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors",
             active ? "text-accent-foreground" : "hover:bg-muted/60",
             checked && "bg-accent/60",
           )}

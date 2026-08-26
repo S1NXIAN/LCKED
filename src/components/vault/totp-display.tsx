@@ -110,7 +110,7 @@ export function TOTPDisplay({ secret, compact = false }: TOTPDisplayProps) {
           void handleCopy();
         }
       }}
-      className="group border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring/60 flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors focus:outline-none focus-visible:ring-2"
+      className="group border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring/60 flex items-center gap-3 rounded-lg border p-3 transition-colors focus:outline-none focus-visible:ring-2"
       title="Click to copy (auto-clears in 30s)"
       aria-label={
         code ? `Copy verification code ${code}` : "Copy verification code"
