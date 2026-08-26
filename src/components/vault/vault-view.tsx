@@ -6,6 +6,7 @@ import {
   CreditCard,
   Dice5,
   KeyRound,
+  LayoutGrid,
   Lock,
   Palette,
   Plus,
@@ -27,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
   Tooltip,
   TooltipContent,
@@ -117,6 +119,11 @@ export function VaultView() {
       setMobileView("detail");
     }
   }, [selectedId]);
+
+  // Mobile/tablet nav drawer (<xl has no vault sidebar; <lg loses every
+  // other sidebar action too). One sheet re-hosts VaultsSidebar plus the
+  // Generator/Settings/Theme/Lock rows so all entry points survive.
+  const [navOpen, setNavOpen] = React.useState(false);
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -242,8 +249,18 @@ export function VaultView() {
             <>
               {/* Search header — spans full width of list+detail */}
               <header className="border-border bg-background flex items-center gap-2 border-b px-3 py-2.5 md:px-4">
-                {/* Mobile: brand + lock */}
+                {/* Nav drawer trigger — <xl has no vault sidebar */}
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="text-muted-foreground h-8 w-8 xl:hidden"
+                  onClick={() => setNavOpen(true)}
+                  aria-label="Open navigation"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
                 <div className="flex items-center gap-2 lg:hidden">
+                {/* Mobile: brand + lock */}
                   <div className="bg-primary/10 flex h-8 w-8 items-center justify-center rounded-lg">
                     <DiamondMark size={20} />
                   </div>
@@ -364,6 +381,67 @@ export function VaultView() {
           </motion.button>
         )}
       </AnimatePresence>
+
+      {/* Mobile nav drawer — vault switching + the sidebar actions that
+        only exist in the desktop rail. <xl shows no vault list at all and
+        <lg hides Generator/Settings/Theme/Lock, so this is their only
+        entry point on phones and tablets. */}
+      <Sheet open={navOpen} onOpenChange={setNavOpen}>
+        <SheetContent
+          side="left"
+          className="bg-sidebar flex w-72 flex-col gap-1 p-3 sm:w-80"
+        >
+          <SheetTitle className="flex items-center gap-2.5 px-2 pb-2">
+            <div className="bg-primary/10 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-inner">
+              <DiamondMark size={26} />
+            </div>
+            <div className="leading-none">
+              <div className="text-base font-bold tracking-tight">
+                LCK<span className="text-primary">ED</span>
+              </div>
+              <div className="text-muted-foreground text-[10px] tracking-[0.2em] uppercase">
+                Local vault
+              </div>
+            </div>
+          </SheetTitle>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <VaultsSidebar />
+          </div>
+          <div className="flex flex-col gap-1 pb-1">
+            <Button
+              variant="ghost"
+              className="text-muted-foreground hover:bg-muted/40 hover:text-foreground h-9 justify-start gap-2.5 px-2.5 text-sm"
+              onClick={() => {
+                setNavOpen(false);
+                setGeneratorOpen(true);
+              }}
+            >
+              <Dice5 className="h-4 w-4" />
+              Generator
+            </Button>
+            <Button
+              variant="ghost"
+              className="text-muted-foreground hover:bg-muted/40 hover:text-foreground h-9 justify-start gap-2.5 px-2.5 text-sm"
+              onClick={() => {
+                setNavOpen(false);
+                setSettingsOpen(true);
+              }}
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </Button>
+            <LabeledThemeToggle className="text-muted-foreground hover:bg-muted/40 hover:text-foreground h-9 justify-start gap-2.5 px-2.5 text-sm" />
+            <Button
+              variant="ghost"
+              className="text-muted-foreground hover:bg-muted/40 h-9 justify-start gap-2.5 px-2.5 text-sm hover:text-signal-danger"
+              onClick={lock}
+            >
+              <Lock className="h-4 w-4" />
+              Lock
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Dialogs & overlays */}
       <ItemEditor />
