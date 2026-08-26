@@ -216,7 +216,7 @@ export function SecurityTab() {
       {/* Danger zone */}
       <div className="space-y-3">
         <header className="space-y-1">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-red-400">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-signal-danger">
             <AlertTriangle className="h-4 w-4" />
             Danger zone
           </h2>
@@ -224,7 +224,7 @@ export function SecurityTab() {
         <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
           <Button
             variant="outline"
-            className="w-full border-red-500/40 text-red-400 hover:bg-red-500/10 hover:text-red-400"
+            className="w-full border-signal-danger/40 text-signal-danger hover:bg-signal-danger/10 hover:text-signal-danger"
             onClick={() => setResetOpen(true)}
           >
             <Trash2 className="mr-2 h-4 w-4" />
@@ -243,7 +243,7 @@ export function SecurityTab() {
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleReset}
-                className="bg-red-500 text-white hover:bg-red-600"
+                className="bg-signal-danger text-white hover:bg-signal-danger/90"
               >
                 Erase everything
               </AlertDialogAction>

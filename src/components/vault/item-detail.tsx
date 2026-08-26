@@ -163,7 +163,7 @@ function FieldRow({
             aria-label={`Copy ${label}`}
           >
             {copied ? (
-              <Check className="h-3.5 w-3.5 text-emerald-400" />
+              <Check className="h-3.5 w-3.5 text-signal-success" />
             ) : (
               <Copy className="h-3.5 w-3.5" />
             )}
@@ -382,7 +382,7 @@ export function ItemDetail() {
                       />
                     )}
                     {item.trashed && (
-                      <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
+                      <span className="rounded-md bg-signal-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-signal-warning">
                         Trashed
                       </span>
                     )}
@@ -404,7 +404,7 @@ export function ItemDetail() {
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="text-muted-foreground h-8 w-8 hover:text-red-400"
+                        className="text-muted-foreground h-8 w-8 hover:text-signal-danger"
                         onClick={() => setConfirmPurgeOpen(true)}
                         aria-label="Delete permanently"
                       >
@@ -470,7 +470,7 @@ export function ItemDetail() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="text-muted-foreground h-8 w-8 hover:text-red-400"
+                            className="text-muted-foreground h-8 w-8 hover:text-signal-danger"
                             aria-label="Move to trash"
                           >
                             <Trash2 className="h-4 w-4" />

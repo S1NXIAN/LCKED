@@ -102,7 +102,7 @@ export function VaultRow({
         active
           ? "text-accent-foreground"
           : warn
-            ? "text-foreground hover:bg-amber-500/10"
+            ? "text-foreground hover:bg-signal-warning/10"
             : "text-foreground/80 hover:bg-muted/60 hover:text-foreground",
         dragOver &&
           "ring-primary/60 ring-offset-background ring-2 ring-offset-1",
@@ -119,7 +119,7 @@ export function VaultRow({
           className={cn(
             "block text-xs leading-tight tabular-nums",
             warn && !active
-              ? "text-amber-400/80"
+              ? "text-signal-warning/80"
               : active
                 ? "text-accent-foreground/70"
                 : "text-muted-foreground",

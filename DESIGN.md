@@ -131,14 +131,23 @@ A cool, near-neutral dark scheme where saturation is rationed: slates carry
 the structure, one violet carries identity, one peach carries warmth.
 
 Values below are the default **Mocha** (dark) theme — the normative resting
-state. Latte inverts lightness, Nord swaps violet for frost (#88c0d0), Proton
-swaps it for electric indigo (#7777f8); roles never change across themes.
+state. Every theme is built from its own official palette, not a re-tint of
+Mocha: Catppuccin Mocha and Latte from the upstream `catppuccin/palette`
+release, Nord from `nordtheme.com` (nord0–nord15), Proton Pass from the
+`pass-dark` tokens in Proton's own WebClients design system. Semantic roles
+never change across themes — only the material they are poured into.
 
 ### Primary
 
 - **Dusk Violet** (#cba6f7): THE signature. Focus rings, primary buttons, the
   active-item indicator, the diamond mark, the "ED" in the wordmark. Appears
   at most once per screen.
+
+Per-theme signatures: Mocha **Dusk Violet** (#cba6f7), Latte **Mauve**
+(#8839ef), Nord **Frost** (nord8 #88c0d0), Proton **Interaction Norm**
+(#b6b6ff) — Pass's real control color, always paired with ink text
+(#191927); Pass's brand violet (#7777f8) is reserved for charts and brand
+moments, never buttons.
 
 ### Secondary (functional signals)
 

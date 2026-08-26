@@ -213,7 +213,7 @@ export function VaultView() {
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="text-muted-foreground h-9 w-9 justify-start hover:text-red-400 xl:hidden"
+                  className="text-muted-foreground h-9 w-9 justify-start hover:text-signal-danger xl:hidden"
                   onClick={lock}
                   aria-label="Lock vault"
                 >
@@ -224,7 +224,7 @@ export function VaultView() {
             </Tooltip>
             <Button
               variant="ghost"
-              className="text-muted-foreground hover:bg-muted/40 hidden h-9 items-center justify-start gap-2.5 px-2.5 text-sm transition-colors hover:text-red-400 xl:flex"
+              className="text-muted-foreground hover:bg-muted/40 hidden h-9 items-center justify-start gap-2.5 px-2.5 text-sm transition-colors hover:text-signal-danger xl:flex"
               onClick={lock}
               aria-label="Lock vault"
             >
@@ -272,7 +272,7 @@ export function VaultView() {
 
                 {/* Item count badge */}
                 <span className="text-muted-foreground hidden items-center gap-1.5 text-xs md:flex">
-                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+                  <ShieldCheck className="h-3.5 w-3.5 text-signal-success" />
                   {items.filter((i) => !i.trashed).length} items
                 </span>
 

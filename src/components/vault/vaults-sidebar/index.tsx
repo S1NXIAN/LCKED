@@ -378,7 +378,7 @@ export function VaultsSidebar() {
        className={cn(
         "inline-flex h-7 w-7 items-center justify-center rounded-lg",
         trashCount > 0
-         ? "bg-amber-500/15 text-amber-400"
+         ? "bg-signal-warning/15 text-signal-warning"
          : "bg-muted text-muted-foreground",
        )}
        aria-hidden="true"

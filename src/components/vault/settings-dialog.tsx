@@ -83,7 +83,7 @@ export function SettingsView() {
           <h1 className="text-sm font-semibold tracking-tight">Settings</h1>
         </div>
         <div className="bg-muted/40 text-muted-foreground ml-auto hidden items-center gap-1.5 rounded-md px-2.5 py-1 text-xs sm:flex">
-          <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+          <ShieldCheck className="h-3.5 w-3.5 text-signal-success" />
           {items.filter((i) => !i.trashed).length} items · local-only
         </div>
       </header>

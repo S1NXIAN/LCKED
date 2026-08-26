@@ -125,7 +125,7 @@ export function UnlockView() {
                   }}
                   placeholder="Your master password"
                   autoComplete="current-password"
-                  className={`font-secret focus-visible:border-primary/50 pr-10 pl-9 focus-visible:ring-0 ${error ? "border-red-500/60" : ""}`}
+                  className={`font-secret focus-visible:border-primary/50 pr-10 pl-9 focus-visible:ring-0 ${error ? "border-signal-danger/60" : ""}`}
                   autoFocus
                 />
                 <button
@@ -142,7 +142,7 @@ export function UnlockView() {
                 </button>
               </div>
               {error && (
-                <p className="text-xs text-red-400">
+                <p className="text-xs text-signal-danger">
                   That password didn&apos;t work. Try again.
                 </p>
               )}
@@ -166,14 +166,14 @@ export function UnlockView() {
           <div className="mt-4 shrink-0 text-center sm:mt-5">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <button className="text-muted-foreground text-xs underline-offset-2 hover:text-red-400 hover:underline">
+                <button className="text-muted-foreground text-xs underline-offset-2 hover:text-signal-danger hover:underline">
                   Forgot password? Reset vault
                 </button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-red-400" />
+                    <AlertTriangle className="h-5 w-5 text-signal-danger" />
                     Reset the entire vault?
                   </AlertDialogTitle>
                   <AlertDialogDescription>
@@ -187,7 +187,7 @@ export function UnlockView() {
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={handleReset}
-                    className="bg-red-500 text-white hover:bg-red-600"
+                    className="bg-signal-danger text-white hover:bg-signal-danger/90"
                   >
                     Yes, erase everything
                   </AlertDialogAction>

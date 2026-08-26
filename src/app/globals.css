@@ -162,7 +162,7 @@
   --secondary: #dce0e8; /* crust   — subtle muted fill (recessed) */
   --secondary-foreground: #4c4f69;
   --muted: #e6e9ef; /* mantle  */
-  --muted-foreground: #6c6f85; /* subtext0 */
+  --muted-foreground: #5c5f77; /* subtext1 — subtext0 (#6c6f85) is only 4.37:1 on base */
   --accent: #dce0e8; /* crust   — LIGHTER than popover (hover reads clearly) */
   --accent-foreground: #4c4f69;
   --destructive: #d20f39; /* red     */
@@ -349,47 +349,48 @@
   --sunset: #ebcb8b; /* nord13  */
 }
 
-/* ── Proton — Proton Pass · violet-on-near-black ─────────────────────────── */
+/* ── Proton — Proton Pass · authentic pass-dark design tokens ────────────── */
 .proton {
-  --background: #1f1f31; /* bg-norm — app canvas (darkest) */
-  --foreground: #ffffff; /* text    */
-  --card: #282839; /* card-norm — raised surface */
+  --background: #1f1f31; /* background-norm — app canvas (darkest) */
+  --foreground: #ffffff; /* text-norm */
+  --card: #282839; /* background-weak — raised surface */
   --card-foreground: #ffffff;
-  --popover: #302d45; /* popover-norm — floating layer (DIFFERENT from card) */
+  --popover: #302d45; /* interaction-weak — floating layer (DIFFERENT from card) */
   --popover-foreground: #ffffff;
-  --primary: #7777f8; /* interaction-norm — signature violet */
-  --primary-foreground: #ffffff;
-  --secondary: #282839; /* subtle muted fill (= card) */
+  --primary: #b6b6ff; /* interaction-norm — the color Pass paints its controls */
+  --primary-foreground: #191927; /* text-invert — ink on pale periwinkle (9.2:1) */
+  --secondary: #191926; /* background-strong — recessed (darker than canvas) */
   --secondary-foreground: #ffffff;
-  --muted: #282839; /* card-norm */
+  --muted: #282839; /* background-weak (= card, matching the other themes) */
   --muted-foreground: #bfb9d8; /* text-weak */
-  --accent: #38384c; /* LIGHTER than popover — hover reads clearly */
+  --accent: #38384c; /* border-weak — LIGHTER than popover (hover reads clearly) */
   --accent-foreground: #ffffff;
-  --destructive: #f08fa4;
-  /* Borders at 50% opacity — felt, not seen (Linear principle) */
-  --border: #38384c; /* border-norm */
+  --destructive: #f08fa4; /* signal-danger */
+  /* Borders stay felt-not-seen via border-weak; the loud border-norm
+     (#7a7aad) remains reserved for strong separators, like Pass itself. */
+  --border: #38384c; /* border-weak */
   --input: #282839; /* = card  */
-  --ring: #7777f8;
-  --chart-1: #7777f8; /* interaction-norm */
+  --ring: #b6b6ff;
+  --chart-1: #7777f8; /* primary — brand violet (Pass --primary token) */
   --chart-2: #4ab89a; /* signal-success */
   --chart-3: #ffb84d; /* signal-warning */
   --chart-4: #eb8dd6; /* vault-lavender-magenta */
   --chart-5: #4ac0ff; /* signal-info */
-  --sidebar: #191926; /* sidebar-norm (slightly darker than canvas) */
+  --sidebar: #191926; /* background-strong — the sidebar step in Pass */
   --sidebar-foreground: #ffffff;
-  --sidebar-primary: #7777f8;
-  --sidebar-primary-foreground: #ffffff;
+  --sidebar-primary: #b6b6ff;
+  --sidebar-primary-foreground: #191927;
   --sidebar-accent: #38384c; /* = accent */
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #38384c;
-  --sidebar-ring: #7777f8;
+  --sidebar-ring: #b6b6ff;
 
   /* Surface ramp — 5 steps (darkest → lightest) */
-  --surface-base: #1f1f31; /* background */
-  --surface-raised: #282839; /* secondary (= card) */
-  --surface-overlay: #282839; /* card */
-  --surface-popover: #302d45; /* popover */
-  --surface-tooltip: #38384c; /* accent / border */
+  --surface-base: #1f1f31; /* background (background-norm) */
+  --surface-raised: #191926; /* secondary (background-strong — recessed) */
+  --surface-overlay: #282839; /* card (background-weak) */
+  --surface-popover: #302d45; /* popover (interaction-weak) */
+  --surface-tooltip: #38384c; /* tooltip / border (border-weak) */
 
   /* Sunset accent — warm, ≤5% per screen */
   --sunset: #ffb84d; /* signal-warning */

@@ -209,7 +209,7 @@ export function PasswordGeneratorDialog() {
                 onChange={(v) => updateGenerator({ avoidAmbiguous: v })}
               />
               {!atLeastOneSet && (
-                <p className="text-xs text-amber-400">
+                <p className="text-xs text-signal-warning">
                   Enable at least one character set.
                 </p>
               )}

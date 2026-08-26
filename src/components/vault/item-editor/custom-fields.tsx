@@ -125,7 +125,7 @@ export function CustomFields({
                   type="button"
                   size="icon"
                   variant="ghost"
-                  className="text-muted-foreground/60 h-7 w-7 shrink-0 hover:text-red-400"
+                  className="text-muted-foreground/60 h-7 w-7 shrink-0 hover:text-signal-danger"
                   onClick={() => removeCustomField(idx)}
                   aria-label={`Remove custom field ${idx + 1}`}
                 >

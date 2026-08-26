@@ -232,7 +232,7 @@ export function SetupView() {
             </button>
           </div>
           {confirm.length > 0 && confirm !== password && (
-            <p className="text-xs text-red-400">Passwords don&apos;t match</p>
+            <p className="text-xs text-signal-danger">Passwords don&apos;t match</p>
           )}
           {confirm.length === 0 && (
             <button
@@ -473,9 +473,9 @@ export function SetupView() {
                   className="overflow-hidden"
                 >
                   <div className="flex flex-col gap-4">
-                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3.5">
+                    <div className="rounded-lg border border-signal-warning/20 bg-signal-warning/5 p-3.5">
                       <div className="flex items-start gap-2.5">
-                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-signal-warning" />
                         <div className="space-y-1">
                           <p className="text-foreground text-sm font-medium">
                             Your master password is the only key

@@ -156,7 +156,7 @@ export function LoginFields({
                 type="button"
                 size="icon"
                 variant="ghost"
-                className="text-muted-foreground h-7 w-7 shrink-0 hover:text-red-400"
+                className="text-muted-foreground h-7 w-7 shrink-0 hover:text-signal-danger"
                 onClick={() => removeUrl(idx)}
                 aria-label={`Remove URL ${idx + 1}`}
               >

@@ -162,7 +162,7 @@ export function ExportTab() {
             transition={TRANSITION}
             className="space-y-3"
           >
-            <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200/90">
+            <div className="flex items-start gap-2 rounded-lg border border-signal-warning/30 bg-signal-warning/10 p-3 text-xs text-signal-warning">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <p>
                 The CSV will contain your passwords in plain text. Only do this
@@ -189,7 +189,7 @@ export function ExportTab() {
                   Cancel
                 </Button>
                 <Button
-                  className="flex-1 bg-amber-500 text-white hover:bg-amber-600"
+                  className="flex-1 bg-signal-warning text-black hover:bg-signal-warning/90"
                   onClick={handleCsvExport}
                 >
                   I understand, export
@@ -236,7 +236,7 @@ export function ExportTab() {
                 />
               </div>
               {confirm.length > 0 && confirm !== passphrase && (
-                <p className="text-xs text-red-400">
+                <p className="text-xs text-signal-danger">
                   Passphrases don&apos;t match
                 </p>
               )}

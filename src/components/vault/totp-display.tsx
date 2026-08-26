@@ -67,7 +67,7 @@ export function TOTPDisplay({ secret, compact = false }: TOTPDisplayProps) {
 
   if (error) {
     return (
-      <div className="text-xs text-amber-500">
+      <div className="text-xs text-signal-warning">
         TOTP secret looks invalid — check the format.
       </div>
     );
@@ -91,7 +91,7 @@ export function TOTPDisplay({ secret, compact = false }: TOTPDisplayProps) {
       >
         <span className="text-primary">{code || "••••••"}</span>
         {copied ? (
-          <Check className="h-3 w-3 text-emerald-400" />
+          <Check className="h-3 w-3 text-signal-success" />
         ) : (
           <Copy className="text-muted-foreground h-3 w-3" />
         )}
@@ -137,7 +137,7 @@ export function TOTPDisplay({ secret, compact = false }: TOTPDisplayProps) {
             strokeLinecap="round"
             className={cn(
               "transition-colors duration-300",
-              remaining <= 5 ? "text-red-400" : "text-primary",
+              remaining <= 5 ? "text-signal-danger" : "text-primary",
             )}
             strokeDasharray={2 * Math.PI * 19}
             strokeDashoffset={2 * Math.PI * 19 * (1 - progress)}
@@ -168,7 +168,7 @@ export function TOTPDisplay({ secret, compact = false }: TOTPDisplayProps) {
         aria-label="Copy verification code"
       >
         {copied ? (
-          <Check className="h-4 w-4 text-emerald-400" />
+          <Check className="h-4 w-4 text-signal-success" />
         ) : (
           <Copy className="h-4 w-4" />
         )}

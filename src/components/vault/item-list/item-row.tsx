@@ -253,7 +253,7 @@ export function ItemRow({
               <Button
                 size="icon"
                 variant="ghost"
-                className="text-muted-foreground h-7 w-7 hover:text-red-400"
+                className="text-muted-foreground h-7 w-7 hover:text-signal-danger"
                 onClick={(e) => {
                   e.stopPropagation();
                   onPermanentDelete();
