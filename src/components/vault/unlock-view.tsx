@@ -187,7 +187,7 @@ export function UnlockView() {
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={handleReset}
-                    className="bg-signal-danger text-white hover:bg-signal-danger/90"
+                    className="bg-signal-danger text-black hover:bg-signal-danger/90"
                   >
                     Yes, erase everything
                   </AlertDialogAction>

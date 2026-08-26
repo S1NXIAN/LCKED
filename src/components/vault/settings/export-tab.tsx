@@ -39,7 +39,7 @@ const FORMATS: {
     caption:
       "AES-256-GCM envelope. Restore only with the passphrase. Recommended for backups.",
     icon: FileJson,
-    accent: "bg-emerald-500/15 text-emerald-400",
+    accent: "bg-signal-success/15 text-signal-success",
     badge: "Recommended",
   },
   {
@@ -47,7 +47,7 @@ const FORMATS: {
     label: "Encrypted ZIP",
     caption: "Same encrypted payload packaged as a single-file .zip archive.",
     icon: FileArchive,
-    accent: "bg-violet-500/15 text-violet-400",
+    accent: "bg-primary/15 text-primary",
   },
   {
     id: "csv",
@@ -55,7 +55,7 @@ const FORMATS: {
     caption:
       "Unencrypted text file. Readable by any password manager or spreadsheet tool.",
     icon: FileSpreadsheet,
-    accent: "bg-amber-500/15 text-amber-400",
+    accent: "bg-signal-warning/15 text-signal-warning",
   },
 ];
 
@@ -162,7 +162,7 @@ export function ExportTab() {
             transition={TRANSITION}
             className="space-y-3"
           >
-            <div className="flex items-start gap-2 rounded-lg border border-signal-warning/30 bg-signal-warning/10 p-3 text-xs text-signal-warning">
+            <div className="border-signal-warning/30 bg-signal-warning/10 text-signal-warning flex items-start gap-2 rounded-lg border p-3 text-xs">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <p>
                 The CSV will contain your passwords in plain text. Only do this
@@ -189,7 +189,7 @@ export function ExportTab() {
                   Cancel
                 </Button>
                 <Button
-                  className="flex-1 bg-signal-warning text-black hover:bg-signal-warning/90"
+                  className="bg-signal-warning hover:bg-signal-warning/90 flex-1 text-black"
                   onClick={handleCsvExport}
                 >
                   I understand, export
@@ -236,7 +236,7 @@ export function ExportTab() {
                 />
               </div>
               {confirm.length > 0 && confirm !== passphrase && (
-                <p className="text-xs text-signal-danger">
+                <p className="text-signal-danger text-xs">
                   Passphrases don&apos;t match
                 </p>
               )}
