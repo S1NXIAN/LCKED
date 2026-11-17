@@ -1,23 +1,29 @@
 # LCKED — Password manager
 
-A local-first password manager built with Next.js, Tailwind CSS, and Radix UI. Data stays in the browser — no backend, no sync.
+Data stays in the browser — no backend, no sync.
 
 ## Toolchain
 
-Bun owns this repo (`bun.lock`). Run one-off tool binaries via `bunx`, not
-`npx` — e.g. `bunx tsc --noEmit`, `bunx eslint <files>`,
-`bunx vitest run <file>`.
+Run one-off tool binaries via `bunx`, not `npx`.
 
 ## Agent skills
 
+### Documentation standards
+
+Any edit to agent-facing docs (`AGENTS.md`, `docs/`, extension `README.md`) MUST follow [`AGENT_DOCS_STANDARD.md`](./AGENT_DOCS_STANDARD.md).
+
+### Coding standards
+
+Any code change MUST follow [`CODING_STANDARD.md`](./CODING_STANDARD.md).
+
 ### Issue tracker
 
-Issues are tracked in GitHub Issues using the `gh` CLI. See `docs/agents/issue-tracker.md`.
+When tracking issues: see `docs/agents/issue-tracker.md`.
 
 ### Browser automation
 
-Driving the UI (smoke tests, verification): read `docs/puppeteer/GUIDE.md` first — failure-signal → recovery recipes for the `xd://browser` harness, plus one-job-per-script helpers in `docs/puppeteer/scripts/`.
+When driving the UI: see `docs/puppeteer/GUIDE.md`.
 
 ### Domain docs
 
-Single-context layout — one `CONTEXT.md` at the repo root (once created), with ADRs in `docs/adr/`. See `docs/agents/domain.md`.
+When writing domain docs: see `docs/agents/domain.md`.
