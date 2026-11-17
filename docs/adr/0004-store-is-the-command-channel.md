@@ -29,6 +29,6 @@ state.
 ## Consequences
 
 - New cross-component commands get a store field + action, never an event or
-  global (see CONTEXT.md, "One channel").
+  global (see GLOSSARY.md, "One channel").
 - Commands are exercised as store transitions in tests; no component mounts or
   `window` stubs are needed to assert command delivery.

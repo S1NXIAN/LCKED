@@ -2,7 +2,7 @@
 
 The codebase keeps Next.js's layer-first shape (`src/app`, `src/components`,
 `src/lib`, `src/store`) rather than feature folders: LCKED is a single-context
-repo (see CONTEXT.md) with one deployable, so feature directories would encode
+repo (see GLOSSARY.md) with one deployable, so feature directories would encode
 a boundary the domain doesn't have. Within `lib/`, modules are grouped by
 domain — `vault/`, `items/`, `generator/`, `search/`, `import/` — but a module
 whose directory name would just duplicate its file name (`crypto/crypto.ts`,

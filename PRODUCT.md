@@ -66,7 +66,7 @@ your device"; that sentence is LCKED's literal architecture, not marketing.
 ## Evidence on Hand
 
 - `public/logo.svg`, inline SVG favicon, favicon icon set for import sources.
-- Working v0.3.0 app with real domain docs (`CONTEXT.md`, ADRs 0001–0005).
+- Working v0.3.0 app with real domain docs (`GLOSSARY.md`, ADRs 0001–0005).
 - Absences future work must not fabricate: no testimonials, press, customer
   logos, benchmarks, or pricing. None exist yet.
 

@@ -20,6 +20,10 @@ Any code change MUST follow [`CODING_STANDARD.md`](./CODING_STANDARD.md).
 
 When tracking issues: see `docs/agents/issue-tracker.md`.
 
+### Triage labels
+
+When triaging issues: see `docs/agents/triage-labels.md`.
+
 ### Domain docs
 
 When writing domain docs: see `docs/agents/domain.md`.
