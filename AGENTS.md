@@ -20,10 +20,6 @@ Any code change MUST follow [`CODING_STANDARD.md`](./CODING_STANDARD.md).
 
 When tracking issues: see `docs/agents/issue-tracker.md`.
 
-### Browser automation
-
-When driving the UI: see `docs/puppeteer/GUIDE.md`.
-
 ### Domain docs
 
 When writing domain docs: see `docs/agents/domain.md`.
