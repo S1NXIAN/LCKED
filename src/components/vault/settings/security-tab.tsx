@@ -39,6 +39,21 @@ function formatKdf(kdf: KdfParams): string {
   return `Argon2id · ${mib} MiB memory · t=${kdf.iterations} · p=${kdf.parallelism}`;
 }
 
+/** Why the Change master password form cannot submit, or null when it can. */
+export function passwordChangeError(
+  next: string,
+  confirm: string,
+): { field: "new" | "confirm"; message: string } | null {
+  if (next.length < 8)
+    return {
+      field: "new",
+      message: "New password must be at least 8 characters",
+    };
+  if (next !== confirm)
+    return { field: "confirm", message: "New passwords do not match" };
+  return null;
+}
+
 export function SecurityTab() {
   const settings = useVault((s) => s.settings);
   const updateSettings = useVault((s) => s.updateSettings);
@@ -49,14 +64,20 @@ export function SecurityTab() {
 
   const [currentPw, setCurrentPw] = React.useState("");
   const [newPw, setNewPw] = React.useState("");
+  const [confirmPw, setConfirmPw] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [resetOpen, setResetOpen] = React.useState(false);
 
+  const formError = passwordChangeError(newPw, confirmPw);
+  // Don't accuse the confirmation field before it has been typed into.
+  const visibleError =
+    newPw.length === 0 ||
+    (formError?.field === "confirm" && confirmPw.length === 0)
+      ? null
+      : formError;
+
   const handleChangePassword = async () => {
-    if (newPw.length < 8) {
-      toast.error("New password must be at least 8 characters");
-      return;
-    }
+    if (formError) return;
     setBusy(true);
     try {
       const ok = await changeMasterPassword(currentPw, newPw);
@@ -64,6 +85,7 @@ export function SecurityTab() {
         toast.success("Master password changed");
         setCurrentPw("");
         setNewPw("");
+        setConfirmPw("");
       } else {
         toast.error("Current password is incorrect");
       }
@@ -193,12 +215,51 @@ export function SecurityTab() {
               onChange={(e) => setNewPw(e.target.value)}
               className="font-secret"
               autoComplete="new-password"
+              aria-invalid={visibleError?.field === "new"}
+              aria-describedby={
+                visibleError?.field === "new" ? "new-pw-error" : undefined
+              }
             />
             <PasswordStrengthMeter password={newPw} />
+            {visibleError?.field === "new" && (
+              <p
+                id="new-pw-error"
+                role="alert"
+                className="text-signal-danger text-xs"
+              >
+                {visibleError.message}
+              </p>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="confirm-pw">Confirm new password</Label>
+            <Input
+              id="confirm-pw"
+              type="password"
+              value={confirmPw}
+              onChange={(e) => setConfirmPw(e.target.value)}
+              className="font-secret"
+              autoComplete="new-password"
+              aria-invalid={visibleError?.field === "confirm"}
+              aria-describedby={
+                visibleError?.field === "confirm"
+                  ? "confirm-pw-error"
+                  : undefined
+              }
+            />
+            {visibleError?.field === "confirm" && (
+              <p
+                id="confirm-pw-error"
+                role="alert"
+                className="text-signal-danger text-xs"
+              >
+                {visibleError.message}
+              </p>
+            )}
           </div>
           <Button
             onClick={handleChangePassword}
-            disabled={busy || !currentPw || newPw.length < 8}
+            disabled={busy || !currentPw || formError !== null}
             className="w-full"
           >
             {busy ? (
