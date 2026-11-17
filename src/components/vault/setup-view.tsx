@@ -425,7 +425,7 @@ export function SetupView() {
                       <input
                         ref={fileInputRef}
                         type="file"
-                        accept=".json,.csv,.xml"
+                        accept=".json,.csv,.xml,.zip"
                         className="hidden"
                         onChange={handleFileSelect}
                       />

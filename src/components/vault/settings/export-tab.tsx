@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   Check,
   Download,
-  FileArchive,
   FileJson,
   FileSpreadsheet,
   Loader2,
@@ -23,7 +22,7 @@ import { useVault } from "@/store/vault";
 
 const TRANSITION = { duration: 0.12, ease: [0.16, 1, 0.3, 1] } as const;
 
-type ExportFormat = "pgp" | "zip" | "csv";
+type ExportFormat = "pgp" | "csv";
 
 const FORMATS: {
   id: ExportFormat;
@@ -41,13 +40,6 @@ const FORMATS: {
     icon: FileJson,
     accent: "bg-signal-success/15 text-signal-success",
     badge: "Recommended",
-  },
-  {
-    id: "zip",
-    label: "Encrypted ZIP",
-    caption: "Same encrypted payload packaged as a single-file .zip archive.",
-    icon: FileArchive,
-    accent: "bg-primary/15 text-primary",
   },
   {
     id: "csv",
@@ -73,13 +65,12 @@ export function ExportTab() {
 
   const passphrasesMatch = passphrase.length >= 8 && passphrase === confirm;
 
-  const handleEncryptedExport = async (which: "pgp" | "zip") => {
+  const handleEncryptedExport = async () => {
     setBusy(true);
     const ok = await downloadEncryptedExport({
       exportEncrypted,
       passphrase,
       confirm,
-      zip: which === "zip",
     });
     setBusy(false);
     if (ok) {
@@ -107,7 +98,7 @@ export function ExportTab() {
         </p>
       </header>
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {FORMATS.map((f) => {
           const active = format === f.id;
           const Icon = f.icon;
@@ -248,18 +239,14 @@ export function ExportTab() {
             <Button
               className="w-full"
               disabled={busy || !passphrasesMatch || itemCount === 0}
-              onClick={() => handleEncryptedExport(format)}
+              onClick={handleEncryptedExport}
             >
               {busy ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : format === "pgp" ? (
-                <FileJson className="mr-2 h-4 w-4" />
               ) : (
-                <FileArchive className="mr-2 h-4 w-4" />
+                <FileJson className="mr-2 h-4 w-4" />
               )}
-              {format === "pgp"
-                ? "Export encrypted JSON"
-                : "Export encrypted ZIP"}
+              Export encrypted JSON
             </Button>
           </motion.div>
         )}

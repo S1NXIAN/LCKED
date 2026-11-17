@@ -62,7 +62,7 @@ export function ImportTab() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".json,.csv,.xml"
+        accept=".json,.csv,.xml,.zip"
         className="sr-only"
         onChange={(e) => {
           const f = e.target.files?.[0];

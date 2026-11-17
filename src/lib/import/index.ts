@@ -40,13 +40,17 @@ const BITWARDEN_CSV_MARKERS = [
 export function detectFormat(filename: string, text: string): ImportFormat {
   const lower = filename.toLowerCase();
   const trimmed = text.trim();
+  // Check the envelope by content so renamed backups — including the old,
+  // mislabeled ".zip" exports — still restore. `parseLckedJson` confirms the
+  // top-level `format` key, so the literal inside a note can't hijack detection.
+  if (
+    trimmed.startsWith("{") &&
+    /"format"\s*:\s*"lcked-encrypted-v1"/.test(trimmed) &&
+    parseLckedJson(trimmed).format === "lcked-json"
+  ) {
+    return "lcked-json";
+  }
   if (lower.endsWith(".json")) {
-    if (
-      trimmed.startsWith("{") &&
-      /"format"\s*:\s*"lcked-encrypted-v1"/.test(trimmed)
-    ) {
-      return "lcked-json";
-    }
     return "bitwarden-json";
   }
   if (lower.endsWith(".xml")) {

@@ -8,7 +8,7 @@
  *   • General  — theme grid + favicon / sort-favorites-to-top toggles
  *   • Security — auto-lock slider + visibility lock + change password + reset
  *   • Import   — 3-col grid of password-manager source cards (file picker)
- *   • Export   — PGP-encrypted / ZIP / CSV cards
+ *   • Export   — PGP-encrypted / CSV cards
  *
  * Exports:
  *   • `SettingsView` — the full-page view used by vault-view.

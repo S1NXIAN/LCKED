@@ -178,21 +178,6 @@ describe("downloadEncryptedExport", () => {
     expect(toast.success).toHaveBeenCalled();
   });
 
-  it("downloads a ZIP variant when asked", async () => {
-    const ok = await downloadEncryptedExport({
-      exportEncrypted,
-      passphrase: "long-enough",
-      zip: true,
-    });
-
-    expect(ok).toBe(true);
-    expect(download).toHaveBeenCalledWith(
-      "lcked-vault-2026-08-23.zip",
-      "{}",
-      "application/zip",
-    );
-  });
-
   it("reports export failures", async () => {
     const failing = vi.fn().mockRejectedValue(new Error("crypto"));
     const ok = await downloadEncryptedExport({

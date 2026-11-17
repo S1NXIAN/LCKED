@@ -82,7 +82,6 @@ export async function downloadEncryptedExport(opts: {
   exportEncrypted: (password: string) => Promise<string>;
   passphrase: string;
   confirm?: string;
-  zip?: boolean;
 }): Promise<boolean> {
   const valid =
     opts.passphrase.length >= 8 &&
@@ -98,19 +97,11 @@ export async function downloadEncryptedExport(opts: {
 
   try {
     const json = await opts.exportEncrypted(opts.passphrase);
-    const ext = opts.zip ? "zip" : "json";
-    download(
-      vaultFileName(ext),
-      json,
-      opts.zip ? "application/zip" : "application/json",
-    );
-    toast.success(
-      opts.zip ? "Encrypted ZIP downloaded" : "Encrypted export downloaded",
-      {
-        description:
-          "Keep this file and the passphrase safe — both are required to restore.",
-      },
-    );
+    download(vaultFileName("json"), json, "application/json");
+    toast.success("Encrypted export downloaded", {
+      description:
+        "Keep this file and the passphrase safe — both are required to restore.",
+    });
     return true;
   } catch (err) {
     console.error(err);

@@ -18,6 +18,27 @@ describe("detectFormat", () => {
     );
   });
 
+  it("detects the encrypted envelope saved under a .zip name", () => {
+    const envelope = JSON.stringify(
+      { format: "lcked-encrypted-v1", version: 1, data: "x" },
+      null,
+      2,
+    );
+
+    expect(detectFormat("lcked-vault-2026-08-23.zip", envelope)).toBe(
+      "lcked-json",
+    );
+  });
+
+  it("ignores the envelope literal outside the top-level format key", () => {
+    const text = JSON.stringify({
+      meta: { format: "lcked-encrypted-v1" },
+      items: [],
+    });
+
+    expect(detectFormat("bitwarden.json", text)).toBe("bitwarden-json");
+  });
+
   it("detects keepassxc-xml from .xml extension", () => {
     expect(detectFormat("export.xml", "<xml></xml>")).toBe("keepassxc-xml");
   });
