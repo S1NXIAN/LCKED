@@ -5,7 +5,12 @@
  * (which cover Bitwarden's own CSV as well as LCKED's own CSV round-trip).
  */
 
-import type { ImportResult, ItemType, NewItemInput } from "@/lib/types";
+import type {
+  CustomField,
+  ImportResult,
+  ItemType,
+  NewItemInput,
+} from "@/lib/types";
 
 import { parseCsv, rowToObject } from "./csv";
 import { detectCardBrand } from "./export";
@@ -23,6 +28,40 @@ const BITWARDEN_TYPE_MAP: Record<number, ItemType> = {
   3: "card",
   4: "identity",
 };
+
+/** Custom fields from either LCKED's `custom_fields` JSON (which keeps the
+ *  hidden/text type) or Bitwarden's `fields` column (`name: value` lines). */
+function customFieldsFromRow(o: Record<string, string>): CustomField[] {
+  if (o.custom_fields) {
+    try {
+      const parsed = JSON.parse(o.custom_fields);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter(
+            (f) => typeof f?.name === "string" && typeof f?.value === "string",
+          )
+          .map((f) => ({
+            name: f.name,
+            value: f.value,
+            type: f.type === "hidden" ? "hidden" : "text",
+          }));
+      }
+    } catch {
+      // Malformed LCKED JSON: fall back to the Bitwarden column below.
+    }
+  }
+  return (o.fields || "").split(/\r?\n/).flatMap((line) => {
+    const delim = line.lastIndexOf(": ");
+    if (delim === -1) return [];
+    return [
+      {
+        name: line.slice(0, delim),
+        value: line.slice(delim + 2),
+        type: "text" as const,
+      },
+    ];
+  });
+}
 
 export function parseBitwardenJson(text: string): ImportResult {
   const result: ImportResult = { imported: 0, skipped: 0, warnings: [] };
@@ -151,13 +190,14 @@ export function parseBitwardenCsv(text: string): ImportResult {
       const favorite = /^(1|true|yes)$/i.test(o.favorite);
       const pinned = /^(1|true|yes)$/i.test(o.pinned);
       const notes = o.notes || "";
+      const customFields = customFieldsFromRow(o);
       if (typeStr === "login" || typeStr === "1") {
         const urls = (o.login_uri || "")
           .split(/\r?\n/)
           .map((s) => s.trim())
           .filter(Boolean);
-        items.push(
-          makeLogin({
+        items.push({
+          ...makeLogin({
             name,
             username: o.login_username || "",
             password: o.login_password || "",
@@ -168,33 +208,36 @@ export function parseBitwardenCsv(text: string): ImportResult {
             favorite,
             pinned,
           }),
-        );
+          customFields,
+        });
       } else if (typeStr === "note" || typeStr === "2") {
-        items.push(
-          makeNote({ name, content: notes, folder, favorite, pinned }),
-        );
+        items.push({
+          ...makeNote({ name, content: notes, folder, favorite, pinned }),
+          customFields,
+        });
       } else if (typeStr === "card" || typeStr === "3") {
         const number = o.card_number || "";
-        items.push(
-          makeCard({
+        items.push({
+          ...makeCard({
             name,
             cardholder: o.card_cardholder_name || o.card_name || "",
             number,
-            brand: detectCardBrand(number),
+            brand: o.card_brand || detectCardBrand(number),
             cvv: o.card_code || o.card_cvv || "",
             expiry:
               o.card_exp_month && o.card_exp_year
                 ? `${o.card_exp_month}/${o.card_exp_year}`
                 : o.card_expiration || "",
-            pin: "",
+            pin: o.card_pin || "",
             notes,
             folder,
             favorite,
           }),
-        );
+          customFields,
+        });
       } else if (typeStr === "identity" || typeStr === "4") {
-        items.push(
-          makeIdentity({
+        items.push({
+          ...makeIdentity({
             name,
             firstName: o.identity_first_name || "",
             lastName: o.identity_last_name || "",
@@ -212,7 +255,8 @@ export function parseBitwardenCsv(text: string): ImportResult {
             favorite,
             pinned,
           }),
-        );
+          customFields,
+        });
       } else {
         result.skipped++;
         continue;

@@ -66,7 +66,7 @@ describe("detectFormat", () => {
     expect(
       detectFormat(
         "lcked-vault.csv",
-        "name,type,folder,favorite,pinned,login_username,login_password,login_urls,login_totp,note_content,card_cardholder,card_number,card_pin,identity_first_name,identity_email,identity_company\n",
+        "name,type,folder,favorite,pinned,login_username,login_password,login_uri,login_totp,card_cardholder_name,card_number,card_pin,identity_first_name,identity_email,identity_company,fields,custom_fields,notes\n",
       ),
     ).toBe("bitwarden-csv");
   });

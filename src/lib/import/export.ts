@@ -5,7 +5,7 @@
  * and import parsers that auto-detect brand from the card number).
  */
 
-import type { VaultItem } from "@/lib/types";
+import type { CustomField, VaultItem } from "@/lib/types";
 
 import { csvEscape } from "./csv";
 
@@ -17,10 +17,10 @@ const CSV_HEADERS = [
   "pinned",
   "login_username",
   "login_password",
-  "login_urls",
+  "login_uri",
   "login_totp",
-  "note_content",
-  "card_cardholder",
+  "card_cardholder_name",
+  "card_brand",
   "card_number",
   "card_cvv",
   "card_expiration",
@@ -34,12 +34,19 @@ const CSV_HEADERS = [
   "identity_address2",
   "identity_city",
   "identity_state",
-  "identity_zip",
+  "identity_postal_code",
   "identity_country",
+  "fields",
+  "custom_fields",
   "notes",
 ];
 
 export { CSV_HEADERS };
+
+/** Bitwarden's custom-field encoding: one `name: value` per line. */
+function bitwardenFields(fields: CustomField[]): string {
+  return fields.map((f) => `${f.name}: ${f.value}`).join("\n");
+}
 
 export function exportToCsv(items: VaultItem[]): string {
   const lines: string[] = [CSV_HEADERS.join(",")];
@@ -50,18 +57,24 @@ export function exportToCsv(items: VaultItem[]): string {
       folder: item.folder,
       favorite: item.favorite ? "1" : "0",
       pinned: item.pinned ? "1" : "0",
+      fields: bitwardenFields(item.customFields),
+      // LCKED's own copy, so custom-field types survive the round-trip.
+      custom_fields: item.customFields.length
+        ? JSON.stringify(item.customFields)
+        : "",
       notes: "",
     };
     if (item.type === "login") {
       row.login_username = item.details.username;
       row.login_password = item.details.password;
-      row.login_urls = item.details.urls.join("\n");
+      row.login_uri = item.details.urls.join("\n");
       row.login_totp = item.details.totp;
       row.notes = item.details.notes;
     } else if (item.type === "note") {
-      row.note_content = item.details.content;
+      row.notes = item.details.content;
     } else if (item.type === "card") {
-      row.card_cardholder = item.details.cardholder;
+      row.card_cardholder_name = item.details.cardholder;
+      row.card_brand = item.details.brand;
       row.card_number = item.details.number;
       row.card_cvv = item.details.cvv;
       row.card_expiration = item.details.expiry;
@@ -77,7 +90,7 @@ export function exportToCsv(items: VaultItem[]): string {
       row.identity_address2 = item.details.address2;
       row.identity_city = item.details.city;
       row.identity_state = item.details.state;
-      row.identity_zip = item.details.zip;
+      row.identity_postal_code = item.details.zip;
       row.identity_country = item.details.country;
       row.notes = item.details.notes;
     }

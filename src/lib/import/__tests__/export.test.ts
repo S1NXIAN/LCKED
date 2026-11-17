@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { importFromText } from "@/lib/import";
 import { detectCardBrand, exportToCsv } from "@/lib/import/export";
 import type { VaultItem } from "@/lib/types";
 
@@ -131,6 +132,108 @@ describe("exportToCsv", () => {
     const csv = exportToCsv(items);
     expect(csv).toContain('"Contains ""quote"""');
     expect(csv).toContain('"has,comma"');
+  });
+
+  it("round-trips all four Item types and custom fields", () => {
+    const items: VaultItem[] = [
+      makeItem({
+        type: "login",
+        name: "Login",
+        folder: "Work",
+        favorite: true,
+        pinned: true,
+        details: {
+          username: "alice",
+          password: "p@ssw0rd",
+          urls: ["https://example.com", "https://login.example.com"],
+          totp: "JBSWY3DPEHPK3PXP",
+          notes: "Login note",
+        },
+        customFields: [
+          { name: "Security Question", value: "First pet", type: "text" },
+          { name: "Recovery Code", value: "1234 5678", type: "hidden" },
+        ],
+      }),
+      makeItem({
+        type: "note",
+        name: "Note",
+        details: { content: "Line one\nLine two" },
+        customFields: [{ name: "Reference", value: "ABC", type: "text" }],
+      }),
+      makeItem({
+        type: "card",
+        name: "Card",
+        folder: "Finance",
+        details: {
+          cardholder: "Alice Smith",
+          number: "4111111111111111",
+          brand: "Custom Bank",
+          cvv: "123",
+          expiry: "12/2028",
+          pin: "9999",
+          notes: "Card note",
+        },
+        customFields: [{ name: "Card limit", value: "1000", type: "text" }],
+      }),
+      makeItem({
+        type: "identity",
+        name: "Identity",
+        details: {
+          firstName: "Alice",
+          lastName: "Smith",
+          email: "alice@example.com",
+          phone: "+15551234567",
+          company: "Acme",
+          address1: "123 Main St",
+          address2: "Apt 4",
+          city: "Springfield",
+          state: "IL",
+          zip: "62701",
+          country: "US",
+          notes: "Identity note",
+        },
+        customFields: [{ name: "Passport", value: "X123", type: "hidden" }],
+      }),
+    ];
+
+    const { result, items: imported } = importFromText(
+      "lcked-vault.csv",
+      exportToCsv(items),
+    );
+
+    expect(result.imported).toBe(4);
+    expect(result.skipped).toBe(0);
+    expect(imported.map((i) => i.type)).toEqual([
+      "login",
+      "note",
+      "card",
+      "identity",
+    ]);
+
+    expect(imported[0]).toMatchObject({
+      name: "Login",
+      folder: "Work",
+      favorite: true,
+      pinned: true,
+      customFields: items[0].customFields,
+      details: items[0].details,
+    });
+    expect(imported[1]).toMatchObject({
+      name: "Note",
+      customFields: items[1].customFields,
+      details: items[1].details,
+    });
+    expect(imported[2]).toMatchObject({
+      name: "Card",
+      folder: "Finance",
+      customFields: items[2].customFields,
+      details: items[2].details,
+    });
+    expect(imported[3]).toMatchObject({
+      name: "Identity",
+      customFields: items[3].customFields,
+      details: items[3].details,
+    });
   });
 });
 

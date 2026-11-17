@@ -139,6 +139,19 @@ describe("parseBitwardenCsv", () => {
     });
   });
 
+  it("maps the Bitwarden fields column into custom fields", () => {
+    const csv =
+      "folder,favorite,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp\n" +
+      'Work,1,login,example.com,"Primary account","Security Question: First pet\nRecovery Code: 1234",0,https://example.com,alice,p@ssw0rd,';
+    const { result, items } = importFromText("export.csv", csv);
+
+    expect(result.imported).toBe(1);
+    expect(items[0].customFields).toEqual([
+      { name: "Security Question", value: "First pet", type: "text" },
+      { name: "Recovery Code", value: "1234", type: "text" },
+    ]);
+  });
+
   it("handles empty CSV", () => {
     const result = parseBitwardenCsv("header\n");
     expect(result.imported).toBe(0);
