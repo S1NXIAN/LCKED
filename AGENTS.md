@@ -10,20 +10,20 @@ Run one-off tool binaries via `bunx`, not `npx`.
 
 ### Documentation standards
 
-Any edit to agent-facing docs (`AGENTS.md`, `docs/`, extension `README.md`) MUST follow [`AGENT_DOCS_STANDARD.md`](./AGENT_DOCS_STANDARD.md).
+Any edit to agent-facing docs (`AGENTS.md`, `docs/`, extension `README.md`) MUST follow [`AGENT_DOCS_STANDARD.md`](~/core/standards/AGENT_DOCS_STANDARD.md).
 
 ### Coding standards
 
-Any code change MUST follow [`CODING_STANDARD.md`](./CODING_STANDARD.md).
+Any code change MUST follow [`CODING_STANDARD.md`](~/core/standards/CODING_STANDARD.md).
 
 ### Issue tracker
 
-When tracking issues: see `docs/agents/issue-tracker.md`.
+When tracking issues: see `~/core/docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
-When triaging issues: see `docs/agents/triage-labels.md`.
+When triaging issues: see `~/core/docs/agents/triage-labels.md`.
 
 ### Domain docs
 
-When writing domain docs: see `docs/agents/domain.md`.
+When writing domain docs: see `~/core/docs/agents/domain.md`.
