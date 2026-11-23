@@ -54,6 +54,7 @@ export function ItemList({
   const sortFavoritesFirst = useVault((s) => s.settings.sortFavoritesFirst);
   const hoverItemActions = useVault((s) => s.settings.hoverItemActions);
   const blurEmailMode = useVault((s) => s.settings.blurEmailMode);
+  const showFavicons = useVault((s) => s.settings.showFavicons);
 
   const typeFilter = useVault((s) => s.typeFilter);
   const setTypeFilter = useVault((s) => s.setTypeFilter);
@@ -254,6 +255,7 @@ export function ItemList({
                             isTrashView={isTrashView}
                             hoverItemActions={hoverItemActions}
                             blurEmailMode={blurEmailMode}
+                            showFavicons={showFavicons}
                             activeVaultId={activeVault}
                             vaults={vaults}
                             // In multi-select mode, dragging a SELECTED row

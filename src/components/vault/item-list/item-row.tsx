@@ -28,7 +28,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import type { VaultItem } from "@/lib/types";
-import { cn, isEmail } from "@/lib/utils";
+import { cn, firstNonBlank, isEmail } from "@/lib/utils";
 
 import { FaviconIcon } from "../favicon-icon";
 import { ItemTypeIcon } from "../item-icons";
@@ -71,6 +71,7 @@ export function ItemRow({
   isTrashView,
   hoverItemActions,
   blurEmailMode,
+  showFavicons,
   vaults,
   dragIds,
   onPick,
@@ -90,6 +91,7 @@ export function ItemRow({
   isTrashView: boolean;
   hoverItemActions: boolean;
   blurEmailMode: "off" | "hover" | "full";
+  showFavicons: boolean;
   /** The current vault filter id ("all" | "favorites" | "trash" | vaultId). */
   activeVaultId: string;
   /** All user-defined vaults — for the "Copy to vault" submenu. */
@@ -111,6 +113,8 @@ export function ItemRow({
    *  record — deleting it does NOT affect the original. */
   onCopyToVault: (vaultId: string) => void;
 }) {
+  const firstUrl =
+    item.type === "login" ? firstNonBlank(item.details.urls) : undefined;
   // Per-item context menu — wraps the button so left-click still picks the
   // item, and right-click opens the context menu with copy/edit/etc.
   return (
@@ -162,9 +166,9 @@ export function ItemRow({
                 <Square className="text-muted-foreground h-5 w-5" />
               )}
             </span>
-          ) : item.type === "login" && item.details.urls[0] ? (
+          ) : showFavicons && firstUrl ? (
             <FaviconIcon
-              url={item.details.urls[0]}
+              url={firstUrl}
               size={28}
               className="relative z-10"
               fallback={

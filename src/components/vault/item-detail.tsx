@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useSecretCopy } from "@/lib/use-secret-copy";
-import { cn, isEmail } from "@/lib/utils";
+import { cn, firstNonBlank, isEmail } from "@/lib/utils";
 import { useVault } from "@/store/vault";
 
 import { runBulk } from "./bulk-report";
@@ -288,6 +288,8 @@ export function ItemDetail() {
   const setTypeFilter = useVault((s) => s.setTypeFilter);
 
   const item = items.find((i) => i.id === selectedId);
+  const firstUrl =
+    item?.type === "login" ? firstNonBlank(item.details.urls) : undefined;
   // Multi-vault: an item can belong to several vaults. Show all of them as
   // chips; the header rotates through them every 1.5s so each gets its turn
   // in the spotlight (icon + name crossfade).
@@ -337,11 +339,9 @@ export function ItemDetail() {
               <div className="mx-auto flex w-full max-w-3xl items-center gap-3.5">
                 {/* Favicon for logins (gated by showFavicons setting),
                                         type-icon otherwise. */}
-                {showFavicons &&
-                item.type === "login" &&
-                item.details.urls[0] ? (
+                {showFavicons && firstUrl ? (
                   <FaviconIcon
-                    url={item.details.urls[0]}
+                    url={firstUrl}
                     size={44}
                     fallback={<ItemTypeIcon type={item.type} size="lg" />}
                   />
