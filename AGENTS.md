@@ -10,11 +10,11 @@ Run one-off tool binaries via `bunx`, not `npx`.
 
 ### Documentation standards
 
-Any edit to agent-facing docs (`AGENTS.md`, `docs/`, extension `README.md`) MUST follow [`AGENT_DOCS_STANDARD.md`](~/core/standards/AGENT_DOCS_STANDARD.md).
+Any edit to agent-facing docs (`AGENTS.md`, `docs/`, extension `README.md`) MUST follow [`AGENT_DOCS_STANDARD.md`](~/core/docs/standards/AGENT_DOCS_STANDARD.md).
 
 ### Coding standards
 
-Any code change MUST follow [`CODING_STANDARD.md`](~/core/standards/CODING_STANDARD.md).
+Any code change MUST follow [`CODING_STANDARD.md`](~/core/docs/standards/CODING_STANDARD.md).
 
 ### Issue tracker
 
