@@ -34,6 +34,9 @@ import { FaviconIcon } from "../favicon-icon";
 import { ItemTypeIcon } from "../item-icons";
 import { VaultIcon } from "../vault-icon";
 
+/** DOM id the listbox uses for aria-activedescendant. */
+export const optionDomId = (itemId: string) => `vault-item-option-${itemId}`;
+
 function subtitle(item: VaultItem): string {
   switch (item.type) {
     case "login":
@@ -121,6 +124,7 @@ export function ItemRow({
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
+          id={optionDomId(item.id)}
           onClick={(e) => {
             // Only respond to left-clicks (button === 0). Right-clicks
             // (button === 2) open the context menu — we must NOT fire onPick
@@ -257,7 +261,7 @@ export function ItemRow({
               <Button
                 size="icon"
                 variant="ghost"
-                className="text-muted-foreground h-7 w-7 hover:text-signal-danger"
+                className="text-muted-foreground hover:text-signal-danger h-7 w-7"
                 onClick={(e) => {
                   e.stopPropagation();
                   onPermanentDelete();

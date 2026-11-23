@@ -28,7 +28,8 @@ import {
 } from "../item-icons";
 import { PermanentDeleteDialog } from "../permanent-delete-dialog";
 import { EmptyList } from "./empty-list";
-import { ItemRow } from "./item-row";
+import { ItemRow, optionDomId } from "./item-row";
+import { nextOptionIndex } from "./keyboard-nav";
 import { MultiSelectBar } from "./multi-select-bar";
 import { SortBar } from "./sort-bar";
 import { useItemSort } from "./use-item-sort";
@@ -141,6 +142,37 @@ export function ItemList({
     el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [selectedId]);
 
+  /* --------------------------- keyboard cursor --------------------------- */
+  // The listbox owns DOM focus; the selected item is its active option, so
+  // arrows preview items without moving focus out of the list.
+  const activeIndex = filtered.findIndex((i) => i.id === selectedId);
+  const activeOptionId =
+    activeIndex >= 0 ? optionDomId(filtered[activeIndex].id) : undefined;
+
+  // One activation path for row clicks and Enter/Space on the listbox.
+  const pickItem = (id: string) => {
+    // Keep focus in the listbox so arrows keep working after a mouse pick.
+    listRef.current?.focus({ preventScroll: true });
+    if (multiSelect) toggleMultiSelectItem(id);
+    else setSelected(id);
+  };
+
+  const handleListKeyDown = (e: React.KeyboardEvent<HTMLUListElement>) => {
+    // Trash rows host Restore/Delete buttons — leave their keys alone.
+    if (e.target !== e.currentTarget) return;
+    if (e.key === "Enter" || e.key === " ") {
+      const target = filtered[activeIndex >= 0 ? activeIndex : 0];
+      if (!target) return;
+      e.preventDefault();
+      pickItem(target.id);
+      return;
+    }
+    const next = nextOptionIndex(e.key, activeIndex, filtered.length);
+    if (next === null) return;
+    e.preventDefault();
+    setSelected(filtered[next].id);
+  };
+
   /* --------------------------- selection helpers --------------------------- */
   // Bars request mode changes through this plain setter; the store keeps
   // the id set consistent across enter/exit (two bar consumers, one map).
@@ -221,6 +253,17 @@ export function ItemList({
                   className="relative space-y-0.5"
                   role="listbox"
                   aria-label="Vault items"
+                  aria-multiselectable={multiSelect || undefined}
+                  aria-activedescendant={activeOptionId}
+                  tabIndex={0}
+                  // Seed the cursor when Tab enters the list, so the focus
+                  // indicator and Enter/Space always have a visible target.
+                  onFocus={() => {
+                    if (activeIndex < 0 && filtered[0]) {
+                      setSelected(filtered[0].id);
+                    }
+                  }}
+                  onKeyDown={handleListKeyDown}
                 >
                   {/* Single persistent highlight — slides between active
                                                 items via rAF spring. Shared with the vaults-sidebar
@@ -240,6 +283,7 @@ export function ItemList({
                       return (
                         <motion.li
                           key={item.id}
+                          role="presentation"
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
@@ -266,11 +310,7 @@ export function ItemList({
                                 ? Array.from(multiSelectIds)
                                 : [item.id]
                             }
-                            onPick={() =>
-                              multiSelect
-                                ? toggleMultiSelectItem(item.id)
-                                : setSelected(item.id)
-                            }
+                            onPick={() => pickItem(item.id)}
                             onToggleSelected={() =>
                               toggleMultiSelectItem(item.id)
                             }
