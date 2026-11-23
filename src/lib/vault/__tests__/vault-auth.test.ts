@@ -76,7 +76,6 @@ vi.mock("@/lib/vault/vault-db", () => ({
         symbols: true,
         avoidAmbiguous: true,
       },
-      theme: "dark",
       showFavicons: true,
       sortFavoritesFirst: false,
       hoverItemActions: true,
@@ -87,6 +86,7 @@ vi.mock("@/lib/vault/vault-db", () => ({
   loadAllStoredItems: vi.fn(async () => []),
   putStoredItem: vi.fn(async () => {}),
   deleteStoredItem: vi.fn(async () => {}),
+  vaultExists: vi.fn(async () => false),
   wipeVault: vi.fn(async () => {}),
 }));
 
@@ -140,10 +140,19 @@ describe("createVault", () => {
 
     expect(result.masterKey).toBe(mockMasterKey);
     expect(result.vaultKey).toBe(mockVaultKey);
-    expect(result.masterPassword).toBe("test-password");
     expect(result.items).toEqual([]);
     expect(result.vaults).toEqual([]);
     expect(result.settings).toBeDefined();
+  });
+
+  it("refuses to create when a vault already exists", async () => {
+    const { vaultExists, saveVaultMeta } = await import("@/lib/vault/vault-db");
+    vi.mocked(vaultExists).mockResolvedValueOnce(true);
+
+    await expect(createVault("test-password")).rejects.toThrow(
+      /already exists/i,
+    );
+    expect(saveVaultMeta).not.toHaveBeenCalled();
   });
 });
 
@@ -157,7 +166,6 @@ describe("unlockVault", () => {
     if (result.ok) {
       expect(result.masterKey).toBe(mockMasterKey);
       expect(result.vaultKey).toBe(mockVaultKey);
-      expect(result.masterPassword).toBe("correct-pw");
     }
   });
 

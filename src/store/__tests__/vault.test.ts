@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   checkVerifier,
@@ -6,8 +6,15 @@ import {
   encryptJson,
   randomId,
 } from "@/lib/crypto";
-import type { VaultItem } from "@/lib/types";
-import { deleteStoredItem, saveVaultMeta } from "@/lib/vault/vault-db";
+import { toItemInput } from "@/lib/items/item-crud";
+import { DEFAULT_VAULT_SETTINGS, type VaultItem } from "@/lib/types";
+import {
+  deleteStoredItem,
+  existingStoredIds,
+  saveVaultMeta,
+  vaultExists,
+  writeVaultDeletion,
+} from "@/lib/vault/vault-db";
 import { useVault } from "@/store/vault";
 
 /* ─── Mocks ─────────────────────────────────────────────── */
@@ -90,8 +97,23 @@ vi.mock("@/lib/vault/vault-db", () => ({
   loadAllStoredItems: vi.fn(async () => []),
   putStoredItem: vi.fn(async () => {}),
   deleteStoredItem: vi.fn(async () => {}),
+  writeVaultDeletion: vi.fn(async () => {}),
   wipeVault: vi.fn(async () => {}),
-  vaultExists: vi.fn(async () => true),
+  vaultExists: vi.fn(async () => false),
+  existingStoredIds: vi.fn(async (ids: string[]) => new Set(ids)),
+}));
+
+const vaultSync = vi.hoisted(() => ({
+  handler: null as ((event: "lock" | "reset") => void) | null,
+  broadcast: vi.fn(),
+}));
+
+vi.mock("@/lib/vault/vault-sync", () => ({
+  broadcastVaultEvent: vaultSync.broadcast,
+  onVaultSync: (handler: (event: "lock" | "reset") => void) => {
+    vaultSync.handler = handler;
+    return vi.fn();
+  },
 }));
 
 vi.mock("@/lib/clipboard", () => ({
@@ -134,6 +156,7 @@ function seed(partial: Partial<StoreState> = {}) {
     multiSelect: false,
     multiSelectIds: new Set(),
     editorNewType: null,
+    settings: DEFAULT_VAULT_SETTINGS,
     ...partial,
   });
 }
@@ -162,7 +185,145 @@ beforeEach(() => {
   seed();
 });
 
-/* ─── Bulk actions ──────────────────────────────────────── */
+/* ─── lifecycle ─────────────────────────────────────────── */
+
+describe("init — storage read failure", () => {
+  beforeEach(() => {
+    vi.stubGlobal("window", {});
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("shows an error state and never falls back to setup", async () => {
+    vi.mocked(vaultExists).mockRejectedValueOnce(new Error("idb fail"));
+
+    await useVault.getState().init();
+
+    expect(useVault.getState().status).toBe("error");
+  });
+
+  it("retries and resolves once storage is readable", async () => {
+    vi.mocked(vaultExists).mockRejectedValueOnce(new Error("idb fail"));
+
+    await useVault.getState().init();
+    await useVault.getState().init();
+
+    expect(useVault.getState().status).toBe("setup");
+  });
+});
+
+/* ─── cross-tab coordination ────────────────────────────── */
+
+describe("cross-tab lock and reset", () => {
+  it("locking broadcasts to the other tabs", () => {
+    useVault.getState().lock();
+
+    expect(vaultSync.broadcast).toHaveBeenCalledWith("lock");
+  });
+
+  it("a local auto-lock drops keys without locking other tabs", () => {
+    seed({
+      vaultKey: mockVaultKey,
+      items: [makeItem({ id: "a" })],
+    });
+
+    useVault.getState().lockLocal();
+
+    expect(useVault.getState().status).toBe("locked");
+    expect(useVault.getState().vaultKey).toBeNull();
+    expect(vaultSync.broadcast).not.toHaveBeenCalled();
+  });
+
+  it("resetting broadcasts to the other tabs", async () => {
+    await useVault.getState().resetVault();
+
+    expect(vaultSync.broadcast).toHaveBeenCalledWith("reset");
+  });
+
+  it("a remote lock drops keys without rebroadcasting", async () => {
+    vi.stubGlobal("window", {});
+    await useVault.getState().init();
+    seed({
+      status: "unlocked",
+      vaultKey: mockVaultKey,
+      items: [makeItem({ id: "a" })],
+    });
+    vaultSync.broadcast.mockClear();
+
+    vaultSync.handler!("lock");
+
+    const s = useVault.getState();
+    expect(s.status).toBe("locked");
+    expect(s.vaultKey).toBeNull();
+    expect(s.masterKey).toBeNull();
+    expect(s.items).toEqual([]);
+    expect(vaultSync.broadcast).not.toHaveBeenCalled();
+  });
+
+  it("a remote reset lands in setup with default settings", async () => {
+    vi.stubGlobal("window", {});
+    await useVault.getState().init();
+    seed({
+      status: "unlocked",
+      vaultKey: mockVaultKey,
+      items: [makeItem({ id: "a" })],
+    });
+    vaultSync.broadcast.mockClear();
+
+    vaultSync.handler!("reset");
+
+    const s = useVault.getState();
+    expect(s.status).toBe("setup");
+    expect(s.vaultKey).toBeNull();
+    expect(s.items).toEqual([]);
+    expect(s.settings).toEqual(DEFAULT_VAULT_SETTINGS);
+    expect(vaultSync.broadcast).not.toHaveBeenCalled();
+  });
+});
+
+/* ─── stale-tab revalidation ────────────────────────────── */
+
+describe("Item mutations revalidate against storage", () => {
+  it("drops a target deleted in another tab instead of writing it back", async () => {
+    seed({ items: [makeItem({ id: "a" })] });
+    vi.mocked(existingStoredIds).mockResolvedValueOnce(new Set());
+
+    const result = await useVault.getState().toggleFavorite("a");
+
+    expect(result).toEqual({ done: 0, failed: 0 });
+    expect(useVault.getState().items).toEqual([]);
+    expect(encryptJson).not.toHaveBeenCalled();
+  });
+
+  it("refuses an edit of an item deleted in another tab", async () => {
+    const item = makeItem({ id: "a" });
+    seed({ items: [item], editorOpen: true, editorItemId: "a" });
+    vi.mocked(existingStoredIds).mockResolvedValueOnce(new Set());
+
+    await expect(
+      useVault.getState().saveItem(toItemInput(item), "a"),
+    ).rejects.toThrow(/no longer exists/);
+
+    const s = useVault.getState();
+    expect(s.items).toEqual([]);
+    expect(s.editorOpen).toBe(false);
+    expect(encryptJson).not.toHaveBeenCalled();
+  });
+
+  it("refuses every write when storage cannot be verified", async () => {
+    seed({ items: [makeItem({ id: "a" })] });
+    vi.mocked(existingStoredIds).mockRejectedValueOnce(new Error("idb fail"));
+
+    const result = await useVault.getState().toggleFavorite("a");
+
+    expect(result).toEqual({ done: 0, failed: 1 });
+    expect(useVault.getState().items).toHaveLength(1);
+    expect(encryptJson).not.toHaveBeenCalled();
+  });
+});
+
+/* ─── bulk actions ──────────────────────────────────────── */
 
 describe("bulk actions — no-op filtering", () => {
   it("trashItems skips items already in trash", async () => {
@@ -516,6 +677,31 @@ describe("UI commands ride store transitions", () => {
     expect(s.multiSelectIds.size).toBe(0);
   });
 
+  it("a failed deletion leaves the vault and item memberships unchanged", async () => {
+    const vault = {
+      id: "v1",
+      name: "Work",
+      color: "blue",
+      icon: "box",
+      createdAt: 1,
+    };
+    seed({
+      vaults: [vault],
+      items: [makeItem({ id: "a", vaultIds: ["v1"] })],
+      activeVault: "v1",
+    });
+    vi.mocked(writeVaultDeletion).mockRejectedValueOnce(new Error("idb fail"));
+
+    await expect(useVault.getState().deleteVault("v1")).rejects.toThrow(
+      "idb fail",
+    );
+
+    const s = useVault.getState();
+    expect(s.vaults).toEqual([vault]);
+    expect(s.items[0].vaultIds).toEqual(["v1"]);
+    expect(s.activeVault).toBe("v1");
+  });
+
   it("lock resets the filter, selection, editor handoff and Settings view", () => {
     useVault.getState().setTypeFilter("login");
     useVault.getState().beginMultiSelect(["a"]);
@@ -532,6 +718,32 @@ describe("UI commands ride store transitions", () => {
     expect(s.settingsOpen).toBe(false);
     expect(s.settingsTab).toBe("general");
   });
+
+  it("persists Generator options across lock and unlock", async () => {
+    await useVault.getState().updateGenerator({ length: 32, symbols: false });
+
+    expect(saveVaultMeta).toHaveBeenCalledWith(
+      expect.objectContaining({
+        settings: expect.objectContaining({
+          generator: expect.objectContaining({
+            length: 32,
+            symbols: false,
+          }),
+        }),
+      }),
+    );
+
+    useVault.getState().lock();
+    expect(useVault.getState().status).toBe("locked");
+
+    await useVault.getState().unlock("pw");
+    expect(useVault.getState().status).toBe("unlocked");
+    expect(useVault.getState().settings.generator).toMatchObject({
+      length: 32,
+      symbols: false,
+      uppercase: true,
+    });
+  });
 });
 
 /* ─── restoreVault wiring ───────────────────────────────── */
@@ -545,6 +757,7 @@ example.com,login,Work,1,0,alice,p@ssw0rd,https://example.com,JBSWY3DPEHPK3PXP,P
     seed({ status: "setup" });
     const result = await useVault.getState().restoreVault({
       masterPassword: "pw",
+      backupPassword: "pw",
       filename: "export.csv",
       fileText: csv,
     });
@@ -566,7 +779,8 @@ describe("restoreVault — wrong backup password", () => {
     vi.mocked(checkVerifier).mockResolvedValueOnce(false);
 
     const result = await useVault.getState().restoreVault({
-      masterPassword: "bad",
+      masterPassword: "new-master",
+      backupPassword: "bad",
       filename: "backup.json",
       fileText: envelopeJson(),
     });
@@ -610,6 +824,7 @@ describe("restoreVault — encrypted backup", () => {
     seed({ status: "setup" });
     const result = await useVault.getState().restoreVault({
       masterPassword: "pw",
+      backupPassword: "pw",
       filename: "backup.json",
       fileText: envelopeJson(),
     });

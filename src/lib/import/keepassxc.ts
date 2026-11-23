@@ -12,6 +12,29 @@ import type { ImportResult, NewItemInput } from "@/lib/types";
 
 import { makeLogin, makeNote } from "./helpers";
 
+const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+/** Convert a KeePassXC hex TOTP secret to the base32 the generator expects. */
+function hexToBase32(hex: string): string | null {
+  const cleaned = hex.replace(/\s+/g, "");
+  if (!cleaned || cleaned.length % 2 !== 0 || !/^[0-9a-f]+$/i.test(cleaned)) {
+    return null;
+  }
+  let bits = 0;
+  let value = 0;
+  let out = "";
+  for (let i = 0; i < cleaned.length; i += 2) {
+    value = (value << 8) | parseInt(cleaned.slice(i, i + 2), 16);
+    bits += 8;
+    while (bits >= 5) {
+      bits -= 5;
+      out += BASE32_ALPHABET[(value >>> bits) & 31];
+    }
+  }
+  if (bits > 0) out += BASE32_ALPHABET[(value << (5 - bits)) & 31];
+  return out;
+}
+
 export function parseKeePassXcXml(text: string): ImportResult {
   const result: ImportResult = { imported: 0, skipped: 0, warnings: [] };
   if (typeof DOMParser === "undefined") {
@@ -38,11 +61,20 @@ export function parseKeePassXcXml(text: string): ImportResult {
       const password = fields.get("Password") ?? "";
       const url = fields.get("URL") ?? "";
       const notes = fields.get("Notes") ?? "";
-      const totp =
-        fields.get("otp") ??
-        fields.get("TimeOtp-Secret") ??
-        fields.get("TimeOtp-Secret-Hex") ??
-        "";
+      let totp = fields.get("otp") ?? fields.get("TimeOtp-Secret") ?? "";
+      if (!totp) {
+        const hex = fields.get("TimeOtp-Secret-Hex");
+        if (hex) {
+          const encoded = hexToBase32(hex);
+          if (encoded) {
+            totp = encoded;
+          } else {
+            result.warnings.push(
+              `Skipped TOTP for "${name}": the secret is not valid hex.`,
+            );
+          }
+        }
+      }
       const urls = url
         .split(/\r?\n/)
         .map((s) => s.trim())

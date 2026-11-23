@@ -32,7 +32,8 @@ no pre-commit hooks or CI at this repo size.
 
 ## Consequences
 
-- `npm run format` / `format:check` / `lint` / `lint:fix` are the gates.
+- `npm run format` / `format:check` / `lint` / `lint:fix` / `typecheck` /
+  `test` are the gates; `npm run build` validates types too.
 - Deliberate deps-array choices are silenced per-site with an explanatory
   comment (see `auto-lock-manager.tsx`, `item-editor/index.tsx`), never by
   disabling `exhaustive-deps` repo-wide — it warns, it doesn't block.

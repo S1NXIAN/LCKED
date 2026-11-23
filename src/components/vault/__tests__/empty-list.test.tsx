@@ -15,7 +15,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StateCreator } from "zustand/vanilla";
 
 import { EmptyList } from "@/components/vault/item-list/empty-list";
-import { useVault, type VaultState } from "@/store/vault";
+import { useVault } from "@/store/vault";
 
 /* ─── Mocks ─────────────────────────────────────────────── */
 

@@ -65,11 +65,13 @@ glossary's vocabulary — don't drift to synonyms.
 - **Restore** — the setup-time path that brings a Backup (or a plain import)
   into a freshly created vault. Implemented by the store-free `restoreVault`
   in `src/lib/vault/vault-restore.ts`: for a Backup it decrypts _before_ creating
-  anything (a wrong password returns `{ ok: false, reason: "wrong-password" }`
-  and never leaves an empty vault), re-creates custom vaults, remaps item
-  vault memberships by name+color+icon (unmatched ids are dropped), and saves
-  items best-effort. The plain-import and no-file paths flow through the same
-  entry point.
+  anything (a wrong **Backup passphrase** returns
+  `{ ok: false, reason: "wrong-password" }` and never leaves an empty vault),
+  then creates the vault under the new **Master Password**, re-creates custom
+  vaults, remaps item vault memberships by name+color+icon (unmatched ids are
+  dropped), and saves items best-effort. The Backup passphrase and the new
+  Master Password may differ. The plain-import and no-file paths flow through
+  the same entry point.
 
 - **Untrash** — what "restore" means for a single trashed item
   (`restoreItem`/`restoreItems`/`restoreAllTrash`): clearing `trashed` and
@@ -121,4 +123,7 @@ glossary's vocabulary — don't drift to synonyms.
   the vault store as typed state and actions. Sanctioned exceptions: the
   Generator bridge (a closure handoff into a focused field) and the
   diamond-spin animation event (per-frame pointer coordinates — deliberately
-  not app state). See ADR 0004.
+  not app state). Tabs coordinate explicit lock/reset over `BroadcastChannel`
+  (`src/lib/vault/vault-sync.ts`); auto-lock stays per-tab so hiding one tab
+  never locks another. That is cross-tab state, not a component command. See
+  ADR 0004.

@@ -32,14 +32,17 @@ import type {
   VaultSettings,
 } from "@/lib/types";
 import { DEFAULT_VAULT_SETTINGS } from "@/lib/types";
-import { loadVaultMeta, saveVaultMeta } from "@/lib/vault/vault-db";
+import {
+  loadVaultMeta,
+  saveVaultMeta,
+  vaultExists,
+} from "@/lib/vault/vault-db";
 
 /* ─── Types ─────────────────────────────────────────────── */
 
 export interface AuthSession {
   masterKey: CryptoKey;
   vaultKey: CryptoKey;
-  masterPassword: string;
 }
 
 export interface VaultData {
@@ -77,6 +80,11 @@ export interface ChangePasswordOk {
 export async function createVault(
   masterPassword: string,
 ): Promise<CreateVaultResult> {
+  // Setup must never write a fresh meta row over unreadable existing data:
+  // that would permanently orphan the existing encrypted Items.
+  if (await vaultExists()) {
+    throw new Error("A vault already exists on this device.");
+  }
   const salt = bytesToBase64(randomBytes(16));
   const masterKey = await deriveMasterKey(
     masterPassword,
@@ -105,7 +113,6 @@ export async function createVault(
   return {
     masterKey,
     vaultKey,
-    masterPassword,
     items: [],
     vaults: [],
     settings: DEFAULT_VAULT_SETTINGS,
@@ -157,7 +164,6 @@ export async function unlockVault(
     ok: true,
     masterKey,
     vaultKey,
-    masterPassword,
     vaults,
     settings: { ...DEFAULT_VAULT_SETTINGS, ...meta.settings },
     items,

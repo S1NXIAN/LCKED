@@ -46,6 +46,9 @@ export interface RestoreDeps {
 }
 
 export interface RestoreOptions {
+  /** Passphrase that decrypts the Backup file (encrypted LCKED exports only). */
+  backupPassword: string;
+  /** Master Password for the new Vault created by the restore. */
   masterPassword: string;
   filename: string;
   fileText: string | null;
@@ -94,7 +97,7 @@ export function remapVaultIds(
 export async function restoreVault(
   options: RestoreOptions,
 ): Promise<RestoreResult> {
-  const { masterPassword, filename, fileText, deps } = options;
+  const { backupPassword, masterPassword, filename, fileText, deps } = options;
 
   // Decrypt BEFORE creating anything: a wrong backup password must never
   // leave an empty vault behind (user story 2). A damaged/foreign file is
@@ -109,7 +112,7 @@ export async function restoreVault(
       // envelope's shape; the decryptor re-checks everything downstream.
       const result = await decryptLckedExport(
         parsed.result.raw as LckedExport,
-        masterPassword,
+        backupPassword,
       );
       if (!result.ok) {
         return {

@@ -29,6 +29,7 @@ import { PasswordStrengthMeter } from "./password-strength-meter";
 export function SetupView() {
   const restoreVault = useVault((s) => s.restoreVault);
   const [password, setPassword] = React.useState("");
+  const [backupPassword, setBackupPassword] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
   const [show, setShow] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
@@ -39,9 +40,7 @@ export function SetupView() {
 
   const isImporting = Boolean(importFile);
   const masterComplete = password.length >= 8;
-  const passwordsMatch = !isImporting
-    ? masterComplete && password === confirm
-    : masterComplete;
+  const passwordsMatch = masterComplete && password === confirm;
   const canSubmit = passwordsMatch && agreed && !busy;
 
   const [confirmMode, setConfirmMode] = React.useState(false);
@@ -51,6 +50,7 @@ export function SetupView() {
     if (file) {
       setImportFile(file);
       setPassword("");
+      setBackupPassword("");
       setConfirm("");
       setConfirmMode(false);
       setShowAgreeStep(false);
@@ -62,6 +62,7 @@ export function SetupView() {
     setImportFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
     setPassword("");
+    setBackupPassword("");
     setConfirm("");
     setConfirmMode(false);
   };
@@ -80,13 +81,14 @@ export function SetupView() {
       // remaps vault ids, and imports items best-effort.
       const result = await restoreVault({
         masterPassword: password,
+        backupPassword,
         filename: importFile?.name ?? "",
         fileText,
       });
       if (!result.ok) {
         if (result.reason === "wrong-password") {
           toast.error("Wrong password", {
-            description: "The password doesn't match this backup file.",
+            description: "The passphrase doesn't match this backup file.",
           });
         } else {
           toast.error("Invalid backup file", {
@@ -116,7 +118,7 @@ export function SetupView() {
     } finally {
       setBusy(false);
     }
-  }, [busy, importFile, password, restoreVault]);
+  }, [busy, importFile, password, backupPassword, restoreVault]);
 
   // Advance through the flow. Called by the button AND by Enter key.
   // - Importing: go straight to vault creation (no agreement step — the user
@@ -125,13 +127,14 @@ export function SetupView() {
   // - Non-importing, master mode: swap to confirm mode.
   // - Non-importing, confirm mode: advance to agreement step.
   const handleAdvance = React.useCallback(async () => {
-    if (!masterComplete) return;
     if (isImporting) {
+      if (!passwordsMatch) return;
       // Importing: skip agreement, create the vault directly.
       await createVaultWithImport();
       return;
     }
     if (!confirmMode) {
+      if (!masterComplete) return;
       setConfirmMode(true);
       setConfirm("");
       return;
@@ -172,7 +175,7 @@ export function SetupView() {
       // Only advance if the current field is valid.
       if (
         isImporting
-          ? masterComplete
+          ? passwordsMatch
           : confirmMode
             ? passwordsMatch
             : masterComplete
@@ -201,6 +204,82 @@ export function SetupView() {
   };
 
   const renderPasswordField = () => {
+    if (isImporting) {
+      return (
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="backup">Backup passphrase</Label>
+            <div className="relative">
+              <Lock className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+              <Input
+                id="backup"
+                type={show ? "text" : "password"}
+                value={backupPassword}
+                onChange={(e) => setBackupPassword(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Passphrase used to export the backup"
+                autoComplete="current-password"
+                className={inputCls}
+                autoFocus
+              />
+            </div>
+            <p className="text-muted-foreground text-[11px]">
+              Only encrypted LCKED backups need this.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="master">New master password</Label>
+            <div className="relative">
+              <Lock className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+              <Input
+                id="master"
+                type={show ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="At least 8 characters"
+                autoComplete="new-password"
+                className={inputCls}
+              />
+              <button
+                type="button"
+                onClick={() => setShow((s) => !s)}
+                className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
+                aria-label={show ? "Hide" : "Show"}
+              >
+                {show ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+            <PasswordStrengthMeter password={password} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="confirm">Confirm master password</Label>
+            <div className="relative">
+              <Lock className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+              <Input
+                id="confirm"
+                type={show ? "text" : "password"}
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Re-enter the new password"
+                autoComplete="new-password"
+                className={inputCls}
+              />
+            </div>
+            {confirm.length > 0 && confirm !== password && (
+              <p className="text-signal-danger text-xs">
+                Passwords don&apos;t match
+              </p>
+            )}
+          </div>
+        </div>
+      );
+    }
     if (confirmMode && !showAgreeStep) {
       return (
         <div className="space-y-1.5">
@@ -232,7 +311,9 @@ export function SetupView() {
             </button>
           </div>
           {confirm.length > 0 && confirm !== password && (
-            <p className="text-xs text-signal-danger">Passwords don&apos;t match</p>
+            <p className="text-signal-danger text-xs">
+              Passwords don&apos;t match
+            </p>
           )}
           {confirm.length === 0 && (
             <button
@@ -248,9 +329,7 @@ export function SetupView() {
     }
     return (
       <div className="space-y-1.5">
-        <Label htmlFor="master">
-          {isImporting ? "Vault password" : "Master password"}
-        </Label>
+        <Label htmlFor="master">Master password</Label>
         <div className="relative">
           <Lock className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
           <Input
@@ -262,9 +341,7 @@ export function SetupView() {
               setConfirm("");
             }}
             onKeyDown={handleKeyDown}
-            placeholder={
-              isImporting ? "Backup password" : "At least 8 characters"
-            }
+            placeholder="At least 8 characters"
             autoComplete="new-password"
             className={inputCls}
             autoFocus
@@ -345,7 +422,7 @@ export function SetupView() {
               {showAgreeStep
                 ? "Please confirm you understand the risks."
                 : isImporting
-                  ? "Enter the password used to create this backup."
+                  ? "Decrypt the backup with its passphrase, then choose a new master password for this device."
                   : "Choose a master password to encrypt everything on this device."}
             </p>
           </div>
@@ -437,7 +514,7 @@ export function SetupView() {
                       onClick={handleAdvance}
                       disabled={
                         isImporting
-                          ? !masterComplete || busy
+                          ? !passwordsMatch || busy
                           : confirmMode
                             ? !passwordsMatch
                             : !masterComplete
@@ -473,9 +550,9 @@ export function SetupView() {
                   className="overflow-hidden"
                 >
                   <div className="flex flex-col gap-4">
-                    <div className="rounded-lg border border-signal-warning/20 bg-signal-warning/5 p-3.5">
+                    <div className="border-signal-warning/20 bg-signal-warning/5 rounded-lg border p-3.5">
                       <div className="flex items-start gap-2.5">
-                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-signal-warning" />
+                        <AlertTriangle className="text-signal-warning mt-0.5 h-4 w-4 shrink-0" />
                         <div className="space-y-1">
                           <p className="text-foreground text-sm font-medium">
                             Your master password is the only key

@@ -55,8 +55,7 @@ import { DiscardDialog } from "./discard-dialog";
 import { IdentityFields } from "./identity-fields";
 import { LoginFields } from "./login-fields";
 import { NoteFields } from "./note-fields";
-import { useItemForm } from "./use-item-form";
-
+import { requestEditorClose, useItemForm } from "./use-item-form";
 export function ItemEditor() {
   const {
     open,
@@ -72,7 +71,6 @@ export function ItemEditor() {
     switchType,
   } = useItemForm();
   const vaults = useVault((s) => s.vaults);
-  const settings = useVault((s) => s.settings);
   const setEditorOpen = useVault((s) => s.setEditorOpen);
   const saveItem = useVault((s) => s.saveItem);
 
@@ -171,11 +169,14 @@ export function ItemEditor() {
 
   // Intercept Sheet close: if there are unsaved edits, ask first (IE-4).
   const handleOpenChange = (o: boolean) => {
-    if (!o && isDirty && !busy) {
-      setConfirmDiscardOpen(true);
+    if (o) {
+      setEditorOpen(true);
       return;
     }
-    setEditorOpen(o);
+    requestEditorClose(isDirty, busy, {
+      confirmDiscard: () => setConfirmDiscardOpen(true),
+      close: () => setEditorOpen(false),
+    });
   };
 
   const addCustomField = () => {
@@ -452,7 +453,6 @@ export function ItemEditor() {
             {form.type === "login" && (
               <LoginFields
                 details={form.details}
-                settings={settings}
                 knownUrls={knownUrls}
                 urlKeys={urlKeys}
                 updateDetails={updateLoginDetails}
@@ -498,7 +498,7 @@ export function ItemEditor() {
             <Button
               type="button"
               variant="ghost"
-              onClick={() => setEditorOpen(false)}
+              onClick={() => handleOpenChange(false)}
               disabled={busy}
               className="w-full"
             >

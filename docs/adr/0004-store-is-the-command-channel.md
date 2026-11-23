@@ -30,5 +30,8 @@ state.
 
 - New cross-component commands get a store field + action, never an event or
   global (see GLOSSARY.md, "One channel").
+- Cross-tab lock/reset is the one exception: tabs share it over
+  `BroadcastChannel` (`src/lib/vault/vault-sync.ts`) because a tab cannot
+  reach another tab's store, and no key material crosses the channel.
 - Commands are exercised as store transitions in tests; no component mounts or
   `window` stubs are needed to assert command delivery.

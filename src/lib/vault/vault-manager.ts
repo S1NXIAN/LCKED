@@ -11,9 +11,13 @@
  */
 
 import { randomId } from "@/lib/crypto";
-import { encryptAndPersist } from "@/lib/items/item-crud";
+import { encryptStoredItem } from "@/lib/items/item-crud";
 import type { VaultDef, VaultItem } from "@/lib/types";
-import { loadVaultMeta, saveVaultMeta } from "@/lib/vault/vault-db";
+import {
+  loadVaultMeta,
+  saveVaultMeta,
+  writeVaultDeletion,
+} from "@/lib/vault/vault-db";
 
 /* ─── Types ─────────────────────────────────────────────── */
 
@@ -88,9 +92,9 @@ export async function renameVault(
 
 /**
  * Delete a vault. Orphans any items that belonged to the deleted vault
- * (removes the vault id from each item's vaultIds and re-encrypts) before
- * committing the meta change. If orphaning fails, meta is NOT saved
- * (rollback).
+ * (removes the vault id from each item's vaultIds and re-encrypts) and commits
+ * those item rows together with the meta change in one IndexedDB transaction.
+ * A failure at any point leaves the vault and every membership unchanged.
  *
  * @param id       Vault id to delete.
  * @param vaultKey Decrypted vault CryptoKey (required for re-encryption).
@@ -108,24 +112,23 @@ export async function deleteVault(
   const vaults = (meta.vaults ?? []).filter((v) => v.id !== id);
   const orphaned = items.filter((i) => i.vaultIds.includes(id));
 
-  if (orphaned.length > 0) {
-    const reencrypted = await Promise.all(
-      orphaned.map(async (it) => {
-        const next: VaultItem = {
-          ...it,
-          vaultIds: it.vaultIds.filter((v) => v !== id),
-          updatedAt: Date.now(),
-        };
-        await encryptAndPersist(next, vaultKey);
-        return next;
-      }),
-    );
-    await saveVaultMeta({ ...meta, vaults });
-    return { vaults, updatedItems: reencrypted };
+  if (orphaned.length === 0) {
+    await writeVaultDeletion({ ...meta, vaults }, []);
+    return { vaults };
   }
 
-  await saveVaultMeta({ ...meta, vaults });
-  return { vaults };
+  const updatedItems = orphaned.map((it): VaultItem => ({
+    ...it,
+    vaultIds: it.vaultIds.filter((v) => v !== id),
+    updatedAt: Date.now(),
+  }));
+  // Encrypt everything before touching storage: a crypto failure cannot
+  // leave a half-written membership behind.
+  const stored = await Promise.all(
+    updatedItems.map((item) => encryptStoredItem(item, vaultKey)),
+  );
+  await writeVaultDeletion({ ...meta, vaults }, stored);
+  return { vaults, updatedItems };
 }
 
 /**

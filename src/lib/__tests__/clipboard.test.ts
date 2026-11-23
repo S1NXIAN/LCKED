@@ -52,6 +52,32 @@ describe("copyWithAutoClear", () => {
     );
   });
 
+  it("clears after the timeout when readText is unavailable", async () => {
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn(async () => {}),
+      },
+    });
+
+    await copyWithAutoClear("sekrit", "default", 10_000);
+    vi.advanceTimersByTime(10_000);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith("");
+  });
+
+  it("clears after the timeout when readText rejects", async () => {
+    vi.mocked(navigator.clipboard.readText).mockRejectedValueOnce(
+      new Error("denied"),
+    );
+
+    await copyWithAutoClear("sekrit", "default", 10_000);
+    vi.advanceTimersByTime(10_000);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith("");
+  });
+
   it("throws if clipboard API is unavailable", async () => {
     const origClipboard = navigator.clipboard;
     Object.assign(navigator, { clipboard: undefined });

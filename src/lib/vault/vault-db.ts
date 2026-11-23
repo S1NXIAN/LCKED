@@ -58,12 +58,41 @@ export async function loadAllStoredItems(): Promise<StoredItem[]> {
   return getDB().items.toArray();
 }
 
+/**
+ * Which of these ids still have a stored row? Item mutations use it to
+ * revalidate against IndexedDB, so a tab whose state outlived a deletion in
+ * another tab refuses to write the deleted Item back.
+ */
+export async function existingStoredIds(ids: string[]): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+  const rows = await getDB().items.bulkGet(ids);
+  return new Set(
+    rows.filter((row): row is StoredItem => Boolean(row)).map((row) => row.id),
+  );
+}
+
 export async function putStoredItem(item: StoredItem): Promise<void> {
   await getDB().items.put(item);
 }
 
 export async function deleteStoredItem(id: string): Promise<void> {
   await getDB().items.delete(id);
+}
+
+/**
+ * Commit a custom-vault deletion in one transaction: the re-encrypted item
+ * rows and the Vault metadata land together, so a failure leaves both stores
+ * untouched. Used by vault-manager.deleteVault.
+ */
+export async function writeVaultDeletion(
+  meta: VaultMeta,
+  items: StoredItem[],
+): Promise<void> {
+  const db = getDB();
+  await db.transaction("rw", db.meta, db.items, async () => {
+    await db.items.bulkPut(items);
+    await db.meta.put(meta);
+  });
 }
 
 /**

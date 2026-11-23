@@ -14,7 +14,7 @@ import { useVault } from "@/store/vault";
  */
 export function AutoLockManager() {
   const status = useVault((s) => s.status);
-  const lock = useVault((s) => s.lock);
+  const lockLocal = useVault((s) => s.lockLocal);
   const autoLockMinutes = useVault((s) => s.settings.autoLockMinutes);
   const lockOnVisibility = useVault((s) => s.settings.lockOnVisibility);
 
@@ -28,7 +28,7 @@ export function AutoLockManager() {
       if (timeoutId) clearTimeout(timeoutId);
       if (ms > 0) {
         timeoutId = setTimeout(() => {
-          lock();
+          lockLocal();
         }, ms);
       }
     };
@@ -44,19 +44,19 @@ export function AutoLockManager() {
       events.forEach((e) => window.removeEventListener(e, reset));
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [status, autoLockMinutes, lock]);
+  }, [status, autoLockMinutes, lockLocal]);
 
   // Visibility-based lock (locks as soon as the tab is hidden, if enabled).
   React.useEffect(() => {
     if (status !== "unlocked" || !lockOnVisibility) return;
     const onHide = () => {
       if (document.visibilityState === "hidden") {
-        lock();
+        lockLocal();
       }
     };
     document.addEventListener("visibilitychange", onHide);
     return () => document.removeEventListener("visibilitychange", onHide);
-    // Deliberate: `lock` is a stable store action; re-subscribing on its
+    // Deliberate: `lockLocal` is a stable store action; re-subscribing on its
     // identity would add churn without changing behaviour.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, lockOnVisibility]);
@@ -64,10 +64,10 @@ export function AutoLockManager() {
   // Clear keys when the tab is closing.
   React.useEffect(() => {
     if (status !== "unlocked") return;
-    const onUnload = () => lock();
+    const onUnload = () => lockLocal();
     window.addEventListener("beforeunload", onUnload);
     return () => window.removeEventListener("beforeunload", onUnload);
-  }, [status, lock]);
+  }, [status, lockLocal]);
 
   return null;
 }

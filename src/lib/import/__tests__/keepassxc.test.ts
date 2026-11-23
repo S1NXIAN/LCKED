@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { importFromText } from "@/lib/import/index";
 import { parseKeePassXcXml } from "@/lib/import/keepassxc";
+import { generateTotp } from "@/lib/totp";
 
 // Build a minimal fake DOM element — just enough for
 // readKeePassXcEntry to traverse children by tagName.
@@ -87,6 +88,57 @@ describe("parseKeePassXcXml", () => {
       name: "My Note",
       details: { content: "Remember to bring up Q3 projections." },
     });
+  });
+
+  it("converts a hex TOTP secret into the RFC 6238 code", async () => {
+    currentDoc = {
+      querySelector: vi.fn(() => null),
+      getElementsByTagName: vi.fn((tag: string) =>
+        tag === "Entry"
+          ? [
+              el("Entry", [
+                kv("Title", "hex-otp"),
+                kv("UserName", "alice"),
+                // RFC 6238 SHA-1 seed "12345678901234567890".
+                kv(
+                  "TimeOtp-Secret-Hex",
+                  "3132333435363738393031323334353637383930",
+                ),
+              ]),
+            ]
+          : [],
+      ),
+    };
+
+    const { result, items } = importFromText("export.xml", "<dummy/>");
+
+    expect(result.warnings).toEqual([]);
+    const totp = (items[0] as { details: { totp: string } }).details.totp;
+    expect(totp).toBe("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ");
+    const code = await generateTotp(totp, 59_000);
+    expect(code?.code).toBe("287082");
+  });
+
+  it("warns instead of importing an invalid hex TOTP secret", () => {
+    currentDoc = {
+      querySelector: vi.fn(() => null),
+      getElementsByTagName: vi.fn((tag: string) =>
+        tag === "Entry"
+          ? [
+              el("Entry", [
+                kv("Title", "bad-otp"),
+                kv("UserName", "alice"),
+                kv("TimeOtp-Secret-Hex", "not-hex"),
+              ]),
+            ]
+          : [],
+      ),
+    };
+
+    const { result, items } = importFromText("export.xml", "<dummy/>");
+
+    expect(result.warnings[0]).toContain("TOTP");
+    expect((items[0] as { details: { totp: string } }).details.totp).toBe("");
   });
 
   it("handles no entries gracefully", () => {

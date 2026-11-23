@@ -40,6 +40,7 @@ import {
   unlockVault,
 } from "@/lib/vault/vault-auth";
 import {
+  existingStoredIds,
   loadVaultMeta,
   saveVaultMeta,
   vaultExists,
@@ -48,10 +49,11 @@ import {
 import * as vaultManager from "@/lib/vault/vault-manager";
 import type { RestoreResult } from "@/lib/vault/vault-restore";
 import * as vaultRestore from "@/lib/vault/vault-restore";
+import { broadcastVaultEvent, onVaultSync } from "@/lib/vault/vault-sync";
 
 export type SettingsTab = "general" | "security" | "import" | "export";
 
-export type VaultStatus = "loading" | "setup" | "locked" | "unlocked";
+export type VaultStatus = "loading" | "error" | "setup" | "locked" | "unlocked";
 
 export interface VaultState {
   status: VaultStatus;
@@ -95,6 +97,8 @@ export interface VaultState {
   setupVault: (masterPassword: string) => Promise<void>;
   unlock: (masterPassword: string) => Promise<boolean>;
   lock: () => void;
+  /** Drop this tab's keys without locking other tabs (auto-lock paths). */
+  lockLocal: () => void;
   resetVault: () => Promise<void>;
 
   // item CRUD — every mutation resolves to one uniform BulkResult
@@ -130,6 +134,7 @@ export interface VaultState {
   /** Restore an LCKED backup (or plain import) during setup. See vault-restore.ts. */
   restoreVault: (params: {
     masterPassword: string;
+    backupPassword: string;
     filename: string;
     fileText: string | null;
   }) => Promise<RestoreResult>;
@@ -150,7 +155,7 @@ export interface VaultState {
 
   // settings
   updateSettings: (patch: Partial<VaultSettings>) => Promise<void>;
-  updateGenerator: (patch: Partial<GeneratorOptions>) => void;
+  updateGenerator: (patch: Partial<GeneratorOptions>) => Promise<void>;
   changeMasterPassword: (current: string, next: string) => Promise<boolean>;
 
   // export
@@ -176,6 +181,9 @@ export interface VaultState {
   setGeneratorOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean, tab?: SettingsTab) => void;
 }
+
+/** One BroadcastChannel subscription per tab, bound on the first init(). */
+let syncBound = false;
 
 export const useVault = create<VaultState>()(
   persist(
@@ -241,11 +249,34 @@ export const useVault = create<VaultState>()(
         const vaultKey = requireVaultKey();
         const targets = get().items.filter((i) => isTarget(i) && !isNoOp(i));
         if (targets.length === 0) return { done: 0, failed: 0 };
-        const { updated, failed } = await patchItems(
-          vaultKey,
-          targets,
-          patchFn,
+
+        // Revalidate against storage: another tab may have deleted a target.
+        // A stale tab then drops the ghost instead of writing it back; an
+        // unreadable store refuses every write rather than guessing.
+        let liveIds: Set<string>;
+        try {
+          liveIds = await existingStoredIds(targets.map((i) => i.id));
+        } catch {
+          // Cannot prove the targets still exist — refuse the writes and
+          // surface them as row failures rather than guessing.
+          return { done: 0, failed: targets.length };
+        }
+        const live = targets.filter((i) => liveIds.has(i.id));
+        const staleIds = new Set(
+          targets.filter((i) => !liveIds.has(i.id)).map((i) => i.id),
         );
+        if (staleIds.size > 0) {
+          set((state) => ({
+            items: state.items.filter((i) => !staleIds.has(i.id)),
+            selectedId:
+              state.selectedId && staleIds.has(state.selectedId)
+                ? null
+                : state.selectedId,
+          }));
+        }
+        if (live.length === 0) return { done: 0, failed: 0 };
+
+        const { updated, failed } = await patchItems(vaultKey, live, patchFn);
         applyItems(updated);
         return { done: updated.length, failed };
       };
@@ -286,6 +317,61 @@ export const useVault = create<VaultState>()(
         if (!item) return { done: 0, failed: 0 };
         return writeOne({ ...toItemInput(item), ...overrides });
       };
+
+      /** Drop every key and return to the unlock screen. */
+      const enterLockedState = () => {
+        clearAllClipboardTimers();
+        set({
+          ...clearSession(),
+          status: "locked",
+          items: [],
+          vaults: [],
+          activeVault: "all",
+          selectedId: null,
+          searchQuery: "",
+          typeFilter: "all",
+          multiSelect: false,
+          multiSelectIds: new Set(),
+          editorOpen: false,
+          editorItemId: null,
+          editorNewType: null,
+          generatorOpen: false,
+          settingsTab: "general",
+          settingsOpen: false,
+          vaultEditorOpen: false,
+          editingVaultId: null,
+          createVaultDialogOpen: false,
+        });
+      };
+
+      /** Drop every key and return to first-time setup (storage already wiped). */
+      const enterSetupState = () => {
+        clearAllClipboardTimers();
+        set({
+          ...clearSession(),
+          status: "setup",
+          items: [],
+          vaults: [],
+          activeVault: "all",
+          selectedId: null,
+          searchQuery: "",
+          typeFilter: "all",
+          multiSelect: false,
+          multiSelectIds: new Set(),
+          settings: DEFAULT_VAULT_SETTINGS,
+          kdf: null,
+          editorOpen: false,
+          editorItemId: null,
+          editorNewType: null,
+          generatorOpen: false,
+          settingsTab: "general",
+          settingsOpen: false,
+          vaultEditorOpen: false,
+          editingVaultId: null,
+          createVaultDialogOpen: false,
+        });
+      };
+
       return {
         status: "loading",
         items: [],
@@ -313,13 +399,23 @@ export const useVault = create<VaultState>()(
         /* ------------------------------ lifecycle ------------------------------ */
 
         init: async () => {
+          if (typeof window === "undefined") return;
+          if (!syncBound) {
+            syncBound = true;
+            onVaultSync((event) => {
+              if (event === "reset") enterSetupState();
+              else enterLockedState();
+            });
+          }
+          set({ status: "loading" });
           try {
-            if (typeof window === "undefined") return;
             const exists = await vaultExists();
             set({ status: exists ? "locked" : "setup" });
           } catch (err) {
             console.error("init failed", err);
-            set({ status: "setup" });
+            // Never fall back to setup: creating a new Vault row here would
+            // orphan ciphertexts that could not be read.
+            set({ status: "error" });
           }
         },
 
@@ -356,55 +452,18 @@ export const useVault = create<VaultState>()(
         },
 
         lock: () => {
-          clearAllClipboardTimers();
-          const session = clearSession();
-          set({
-            ...session,
-            status: "locked",
-            items: [],
-            vaults: [],
-            activeVault: "all",
-            selectedId: null,
-            searchQuery: "",
-            typeFilter: "all",
-            multiSelect: false,
-            multiSelectIds: new Set(),
-            editorOpen: false,
-            editorNewType: null,
-            generatorOpen: false,
-            settingsTab: "general",
-            settingsOpen: false,
-            vaultEditorOpen: false,
-            editingVaultId: null,
-            createVaultDialogOpen: false,
-          });
+          enterLockedState();
+          broadcastVaultEvent("lock");
+        },
+
+        lockLocal: () => {
+          enterLockedState();
         },
 
         resetVault: async () => {
-          clearAllClipboardTimers();
           await wipeVault();
-          const session = clearSession();
-          set({
-            ...session,
-            status: "setup",
-            items: [],
-            vaults: [],
-            activeVault: "all",
-            selectedId: null,
-            typeFilter: "all",
-            multiSelect: false,
-            multiSelectIds: new Set(),
-            settings: DEFAULT_VAULT_SETTINGS,
-            kdf: null,
-            editorOpen: false,
-            editorNewType: null,
-            generatorOpen: false,
-            settingsTab: "general",
-            settingsOpen: false,
-            vaultEditorOpen: false,
-            editingVaultId: null,
-            createVaultDialogOpen: false,
-          });
+          enterSetupState();
+          broadcastVaultEvent("reset");
         },
 
         /* ------------------------------- CRUD -------------------------------- */
@@ -415,6 +474,28 @@ export const useVault = create<VaultState>()(
           const existing = existingId
             ? get().items.find((i) => i.id === existingId)
             : undefined;
+          if (existingId) {
+            let stillStored = false;
+            try {
+              stillStored = (await existingStoredIds([existingId])).has(
+                existingId,
+              );
+            } catch (err) {
+              throw new Error("Could not verify the item still exists", {
+                cause: err,
+              });
+            }
+            if (!existing || !stillStored) {
+              set((state) => ({
+                items: state.items.filter((i) => i.id !== existingId),
+                editorOpen:
+                  state.editorItemId === existingId ? false : state.editorOpen,
+                editorItemId:
+                  state.editorItemId === existingId ? null : state.editorItemId,
+              }));
+              throw new Error("Item no longer exists");
+            }
+          }
           const item = await writeItem(vaultKey, input, existing);
 
           set((state) => {
@@ -558,9 +639,15 @@ export const useVault = create<VaultState>()(
           return result;
         },
 
-        restoreVault: async ({ masterPassword, filename, fileText }) => {
+        restoreVault: async ({
+          masterPassword,
+          backupPassword,
+          filename,
+          fileText,
+        }) => {
           return vaultRestore.restoreVault({
             masterPassword,
+            backupPassword,
             filename,
             fileText,
             deps: {
@@ -654,13 +741,9 @@ export const useVault = create<VaultState>()(
           }
         },
 
-        updateGenerator: (patch) => {
-          set((state) => ({
-            settings: {
-              ...state.settings,
-              generator: { ...state.settings.generator, ...patch },
-            },
-          }));
+        updateGenerator: async (patch) => {
+          const generator = { ...get().settings.generator, ...patch };
+          await get().updateSettings({ generator });
         },
 
         changeMasterPassword: async (current, next) => {

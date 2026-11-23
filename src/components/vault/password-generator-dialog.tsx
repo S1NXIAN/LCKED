@@ -32,6 +32,7 @@ import {
   consumeGeneratorCallback,
   hasGeneratorCallback,
   setGeneratorCallback,
+  subscribeGeneratorCallback,
 } from "@/lib/generator/generator-bridge";
 import { useSecretCopy } from "@/lib/use-secret-copy";
 import { cn } from "@/lib/utils";
@@ -49,7 +50,11 @@ export function PasswordGeneratorDialog() {
   const { copied, copy } = useSecretCopy();
   const [mode, setMode] = React.useState<"random" | "passphrase">("random");
   const [wordCount, setWordCount] = React.useState(4);
-  const [hasCallback, setHasCallback] = React.useState(false);
+  const hasCallback = React.useSyncExternalStore(
+    subscribeGeneratorCallback,
+    hasGeneratorCallback,
+    () => false,
+  );
 
   const regenerate = React.useCallback(() => {
     if (mode === "random") {
@@ -63,7 +68,6 @@ export function PasswordGeneratorDialog() {
   // dragging the Length slider doesn't flicker the password on every step (D-3).
   React.useEffect(() => {
     if (!open) return;
-    setHasCallback(hasGeneratorCallback());
     const timer = setTimeout(() => regenerate(), 120);
     return () => clearTimeout(timer);
   }, [open, regenerate]);
@@ -78,7 +82,7 @@ export function PasswordGeneratorDialog() {
       setOpen(false);
       toast.success("Password inserted");
     } else {
-      // No callback — copy instead.
+      // The field closed between opening the Generator and this click.
       void handleCopy();
     }
   };
@@ -178,38 +182,38 @@ export function PasswordGeneratorDialog() {
                   min={4}
                   max={64}
                   step={1}
-                  onValueChange={(v) => updateGenerator({ length: v[0] })}
+                  onValueChange={(v) => void updateGenerator({ length: v[0] })}
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <ToggleRow
                   label="A–Z Uppercase"
                   checked={options.uppercase}
-                  onChange={(v) => updateGenerator({ uppercase: v })}
+                  onChange={(v) => void updateGenerator({ uppercase: v })}
                 />
                 <ToggleRow
                   label="a–z Lowercase"
                   checked={options.lowercase}
-                  onChange={(v) => updateGenerator({ lowercase: v })}
+                  onChange={(v) => void updateGenerator({ lowercase: v })}
                 />
                 <ToggleRow
                   label="0–9 Numbers"
                   checked={options.numbers}
-                  onChange={(v) => updateGenerator({ numbers: v })}
+                  onChange={(v) => void updateGenerator({ numbers: v })}
                 />
                 <ToggleRow
                   label="!@# Symbols"
                   checked={options.symbols}
-                  onChange={(v) => updateGenerator({ symbols: v })}
+                  onChange={(v) => void updateGenerator({ symbols: v })}
                 />
               </div>
               <ToggleRow
                 label="Avoid ambiguous characters (0/O, 1/l/I)"
                 checked={options.avoidAmbiguous}
-                onChange={(v) => updateGenerator({ avoidAmbiguous: v })}
+                onChange={(v) => void updateGenerator({ avoidAmbiguous: v })}
               />
               {!atLeastOneSet && (
-                <p className="text-xs text-signal-warning">
+                <p className="text-signal-warning text-xs">
                   Enable at least one character set.
                 </p>
               )}

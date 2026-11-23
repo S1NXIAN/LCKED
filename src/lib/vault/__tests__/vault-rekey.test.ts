@@ -28,6 +28,7 @@ vi.mock("@/lib/vault/vault-db", () => ({
   loadAllStoredItems: vi.fn(async () => []),
   putStoredItem: vi.fn(async () => {}),
   deleteStoredItem: vi.fn(async () => {}),
+  vaultExists: vi.fn(async () => meta.current !== null),
   wipeVault: vi.fn(async () => {}),
 }));
 

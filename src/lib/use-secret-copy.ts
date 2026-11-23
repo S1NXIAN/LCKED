@@ -7,10 +7,9 @@ import { copyWithAutoClear, type TimeoutHandle } from "./clipboard";
 
 /**
  * Shared copy-with-feedback for secret fields: writes through
- * `copyWithAutoClear` (or raw clipboard when `noAutoClear`), flashes
- * `copied` for 1.5s so buttons can swap Copy→Check, reports via toast,
- * and cleans up its flash timer on unmount. One hook per component;
- * button markup stays site-specific.
+ * `copyWithAutoClear`, flashes `copied` for 1.5s so buttons can swap
+ * Copy→Check, reports via toast, and cleans up its flash timer on unmount.
+ * One hook per component; button markup stays site-specific.
  */
 export function useSecretCopy() {
   const [copied, setCopied] = React.useState(false);
@@ -25,23 +24,14 @@ export function useSecretCopy() {
   );
 
   const copy = React.useCallback(
-    async (
-      value: string | undefined,
-      label: string,
-      opts?: { noAutoClear?: boolean },
-    ): Promise<boolean> => {
+    async (value: string | undefined, label: string): Promise<boolean> => {
       if (!value) return false;
       try {
-        if (opts?.noAutoClear) {
-          await navigator.clipboard.writeText(value);
-        } else {
-          await copyWithAutoClear(value, label);
-        }
+        await copyWithAutoClear(value, label);
         setCopied(true);
-        toast.success(
-          `${label} copied`,
-          opts?.noAutoClear ? undefined : { description: "Auto-clears in 30s" },
-        );
+        toast.success(`${label} copied`, {
+          description: "Auto-clears in 30s",
+        });
         clearTimeout(timerRef.current);
         timerRef.current = setTimeout(() => setCopied(false), 1500);
         return true;

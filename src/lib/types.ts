@@ -185,8 +185,6 @@ export interface VaultSettings {
   lockOnVisibility: boolean;
   /** Default password generator options. */
   generator: GeneratorOptions;
-  /** Theme preference persisted across sessions. */
-  theme: "dark" | "light";
   /** Whether login favicons are fetched (off = privacy / fully offline). */
   showFavicons: boolean;
   /** Whether favorite items sort to the top regardless of the active sort key. */
@@ -223,7 +221,6 @@ export const DEFAULT_VAULT_SETTINGS: VaultSettings = {
   autoLockMinutes: 15,
   lockOnVisibility: true,
   generator: DEFAULT_GENERATOR_OPTIONS,
-  theme: "dark",
   showFavicons: true,
   sortFavoritesFirst: false,
   hoverItemActions: true,

@@ -46,7 +46,6 @@ vi.mock("@/lib/vault/vault-db", () => ({
         symbols: true,
         avoidAmbiguous: true,
       },
-      theme: "dark",
       showFavicons: true,
       sortFavoritesFirst: false,
       hoverItemActions: true,
@@ -55,6 +54,7 @@ vi.mock("@/lib/vault/vault-db", () => ({
     vaults: [],
   })),
   saveVaultMeta: vi.fn(async () => {}),
+  writeVaultDeletion: vi.fn(async () => {}),
   putStoredItem: vi.fn(async () => {}),
 }));
 
@@ -118,7 +118,6 @@ function makeVaultMeta(overrides: Partial<VaultMeta> = {}): VaultMeta {
         symbols: true,
         avoidAmbiguous: true,
       },
-      theme: "dark",
       showFavicons: true,
       sortFavoritesFirst: false,
       hoverItemActions: true,
@@ -237,7 +236,7 @@ describe("renameVault", () => {
 
 describe("deleteVault", () => {
   it("removes vault, orphans items that belonged to it, re-encrypts", async () => {
-    const { loadVaultMeta, saveVaultMeta, putStoredItem } =
+    const { loadVaultMeta, writeVaultDeletion } =
       await import("@/lib/vault/vault-db");
     vi.mocked(loadVaultMeta).mockResolvedValueOnce(
       makeVaultMeta({
@@ -262,22 +261,18 @@ describe("deleteVault", () => {
       itemInV1.updatedAt,
     );
 
-    // Written to IndexedDB
-    expect(putStoredItem).toHaveBeenCalledTimes(1);
-    expect(putStoredItem).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "item-a" }),
-    );
-
-    // Meta saved with vault v2 only
-    expect(saveVaultMeta).toHaveBeenCalledWith(
+    // Item rows + meta commit in the same write.
+    expect(writeVaultDeletion).toHaveBeenCalledTimes(1);
+    expect(writeVaultDeletion).toHaveBeenCalledWith(
       expect.objectContaining({
         vaults: [expect.objectContaining({ id: "v2" })],
       }),
+      [expect.objectContaining({ id: "item-a" })],
     );
   });
 
   it("removes vault when no items belong to it", async () => {
-    const { loadVaultMeta, saveVaultMeta, putStoredItem } =
+    const { loadVaultMeta, writeVaultDeletion } =
       await import("@/lib/vault/vault-db");
     vi.mocked(loadVaultMeta).mockResolvedValueOnce(
       makeVaultMeta({ vaults: [makeVaultDef({ id: "v1" })] }),
@@ -287,24 +282,26 @@ describe("deleteVault", () => {
 
     expect(result.vaults).toHaveLength(0);
     expect(result.updatedItems).toBeUndefined();
-    expect(putStoredItem).not.toHaveBeenCalled();
-    expect(saveVaultMeta).toHaveBeenCalled();
+    expect(writeVaultDeletion).toHaveBeenCalledWith(
+      expect.objectContaining({ vaults: [] }),
+      [],
+    );
   });
 
   it("silent no-op when vault meta is missing", async () => {
-    const { loadVaultMeta, saveVaultMeta } =
+    const { loadVaultMeta, writeVaultDeletion } =
       await import("@/lib/vault/vault-db");
     vi.mocked(loadVaultMeta).mockResolvedValueOnce(undefined);
 
     const result = await deleteVault("v1", mockVaultKey, []);
 
     expect(result).toEqual({ vaults: [] });
-    expect(saveVaultMeta).not.toHaveBeenCalled();
+    expect(writeVaultDeletion).not.toHaveBeenCalled();
   });
 
-  it("throws and does not save meta when re-encryption fails", async () => {
+  it("throws and writes nothing when re-encryption fails", async () => {
     const { encryptJson } = await import("@/lib/crypto");
-    const { loadVaultMeta, saveVaultMeta } =
+    const { loadVaultMeta, writeVaultDeletion } =
       await import("@/lib/vault/vault-db");
 
     vi.mocked(loadVaultMeta).mockResolvedValueOnce(
@@ -317,7 +314,21 @@ describe("deleteVault", () => {
     await expect(deleteVault("v1", mockVaultKey, [item])).rejects.toThrow(
       "crypto fail",
     );
-    expect(saveVaultMeta).not.toHaveBeenCalled();
+    expect(writeVaultDeletion).not.toHaveBeenCalled();
+  });
+
+  it("throws and writes nothing when the atomic commit fails", async () => {
+    const { loadVaultMeta, writeVaultDeletion } =
+      await import("@/lib/vault/vault-db");
+    vi.mocked(loadVaultMeta).mockResolvedValueOnce(
+      makeVaultMeta({ vaults: [makeVaultDef({ id: "v1" })] }),
+    );
+    vi.mocked(writeVaultDeletion).mockRejectedValueOnce(new Error("idb fail"));
+
+    await expect(
+      deleteVault("v1", mockVaultKey, [makeItem({ vaultIds: ["v1"] })]),
+    ).rejects.toThrow("idb fail");
+    expect(writeVaultDeletion).toHaveBeenCalledTimes(1);
   });
 });
 

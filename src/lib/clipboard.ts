@@ -32,14 +32,21 @@ export async function copyWithAutoClear(
   if (prior) clearTimeout(prior);
   const clearIfUnchanged = async () => {
     try {
-      const current = await navigator.clipboard.readText().catch(() => "");
+      if (!navigator.clipboard.readText) {
+        await navigator.clipboard.writeText("");
+        return;
+      }
+      const current = await navigator.clipboard.readText();
       if (current === value) {
         await navigator.clipboard.writeText("");
       }
     } catch {
-      // readText may be denied — best-effort clear.
+      // A denied read cannot prove the clipboard changed — clear it anyway
+      // so a copied secret never outlives its timer.
+      await navigator.clipboard.writeText("").catch(() => {});
+    } finally {
+      clipboardTimers.delete(key);
     }
-    clipboardTimers.delete(key);
   };
   const timer = setTimeout(() => void clearIfUnchanged(), clearMs);
   clipboardTimers.set(key, timer);

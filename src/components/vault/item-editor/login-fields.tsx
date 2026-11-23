@@ -11,7 +11,7 @@ import { Globe, KeyRound, Lock, Mail, Plus, Trash2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { type LoginDetails, type VaultSettings } from "@/lib/types";
+import { type LoginDetails } from "@/lib/types";
 import { cn, isEmail } from "@/lib/utils";
 
 import {
@@ -26,7 +26,6 @@ import { PasswordField } from "../password-field";
 
 export function LoginFields({
   details,
-  settings,
   knownUrls,
   urlKeys,
   updateDetails,
@@ -36,7 +35,6 @@ export function LoginFields({
 }: {
   /** Login draft narrowed at the caller's `form.type === "login"` guard. */
   details: LoginDetails;
-  settings: VaultSettings;
   /** Existing URLs across all non-trashed items — datalist autofill suggestions. */
   knownUrls: string[];
   urlKeys: string[];
@@ -72,7 +70,6 @@ export function LoginFields({
             placeholder="Enter password"
             showStrength
             showGenerate
-            generatorOptions={settings.generator}
             inputClassName={flatPasswordInputCls}
           />
         </FieldRowInput>
@@ -156,7 +153,7 @@ export function LoginFields({
                 type="button"
                 size="icon"
                 variant="ghost"
-                className="text-muted-foreground h-7 w-7 shrink-0 hover:text-signal-danger"
+                className="text-muted-foreground hover:text-signal-danger h-7 w-7 shrink-0"
                 onClick={() => removeUrl(idx)}
                 aria-label={`Remove URL ${idx + 1}`}
               >

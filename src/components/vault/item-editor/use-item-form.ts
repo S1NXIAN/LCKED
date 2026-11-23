@@ -65,6 +65,27 @@ function blankItem(type: ItemType): NewItemInput {
   };
 }
 
+export interface EditorCloseHandlers {
+  /** Keep the draft open and ask before discarding. */
+  confirmDiscard: () => void;
+  /** Close the editor immediately. */
+  close: () => void;
+}
+
+/**
+ * Every close path (Cancel, Escape, overlay click) asks before discarding only
+ * when the draft is dirty and no save is in flight. A clean draft closes
+ * immediately.
+ */
+export function requestEditorClose(
+  dirty: boolean,
+  busy: boolean,
+  handlers: EditorCloseHandlers,
+): void {
+  if (dirty && !busy) handlers.confirmDiscard();
+  else handlers.close();
+}
+
 export function useItemForm() {
   const open = useVault((s) => s.editorOpen);
   const editorItemId = useVault((s) => s.editorItemId);

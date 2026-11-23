@@ -11,7 +11,7 @@
  */
 
 import { encryptJson, randomId } from "@/lib/crypto";
-import type { NewItemInput, VaultItem } from "@/lib/types";
+import type { NewItemInput, StoredItem, VaultItem } from "@/lib/types";
 import { deleteStoredItem, putStoredItem } from "@/lib/vault/vault-db";
 
 /* ─── Item policy primitives ────────────────────────────── */
@@ -48,6 +48,26 @@ export function toItemInput(item: VaultItem): NewItemInput {
 }
 
 /**
+ * Build the on-disk record for an item (ciphertext + non-sensitive metadata)
+ * without writing it. Shared by the single-item persist path and the atomic
+ * custom-vault deletion, which commits several records in one transaction.
+ */
+export async function encryptStoredItem(
+  item: VaultItem,
+  vaultKey: CryptoKey,
+): Promise<StoredItem> {
+  const { ciphertext, iv } = await encryptJson(item, vaultKey);
+  return {
+    id: item.id,
+    type: item.type,
+    ciphertext,
+    iv,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  };
+}
+
+/**
  * Encrypt an item and persist the ciphertext to IndexedDB. The shared body
  * behind every item write (create, patch, bulk patch, migration, re-encrypt).
  */
@@ -55,15 +75,7 @@ export async function encryptAndPersist(
   item: VaultItem,
   vaultKey: CryptoKey,
 ): Promise<void> {
-  const { ciphertext, iv } = await encryptJson(item, vaultKey);
-  await putStoredItem({
-    id: item.id,
-    type: item.type,
-    ciphertext,
-    iv,
-    createdAt: item.createdAt,
-    updatedAt: item.updatedAt,
-  });
+  await putStoredItem(await encryptStoredItem(item, vaultKey));
 }
 
 /**

@@ -134,7 +134,8 @@ describe("restoreVault — encrypted backup", () => {
 
     const deps = makeDeps();
     const result = await restoreVault({
-      masterPassword: "bad",
+      masterPassword: "new-master",
+      backupPassword: "bad",
       filename: "backup.json",
       fileText: "{}",
       deps,
@@ -159,6 +160,7 @@ describe("restoreVault — encrypted backup", () => {
     const deps = makeDeps();
     const result = await restoreVault({
       masterPassword: "pw",
+      backupPassword: "pw",
       filename: "backup.json",
       fileText: "{}",
       deps,
@@ -166,6 +168,31 @@ describe("restoreVault — encrypted backup", () => {
 
     expect(result).toEqual({ ok: false, reason: "invalid-file" });
     expect(deps.setupVault).not.toHaveBeenCalled();
+  });
+
+  it("decrypts with the backup passphrase and creates the vault with the new master password", async () => {
+    vi.mocked(importFromText).mockReturnValue({
+      result: { format: "lcked-json", raw: {} },
+      items: [],
+    } as never);
+    vi.mocked(decryptLckedExport).mockResolvedValue({
+      ok: true,
+      items: [],
+      vaults: [],
+    });
+
+    const deps = makeDeps();
+    const result = await restoreVault({
+      masterPassword: "new-master",
+      backupPassword: "backup-pass",
+      filename: "backup.json",
+      fileText: "{}",
+      deps,
+    });
+
+    expect(result).toEqual({ ok: true, imported: 0 });
+    expect(decryptLckedExport).toHaveBeenCalledWith({}, "backup-pass");
+    expect(deps.setupVault).toHaveBeenCalledWith("new-master");
   });
 
   it("creates the vault before custom vaults, remaps memberships, and counts imports", async () => {
@@ -192,6 +219,7 @@ describe("restoreVault — encrypted backup", () => {
     const deps = makeDeps();
     const result = await restoreVault({
       masterPassword: "pw",
+      backupPassword: "pw",
       filename: "backup.json",
       fileText: "{}",
       deps,
@@ -233,6 +261,7 @@ describe("restoreVault — encrypted backup", () => {
 
     const result = await restoreVault({
       masterPassword: "pw",
+      backupPassword: "pw",
       filename: "backup.json",
       fileText: "{}",
       deps,
@@ -254,6 +283,7 @@ describe("restoreVault — plain import and no-file paths", () => {
 
     const result = await restoreVault({
       masterPassword: "pw",
+      backupPassword: "pw",
       filename: "import.json",
       fileText: "{}",
       deps,
@@ -271,6 +301,7 @@ describe("restoreVault — plain import and no-file paths", () => {
 
     const result = await restoreVault({
       masterPassword: "pw",
+      backupPassword: "pw",
       filename: "",
       fileText: null,
       deps,

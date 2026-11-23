@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  clearGeneratorCallback,
   consumeGeneratorCallback,
   hasGeneratorCallback,
   setGeneratorCallback,
+  subscribeGeneratorCallback,
 } from "@/lib/generator/generator-bridge";
 
 describe("generator-bridge", () => {
@@ -54,5 +56,42 @@ describe("generator-bridge", () => {
     consumeGeneratorCallback("pw");
     expect(fn2).toHaveBeenCalledWith("pw");
     expect(fn1).not.toHaveBeenCalled();
+  });
+
+  it("clears the field's callback when it unmounts", () => {
+    const fieldCallback = vi.fn();
+    setGeneratorCallback(fieldCallback);
+
+    // PasswordField's unmount cleanup drops only its own callback, without
+    // firing it — the standalone Generator then offers Copy, not "Use".
+    clearGeneratorCallback(fieldCallback);
+
+    expect(hasGeneratorCallback()).toBe(false);
+    expect(fieldCallback).not.toHaveBeenCalled();
+  });
+
+  it("does not clear a newer field's callback", () => {
+    const oldField = vi.fn();
+    const newField = vi.fn();
+    setGeneratorCallback(oldField);
+    setGeneratorCallback(newField);
+
+    clearGeneratorCallback(oldField);
+
+    expect(hasGeneratorCallback()).toBe(true);
+  });
+
+  it("notifies the open Generator when the pending callback changes", () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribeGeneratorCallback(listener);
+    const fieldCallback = vi.fn();
+
+    setGeneratorCallback(fieldCallback);
+    clearGeneratorCallback(fieldCallback);
+    unsubscribe();
+    setGeneratorCallback(vi.fn());
+
+    // Two changes while subscribed; the post-unsubscribe change is silent.
+    expect(listener).toHaveBeenCalledTimes(2);
   });
 });

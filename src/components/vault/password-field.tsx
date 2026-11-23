@@ -13,8 +13,10 @@ import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { setGeneratorCallback } from "@/lib/generator/generator-bridge";
-import type { GeneratorOptions } from "@/lib/types";
+import {
+  clearGeneratorCallback,
+  setGeneratorCallback,
+} from "@/lib/generator/generator-bridge";
 import { useSecretCopy } from "@/lib/use-secret-copy";
 import { cn } from "@/lib/utils";
 import { useVault } from "@/store/vault";
@@ -31,15 +33,11 @@ interface PasswordFieldProps {
   showGenerate?: boolean;
   /** Show the copy button (default true). */
   showCopy?: boolean;
-  /** Generator options to use for the inline dice button. */
-  generatorOptions?: GeneratorOptions;
   className?: string;
   inputClassName?: string;
   label?: string;
   /** When false, treat as a plain masked field (no reveal toggle). */
   revealable?: boolean;
-  /** Disable auto-copy clear countdown (used for non-sensitive fields). */
-  noAutoClear?: boolean;
   icon?: LucideIcon;
 }
 
@@ -56,31 +54,45 @@ export function PasswordField({
   showStrength = false,
   showGenerate = true,
   showCopy = true,
-  generatorOptions: _generatorOptions,
   className,
   inputClassName,
   label,
   revealable = true,
-  noAutoClear = false,
   icon: Icon,
 }: PasswordFieldProps) {
   const [revealed, setRevealed] = React.useState(false);
   const { copied, copy } = useSecretCopy();
   const [countdown, setCountdown] = React.useState<number | null>(null);
+  const generatorCallback = React.useRef<((password: string) => void) | null>(
+    null,
+  );
+
+  // A field that closes (including via auto-lock) must not leave the
+  // Generator pointing at it.
+  React.useEffect(
+    () => () => {
+      if (generatorCallback.current) {
+        clearGeneratorCallback(generatorCallback.current);
+      }
+    },
+    [],
+  );
 
   const handleGenerate = () => {
     // Open the generator sidebar with a callback that inserts the password
     // into this field when the user clicks "Use this password".
-    setGeneratorCallback((pw: string) => {
+    const cb = (pw: string) => {
       onChange(pw);
       setRevealed(true);
-    });
+    };
+    generatorCallback.current = cb;
+    setGeneratorCallback(cb);
     useVault.getState().setGeneratorOpen(true);
   };
 
   const handleCopy = async () => {
-    const ok = await copy(value, label ?? "field", { noAutoClear });
-    if (ok && !noAutoClear) setCountdown(30);
+    const ok = await copy(value, label ?? "field");
+    if (ok) setCountdown(30);
   };
 
   // Countdown ticker for the auto-clear badge.
@@ -156,7 +168,7 @@ export function PasswordField({
               title="Copy (auto-clears in 30s)"
             >
               {copied ? (
-                <Check className="h-4 w-4 text-signal-success" />
+                <Check className="text-signal-success h-4 w-4" />
               ) : (
                 <Copy className="h-4 w-4" />
               )}
